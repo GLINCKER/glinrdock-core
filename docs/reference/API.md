@@ -52,6 +52,55 @@ Returns system information (public endpoint).
 }
 ```
 
+#### GET /v1/system/config
+Returns system configuration settings. **Admin only.**
+
+**Response:**
+```json
+{
+  "dns": {
+    "verify_enabled": true,
+    "public_edge_host": "edge.example.com",
+    "public_edge_ipv4": "203.0.113.1",
+    "public_edge_ipv6": "2001:db8::1",
+    "resolvers": ["1.1.1.1:53", "8.8.8.8:53"]
+  },
+  "acme": {
+    "directory_url": "https://acme-v02.api.letsencrypt.org/directory",
+    "email": "admin@example.com",
+    "http01_enabled": true,
+    "dns01_enabled": true
+  },
+  "cloudflare": {
+    "api_token_configured": true
+  },
+  "nginx": {
+    "proxy_enabled": false
+  },
+  "security": {
+    "secrets_enabled": true
+  }
+}
+```
+
+**Environment Variables:**
+- `DNS_VERIFY_ENABLED` (default: true) - Enable domain verification
+- `PUBLIC_EDGE_HOST` - Public edge hostname for domain verification
+- `PUBLIC_EDGE_IPV4` - Public edge IPv4 address for A record verification  
+- `PUBLIC_EDGE_IPV6` - Public edge IPv6 address for AAAA record verification
+- `DNS_RESOLVERS` (default: "1.1.1.1:53,8.8.8.8:53") - DNS resolvers for verification
+- `ACME_DIRECTORY_URL` (default: Let's Encrypt production) - ACME directory URL
+- `ACME_EMAIL` - Contact email for ACME certificate requests
+- `ACME_HTTP01_ENABLED` (default: true) - Enable HTTP-01 ACME challenge
+- `ACME_DNS01_ENABLED` (default: true) - Enable DNS-01 ACME challenge
+- `CF_API_TOKEN` - Cloudflare API token (optional, can be stored via UI)
+
+**Notes:**
+- Sensitive configuration values (API tokens, secrets) are redacted in responses
+- Configuration changes require server restart to take effect
+- Missing optional values are returned as empty strings
+- Boolean flags default to sensible values when not specified
+
 ### Token Management
 
 #### POST /v1/tokens

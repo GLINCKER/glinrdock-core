@@ -24,6 +24,7 @@ import (
 	"github.com/GLINCKER/glinrdock/internal/plan"
 	"github.com/GLINCKER/glinrdock/internal/proxy"
 	"github.com/GLINCKER/glinrdock/internal/store"
+	"github.com/GLINCKER/glinrdock/internal/util"
 	"github.com/GLINCKER/glinrdock/internal/version"
 	"github.com/gin-gonic/gin"
 )
@@ -47,6 +48,7 @@ type Handlers struct {
 	licenseManager  *license.Manager
 	auditLogger     *audit.Logger
 	config          *config.PlanConfig
+	systemConfig    *util.Config   // Add system configuration
 	eventCache      *events.EventCache
 	environmentStore *store.EnvironmentStore
 	registryStore    *store.RegistryStore
@@ -60,7 +62,7 @@ type Handlers struct {
 }
 
 // NewHandlers creates new handlers with dependencies
-func NewHandlers(dockerClient dockerx.Client, mainStore *store.Store, tokenStore TokenStore, projectStore ProjectStore, serviceStore ServiceStore, routeStore RouteStore, envVarStore EnvVarStore, dockerEngine DockerEngine, nginxConfig *proxy.NginxConfig, cicdHandlers *CICDHandlers, certHandlers *CertHandlers, metricsHandlers *MetricsHandlers, webhookHandlers *WebhookHandlers, planEnforcer *plan.Enforcer, licenseManager *license.Manager, auditLogger *audit.Logger, config *config.PlanConfig, eventCache *events.EventCache, environmentStore *store.EnvironmentStore, registryStore *store.RegistryStore, networkManager *docker.NetworkManager, oauthService *auth.OAuthService, githubHandlers *GitHubHandlers, settingsHandlers *SettingsHandlers, githubAppHandlers *GitHubAppHandlers, searchHandlers *SearchHandlers, helpHandlers *HelpHandlers) *Handlers {
+func NewHandlers(dockerClient dockerx.Client, mainStore *store.Store, tokenStore TokenStore, projectStore ProjectStore, serviceStore ServiceStore, routeStore RouteStore, envVarStore EnvVarStore, dockerEngine DockerEngine, nginxConfig *proxy.NginxConfig, cicdHandlers *CICDHandlers, certHandlers *CertHandlers, metricsHandlers *MetricsHandlers, webhookHandlers *WebhookHandlers, planEnforcer *plan.Enforcer, licenseManager *license.Manager, auditLogger *audit.Logger, config *config.PlanConfig, systemConfig *util.Config, eventCache *events.EventCache, environmentStore *store.EnvironmentStore, registryStore *store.RegistryStore, networkManager *docker.NetworkManager, oauthService *auth.OAuthService, githubHandlers *GitHubHandlers, settingsHandlers *SettingsHandlers, githubAppHandlers *GitHubAppHandlers, searchHandlers *SearchHandlers, helpHandlers *HelpHandlers) *Handlers {
 	return &Handlers{
 		dockerClient:     dockerClient,
 		store:            mainStore,
@@ -79,6 +81,7 @@ func NewHandlers(dockerClient dockerx.Client, mainStore *store.Store, tokenStore
 		licenseManager:   licenseManager,
 		auditLogger:      auditLogger,
 		config:           config,
+		systemConfig:     systemConfig,
 		eventCache:       eventCache,
 		environmentStore: environmentStore,
 		registryStore:    registryStore,
@@ -132,6 +135,45 @@ func (h *Handlers) System(c *gin.Context) {
 		"uptime":       version.GetUptime().String(),
 		"nginx_proxy_enabled": h.nginxConfig != nil,
 	})
+}
+
+// SystemConfig returns system configuration settings
+func (h *Handlers) SystemConfig(c *gin.Context) {
+	if h.systemConfig == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": "system configuration not available",
+		})
+		return
+	}
+
+	// Return system configuration with DNS and ACME settings
+	// Sensitive values like secrets are redacted
+	config := gin.H{
+		"dns": gin.H{
+			"verify_enabled":     h.systemConfig.DNSVerifyEnabled,
+			"public_edge_host":   h.systemConfig.PublicEdgeHost,
+			"public_edge_ipv4":   h.systemConfig.PublicEdgeIPv4,
+			"public_edge_ipv6":   h.systemConfig.PublicEdgeIPv6,
+			"resolvers":          h.systemConfig.DNSResolvers,
+		},
+		"acme": gin.H{
+			"directory_url":      h.systemConfig.ACMEDirectoryURL,
+			"email":              h.systemConfig.ACMEEmail,
+			"http01_enabled":     h.systemConfig.ACMEHTTP01Enabled,
+			"dns01_enabled":      h.systemConfig.ACMEDNS01Enabled,
+		},
+		"cloudflare": gin.H{
+			"api_token_configured": h.systemConfig.CFAPIToken != "",
+		},
+		"nginx": gin.H{
+			"proxy_enabled": h.systemConfig.NginxProxyEnabled,
+		},
+		"security": gin.H{
+			"secrets_enabled": h.systemConfig.Secret != "",
+		},
+	}
+
+	c.JSON(http.StatusOK, config)
 }
 
 // GetSystemPlan returns plan information with usage and limits

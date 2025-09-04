@@ -295,6 +295,7 @@ func main() {
 		licenseManager,
 		auditLogger,
 		planConf,
+		config,           // system config
 		eventCache,
 		storeInstance.EnvironmentStore,
 		storeInstance.RegistryStore,

@@ -26,6 +26,7 @@ func SetupRoutes(r *gin.Engine, handlers *Handlers, corsOrigins []string, authSe
 		v1.GET("/health", handlers.Health)
 		v1.HEAD("/health", handlers.Health) // HEAD method for health checks
 		v1.GET("/system", handlers.System)
+		v1.GET("/system/config", authService.Middleware(), authService.RequireAdminRole(), handlers.SystemConfig) // System configuration (admin only)
 		v1.GET("/system/metrics", handlers.SystemMetrics)
 		v1.GET("/system/lockdown-status", handlers.GetLockdownStatus)
 		v1.GET("/system/status", handlers.GetSystemStatus)
