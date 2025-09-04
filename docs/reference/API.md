@@ -851,6 +851,252 @@ Initiates certificate renewal (returns 501 for manual certificates). **Admin onl
 - Manual/custom certificates must be renewed by uploading new certificate data
 - Returns HTTP 501 for unsupported certificate types
 
+### Domain and TLS Management
+
+> **⚠️ New Feature**: Enhanced domain and TLS management with DNS provider integration. Provides comprehensive domain ownership verification and automated certificate management.
+
+#### POST /v1/dns-providers {#dns-providers-create}
+Creates a new DNS provider configuration. **Admin only.**
+
+**Request:**
+```json
+{
+  "name": "cloudflare-primary",
+  "type": "cloudflare",
+  "config": {
+    "api_token": "your-cloudflare-api-token",
+    "zone_id": "your-zone-id"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "name": "cloudflare-primary",
+  "type": "cloudflare",
+  "created_at": "2025-09-04T15:30:00Z",
+  "updated_at": "2025-09-04T15:30:00Z"
+}
+```
+
+**Notes:**
+- Configuration data is encrypted at rest using AES-GCM
+- Supported types: `cloudflare`
+- Provider name must be unique
+
+#### GET /v1/dns-providers {#dns-providers-list}
+Lists all DNS provider configurations. **Admin only.**
+
+**Response:**
+```json
+{
+  "dns_providers": [
+    {
+      "id": 1,
+      "name": "cloudflare-primary",
+      "type": "cloudflare",
+      "created_at": "2025-09-04T15:30:00Z",
+      "updated_at": "2025-09-04T15:30:00Z"
+    }
+  ]
+}
+```
+
+#### DELETE /v1/dns-providers/:id {#dns-providers-delete}
+Deletes a DNS provider configuration. **Admin only.**
+
+**Response:**
+```json
+{
+  "message": "DNS provider deleted successfully"
+}
+```
+
+#### POST /v1/domains {#domains-create}
+Registers a new domain for management. **Admin only.**
+
+**Request:**
+```json
+{
+  "domain": "api.example.com",
+  "provider_id": 1,
+  "auto_manage": true
+}
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "domain": "api.example.com",
+  "provider_id": 1,
+  "auto_manage": true,
+  "created_at": "2025-09-04T15:30:00Z",
+  "updated_at": "2025-09-04T15:30:00Z"
+}
+```
+
+**Notes:**
+- `provider_id` is optional; null means manual DNS management
+- `auto_manage` enables automatic DNS record management
+- Domain must be unique
+
+#### GET /v1/domains {#domains-list}
+Lists all managed domains. **Admin only.**
+
+**Response:**
+```json
+{
+  "domains": [
+    {
+      "id": 1,
+      "domain": "api.example.com",
+      "provider_id": 1,
+      "auto_manage": true,
+      "created_at": "2025-09-04T15:30:00Z",
+      "updated_at": "2025-09-04T15:30:00Z"
+    }
+  ]
+}
+```
+
+#### POST /v1/domains/:id/verify {#domains-verify}
+Initiates domain ownership verification. **Admin only.**
+
+**Request:**
+```json
+{
+  "method": "TXT",
+  "challenge": "glinrdock-verify=abc123def456"
+}
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "domain_id": 1,
+  "method": "TXT",
+  "challenge": "glinrdock-verify=abc123def456",
+  "status": "pending",
+  "created_at": "2025-09-04T15:30:00Z",
+  "updated_at": "2025-09-04T15:30:00Z"
+}
+```
+
+**Notes:**
+- Supported methods: `A`, `CNAME`, `TXT`
+- Verification status: `pending`, `verified`, `failed`
+- Challenge format depends on verification method
+
+#### GET /v1/domains/:id/verifications {#domains-verifications-list}
+Lists domain verification attempts. **Admin only.**
+
+**Response:**
+```json
+{
+  "verifications": [
+    {
+      "id": 1,
+      "domain_id": 1,
+      "method": "TXT",
+      "challenge": "glinrdock-verify=abc123def456",
+      "status": "verified",
+      "last_checked_at": "2025-09-04T15:35:00Z",
+      "created_at": "2025-09-04T15:30:00Z",
+      "updated_at": "2025-09-04T15:35:00Z"
+    }
+  ]
+}
+```
+
+#### POST /v1/certificates/enhanced {#certificates-enhanced-create}
+Creates a new enhanced certificate with full metadata. **Admin only.**
+
+**Request:**
+```json
+{
+  "domain": "api.example.com",
+  "type": "acme",
+  "issuer": "Let's Encrypt",
+  "pem_cert": "-----BEGIN CERTIFICATE-----\n...",
+  "pem_chain": "-----BEGIN CERTIFICATE-----\n...",
+  "pem_key": "-----BEGIN PRIVATE KEY-----\n..."
+}
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "domain": "api.example.com",
+  "type": "acme",
+  "issuer": "Let's Encrypt",
+  "not_before": "2025-09-04T00:00:00Z",
+  "not_after": "2025-12-04T00:00:00Z",
+  "status": "active",
+  "pem_cert": "-----BEGIN CERTIFICATE-----\n...",
+  "pem_chain": "-----BEGIN CERTIFICATE-----\n...",
+  "created_at": "2025-09-04T15:30:00Z",
+  "updated_at": "2025-09-04T15:30:00Z"
+}
+```
+
+**Notes:**
+- Private keys are encrypted at rest using AES-GCM
+- Certificate validity dates are automatically parsed from PEM data
+- Status is automatically determined from certificate validity
+- Private key data is never returned in API responses
+
+#### GET /v1/certificates/enhanced {#certificates-enhanced-list}
+Lists all enhanced certificates. **Admin only.**
+
+**Response:**
+```json
+{
+  "certificates": [
+    {
+      "id": 1,
+      "domain": "api.example.com",
+      "type": "acme",
+      "issuer": "Let's Encrypt",
+      "not_before": "2025-09-04T00:00:00Z",
+      "not_after": "2025-12-04T00:00:00Z",
+      "status": "active",
+      "created_at": "2025-09-04T15:30:00Z",
+      "updated_at": "2025-09-04T15:30:00Z"
+    }
+  ]
+}
+```
+
+**Notes:**
+- Private key data is redacted with `[REDACTED: length=XXX, fingerprint=XXXX]`
+- PEM certificate and chain data included for active certificates
+- Use `/certificates/enhanced/:id` for full certificate data
+
+#### GET /v1/certificates/enhanced/:id {#certificates-enhanced-get}
+Gets detailed enhanced certificate information. **Admin only.**
+
+**Response:**
+```json
+{
+  "id": 1,
+  "domain": "api.example.com",
+  "type": "acme",
+  "issuer": "Let's Encrypt",
+  "not_before": "2025-09-04T00:00:00Z",
+  "not_after": "2025-12-04T00:00:00Z",
+  "status": "active",
+  "pem_cert": "-----BEGIN CERTIFICATE-----\n...",
+  "pem_chain": "-----BEGIN CERTIFICATE-----\n...",
+  "created_at": "2025-09-04T15:30:00Z",
+  "updated_at": "2025-09-04T15:30:00Z"
+}
+```
+
 ### Nginx Proxy Management
 
 > **⚠️ Feature Flag Required**: Nginx management endpoints require nginx proxy to be enabled (`NGINX_PROXY_ENABLED=true`) and are only available to admin users.

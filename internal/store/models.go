@@ -737,3 +737,185 @@ type GitHubWebhookEvent struct {
 	ErrorMessage   *string    `json:"error_message" db:"error_message"`
 	CreatedAt      time.Time  `json:"created_at" db:"created_at"`
 }
+
+// DNS Provider types
+const (
+	DNSProviderTypeCloudflare = "cloudflare"
+)
+
+// DNS verification methods
+const (
+	DNSVerificationMethodA     = "A"
+	DNSVerificationMethodCNAME = "CNAME"
+	DNSVerificationMethodTXT   = "TXT"
+)
+
+// DNS verification status
+const (
+	DNSVerificationStatusPending  = "pending"
+	DNSVerificationStatusVerified = "verified"
+	DNSVerificationStatusFailed   = "failed"
+)
+
+// Enhanced Certificate types and status
+const (
+	CertificateTypeACME     = "acme"
+	CertificateTypeUploaded = "uploaded"
+	
+	CertificateStatusActive  = "active"
+	CertificateStatusExpired = "expired"
+	CertificateStatusFailed  = "failed"
+	CertificateStatusPending = "pending"
+)
+
+// DNSProvider represents a DNS service provider for domain management
+type DNSProvider struct {
+	ID         int64     `json:"id" db:"id"`
+	Name       string    `json:"name" db:"name"`
+	Type       string    `json:"type" db:"type"` // cloudflare
+	ConfigJSON string    `json:"config_json" db:"config_json"` // Encrypted provider-specific config
+	CreatedAt  time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// DNSProviderSpec represents the specification for creating/updating a DNS provider
+type DNSProviderSpec struct {
+	Name       string                 `json:"name" binding:"required"`
+	Type       string                 `json:"type" binding:"required"`
+	Config     map[string]any `json:"config" binding:"required"`
+}
+
+// Domain represents a managed domain with optional auto-management
+type Domain struct {
+	ID          int64     `json:"id" db:"id"`
+	Domain      string    `json:"domain" db:"domain"`
+	ProviderID  *int64    `json:"provider_id" db:"provider_id"`
+	AutoManage  bool      `json:"auto_manage" db:"auto_manage"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// DomainSpec represents the specification for creating/updating a domain
+type DomainSpec struct {
+	Domain     string `json:"domain" binding:"required"`
+	ProviderID *int64 `json:"provider_id,omitempty"`
+	AutoManage *bool  `json:"auto_manage,omitempty"`
+}
+
+// DomainVerification represents a domain ownership verification attempt
+type DomainVerification struct {
+	ID            int64      `json:"id" db:"id"`
+	DomainID      int64      `json:"domain_id" db:"domain_id"`
+	Method        string     `json:"method" db:"method"` // A, CNAME, TXT
+	Challenge     string     `json:"challenge" db:"challenge"`
+	Status        string     `json:"status" db:"status"` // pending, verified, failed
+	LastCheckedAt *time.Time `json:"last_checked_at" db:"last_checked_at"`
+	CreatedAt     time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at" db:"updated_at"`
+}
+
+// DomainVerificationSpec represents the specification for creating a domain verification
+type DomainVerificationSpec struct {
+	Method    string `json:"method" binding:"required"`
+	Challenge string `json:"challenge" binding:"required"`
+}
+
+// EnhancedCertificate represents an enhanced SSL/TLS certificate with full metadata
+type EnhancedCertificate struct {
+	ID           int64      `json:"id" db:"id"`
+	Domain       string     `json:"domain" db:"domain"`
+	Type         string     `json:"type" db:"type"` // acme, uploaded
+	Issuer       *string    `json:"issuer" db:"issuer"`
+	NotBefore    *time.Time `json:"not_before" db:"not_before"`
+	NotAfter     *time.Time `json:"not_after" db:"not_after"`
+	Status       string     `json:"status" db:"status"` // active, expired, failed, pending
+	PEMCert      *string    `json:"pem_cert" db:"pem_cert"`
+	PEMChain     *string    `json:"pem_chain" db:"pem_chain"`
+	PEMKeyEnc    *string    `json:"-" db:"pem_key_enc"` // Encrypted private key (never exposed in JSON)
+	PEMKeyNonce  *string    `json:"-" db:"pem_key_nonce"` // Encryption nonce (never exposed in JSON)
+	CreatedAt    time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at" db:"updated_at"`
+}
+
+// EnhancedCertificateForAPI returns a copy of the certificate with key data redacted for API responses
+func (c EnhancedCertificate) EnhancedCertificateForAPI() EnhancedCertificate {
+	apiCert := c
+	if c.PEMKeyEnc != nil && *c.PEMKeyEnc != "" {
+		keyStr := *c.PEMKeyEnc
+		length := len(keyStr)
+		
+		// Create SHA-256 fingerprint of the encrypted key data
+		hash := sha256.Sum256([]byte(keyStr))
+		fingerprint := hex.EncodeToString(hash[:8]) // Use first 8 bytes (16 hex chars) for fingerprint
+		
+		// Redact with length and fingerprint info
+		redacted := fmt.Sprintf("[REDACTED: length=%d, fingerprint=%s]", length, fingerprint)
+		apiCert.PEMKeyEnc = &redacted
+	}
+	// Always remove nonce from API responses
+	apiCert.PEMKeyNonce = nil
+	return apiCert
+}
+
+// DecryptPEMKey decrypts the PEM private key using the provided master key
+func (c *EnhancedCertificate) DecryptPEMKey(masterKey []byte) error {
+	if c.PEMKeyEnc == nil || c.PEMKeyNonce == nil {
+		return nil // No key data to decrypt
+	}
+	
+	// Decode base64 encrypted data and nonce
+	encryptedData, err := base64.StdEncoding.DecodeString(*c.PEMKeyEnc)
+	if err != nil {
+		return fmt.Errorf("failed to decode encrypted PEM key: %w", err)
+	}
+	
+	nonce, err := base64.StdEncoding.DecodeString(*c.PEMKeyNonce)
+	if err != nil {
+		return fmt.Errorf("failed to decode nonce: %w", err)
+	}
+	
+	// Decrypt using the crypto package
+	plaintext, err := crypto.Decrypt(masterKey, nonce, encryptedData)
+	if err != nil {
+		return fmt.Errorf("failed to decrypt PEM key: %w", err)
+	}
+	
+	// Replace encrypted data with decrypted plaintext
+	decrypted := string(plaintext)
+	c.PEMKeyEnc = &decrypted
+	
+	return nil
+}
+
+// EncryptPEMKey encrypts the PEM private key using the provided master key
+func (c *EnhancedCertificate) EncryptPEMKey(masterKey []byte) error {
+	if c.PEMKeyEnc == nil || *c.PEMKeyEnc == "" {
+		return nil // No key data to encrypt
+	}
+	
+	// Encrypt the key data
+	nonce, ciphertext, err := crypto.Encrypt(masterKey, []byte(*c.PEMKeyEnc))
+	if err != nil {
+		return fmt.Errorf("failed to encrypt PEM key: %w", err)
+	}
+	
+	// Encode as base64 for storage
+	encryptedData := base64.StdEncoding.EncodeToString(ciphertext)
+	encodedNonce := base64.StdEncoding.EncodeToString(nonce)
+	
+	// Update the struct
+	c.PEMKeyEnc = &encryptedData
+	c.PEMKeyNonce = &encodedNonce
+	
+	return nil
+}
+
+// EnhancedCertificateSpec represents the specification for creating an enhanced certificate
+type EnhancedCertificateSpec struct {
+	Domain    string  `json:"domain" binding:"required"`
+	Type      string  `json:"type" binding:"required"`
+	Issuer    *string `json:"issuer,omitempty"`
+	PEMCert   *string `json:"pem_cert,omitempty"`
+	PEMChain  *string `json:"pem_chain,omitempty"`
+	PEMKey    *string `json:"pem_key,omitempty"`
+}
