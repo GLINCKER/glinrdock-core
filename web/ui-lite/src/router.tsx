@@ -15,7 +15,7 @@ import { Administration } from "./pages/Administration";
 import { Clients } from "./pages/Clients";
 import { SpringBoot } from "./pages/Quickstart/SpringBoot";
 import { Settings } from "./pages/Settings";
-import { Integrations } from "./pages/Settings/Integrations";
+import { IntegrationsNew } from "./pages/Settings/IntegrationsNew";
 import { IntegrationsSetup } from "./pages/Settings/IntegrationsSetup";
 import { EnvironmentTemplatesDatabase } from "./pages/Settings/EnvironmentTemplatesDatabase";
 import { Certificates } from "./pages/Settings/Certificates";
@@ -391,7 +391,8 @@ export function ContentRouter() {
         <Route path="/quickstart/spring" component={SpringBoot} />
         <Route path="/settings/environments/tpl-database" component={EnvironmentTemplatesDatabase} />
         <Route path="/settings/integrations/setup" component={IntegrationsSetup} />
-        <Route path="/settings/integrations" component={Integrations} />
+        <Route path="/settings/integrations/:tab?" component={IntegrationsNew} />
+        <Route path="/settings/integrations" component={IntegrationsNew} />
         <Route path="/settings/certificates" component={Certificates} />
         <Route path="/settings" component={Settings} />
         
@@ -436,7 +437,8 @@ function AppRoutes() {
       <Route path="/quickstart/spring" component={SpringBoot} />
       <Route path="/settings/environments/tpl-database" component={EnvironmentTemplatesDatabase} />
       <Route path="/settings/integrations/setup" component={IntegrationsSetup} />
-      <Route path="/settings/integrations" component={Integrations} />
+      <Route path="/settings/integrations/:tab?" component={IntegrationsNew} />
+      <Route path="/settings/integrations" component={IntegrationsNew} />
       <Route path="/settings/certificates" component={Certificates} />
       <Route path="/settings" component={Settings} />
       

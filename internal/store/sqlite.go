@@ -2,11 +2,14 @@ package store
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"embed"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -1253,30 +1256,40 @@ func (s *Store) GetCertificateByDomain(ctx context.Context, domain string) (Cert
 	return cert, nil
 }
 
-// ListCertificates retrieves all certificates
-func (s *Store) ListCertificates(ctx context.Context) ([]Certificate, error) {
-	rows, err := s.db.QueryContext(ctx,
-		"SELECT id, domain, type, cert_data, key_data, key_data_nonce, expires_at, auto_renew, created_at, updated_at FROM certificates ORDER BY domain")
+// ListCertificates retrieves all enhanced certificates
+func (s *Store) ListCertificates(ctx context.Context) ([]EnhancedCertificate, error) {
+	query := `
+		SELECT id, domain, type, issuer, not_before, not_after, status, 
+			   pem_cert, pem_chain, pem_key_enc, pem_key_nonce, 
+			   created_at, updated_at
+		FROM certificates_enhanced 
+		ORDER BY domain`
+	
+	rows, err := s.db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query certificates: %w", err)
+		return nil, fmt.Errorf("failed to query enhanced certificates: %w", err)
 	}
 	defer rows.Close()
 
-	var certificates []Certificate
+	var certificates []EnhancedCertificate
 	masterKey, keyErr := s.getMasterKey()
 	
 	for rows.Next() {
-		var cert Certificate
-		err := rows.Scan(&cert.ID, &cert.Domain, &cert.Type, &cert.CertData, &cert.KeyData, &cert.KeyDataNonce, &cert.ExpiresAt, &cert.AutoRenew, &cert.CreatedAt, &cert.UpdatedAt)
+		var cert EnhancedCertificate
+		err := rows.Scan(
+			&cert.ID, &cert.Domain, &cert.Type, &cert.Issuer, 
+			&cert.NotBefore, &cert.NotAfter, &cert.Status,
+			&cert.PEMCert, &cert.PEMChain, &cert.PEMKeyEnc, &cert.PEMKeyNonce,
+			&cert.CreatedAt, &cert.UpdatedAt,
+		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan certificate: %w", err)
+			return nil, fmt.Errorf("failed to scan enhanced certificate: %w", err)
 		}
 		
 		// Decrypt key data if present and master key is available
-		if keyErr == nil && cert.KeyData != nil && cert.KeyDataNonce != nil && *cert.KeyData != "" && *cert.KeyDataNonce != "" {
-			if err := cert.DecryptKeyData(masterKey); err != nil {
-				// Log error but continue - we don't want to fail the entire list operation
-				log.Warn().Err(err).Int64("cert_id", cert.ID).Msg("Failed to decrypt certificate key data")
+		if keyErr == nil && cert.PEMKeyEnc != nil && cert.PEMKeyNonce != nil && *cert.PEMKeyEnc != "" && *cert.PEMKeyNonce != "" {
+			if err := cert.DecryptPEMKey(masterKey); err != nil {
+				log.Warn().Err(err).Str("domain", cert.Domain).Msg("failed to decrypt certificate private key")
 			}
 		}
 		
@@ -1284,6 +1297,296 @@ func (s *Store) ListCertificates(ctx context.Context) ([]Certificate, error) {
 	}
 
 	return certificates, rows.Err()
+}
+
+// DNS Provider Methods
+
+// CreateDNSProvider creates a new DNS provider
+func (s *Store) CreateDNSProvider(ctx context.Context, spec DNSProviderSpec) (DNSProvider, error) {
+	var provider DNSProvider
+	
+	// Marshal config to JSON
+	configBytes, err := json.Marshal(spec.Config)
+	if err != nil {
+		return provider, fmt.Errorf("failed to marshal DNS provider config: %w", err)
+	}
+	configJSON := string(configBytes)
+	
+	now := time.Now()
+	query := `
+		INSERT INTO dns_providers (name, type, config_json, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?)
+	`
+	
+	result, err := s.db.ExecContext(ctx, query, spec.Name, spec.Type, configJSON, now, now)
+	if err != nil {
+		return provider, fmt.Errorf("failed to create DNS provider: %w", err)
+	}
+	
+	id, err := result.LastInsertId()
+	if err != nil {
+		return provider, fmt.Errorf("failed to get DNS provider ID: %w", err)
+	}
+	
+	provider = DNSProvider{
+		ID:         id,
+		Name:       spec.Name,
+		Type:       spec.Type,
+		ConfigJSON: configJSON,
+		CreatedAt:  now,
+		UpdatedAt:  now,
+	}
+	
+	return provider, nil
+}
+
+// ListDNSProviders retrieves all DNS providers
+func (s *Store) ListDNSProviders(ctx context.Context) ([]DNSProvider, error) {
+	query := `
+		SELECT id, name, type, config_json, created_at, updated_at
+		FROM dns_providers
+		ORDER BY name
+	`
+	
+	rows, err := s.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query DNS providers: %w", err)
+	}
+	defer rows.Close()
+	
+	var providers []DNSProvider
+	for rows.Next() {
+		var provider DNSProvider
+		err := rows.Scan(
+			&provider.ID, &provider.Name, &provider.Type, 
+			&provider.ConfigJSON, &provider.CreatedAt, &provider.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan DNS provider: %w", err)
+		}
+		providers = append(providers, provider)
+	}
+	
+	return providers, rows.Err()
+}
+
+// Domain Methods
+
+// generateRandomToken generates a random token of specified length
+func generateRandomToken(length int) string {
+	bytes := make([]byte, length)
+	if _, err := rand.Read(bytes); err != nil {
+		// Fallback to timestamp-based token if random fails
+		return fmt.Sprintf("%d", time.Now().UnixNano())
+	}
+	return hex.EncodeToString(bytes)[:length]
+}
+
+// CreateDomain creates a new domain with a verification token
+func (s *Store) CreateDomain(ctx context.Context, domain *Domain) (int64, error) {
+	if domain.Name == "" {
+		return 0, fmt.Errorf("domain name cannot be empty")
+	}
+	
+	// Generate verification token if not provided
+	if domain.VerificationToken == "" {
+		domain.VerificationToken = generateRandomToken(32)
+	}
+	
+	// Set default status if not provided
+	if domain.Status == "" {
+		domain.Status = DomainStatusPending
+	}
+	
+	result, err := s.db.ExecContext(ctx,
+		`INSERT INTO domains (name, status, provider, zone_id, verification_token, verification_checked_at, certificate_id, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+		domain.Name, domain.Status, domain.Provider, domain.ZoneID, domain.VerificationToken, domain.VerificationCheckedAt, domain.CertificateID)
+	
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			return 0, fmt.Errorf("domain %s already exists", domain.Name)
+		}
+		return 0, fmt.Errorf("failed to create domain: %w", err)
+	}
+	
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get domain ID: %w", err)
+	}
+	
+	return id, nil
+}
+
+// GetDomainByName retrieves a domain by its name
+func (s *Store) GetDomainByName(ctx context.Context, name string) (*Domain, error) {
+	var domain Domain
+	var provider, zoneID sql.NullString
+	var verificationCheckedAt sql.NullTime
+	var certificateID sql.NullInt64
+	
+	err := s.db.QueryRowContext(ctx,
+		`SELECT id, name, status, provider, zone_id, verification_token, verification_checked_at, certificate_id, created_at, updated_at
+		 FROM domains WHERE name = ?`, name).
+		Scan(&domain.ID, &domain.Name, &domain.Status, &provider, &zoneID, &domain.VerificationToken, 
+			&verificationCheckedAt, &certificateID, &domain.CreatedAt, &domain.UpdatedAt)
+	
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("domain not found: %s", name)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get domain: %w", err)
+	}
+	
+	// Handle nullable fields
+	if provider.Valid {
+		domain.Provider = &provider.String
+	}
+	if zoneID.Valid {
+		domain.ZoneID = &zoneID.String
+	}
+	if verificationCheckedAt.Valid {
+		domain.VerificationCheckedAt = &verificationCheckedAt.Time
+	}
+	if certificateID.Valid {
+		domain.CertificateID = &certificateID.Int64
+	}
+	
+	return &domain, nil
+}
+
+// ListDomains returns domains filtered by status (empty slice returns all domains)
+func (s *Store) ListDomains(ctx context.Context, statuses []string) ([]Domain, error) {
+	var query string
+	var args []interface{}
+	
+	if len(statuses) == 0 {
+		// Return all domains
+		query = `SELECT id, name, status, provider, zone_id, verification_token, verification_checked_at, certificate_id, created_at, updated_at
+				 FROM domains ORDER BY created_at DESC`
+	} else {
+		// Filter by statuses
+		placeholders := strings.Repeat("?,", len(statuses))
+		placeholders = placeholders[:len(placeholders)-1] // Remove trailing comma
+		query = fmt.Sprintf(`SELECT id, name, status, provider, zone_id, verification_token, verification_checked_at, certificate_id, created_at, updated_at
+							 FROM domains WHERE status IN (%s) ORDER BY created_at DESC`, placeholders)
+		
+		for _, status := range statuses {
+			args = append(args, status)
+		}
+	}
+	
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list domains: %w", err)
+	}
+	defer rows.Close()
+	
+	var domains []Domain
+	for rows.Next() {
+		var domain Domain
+		var provider, zoneID sql.NullString
+		var verificationCheckedAt sql.NullTime
+		var certificateID sql.NullInt64
+		
+		err := rows.Scan(&domain.ID, &domain.Name, &domain.Status, &provider, &zoneID, 
+			&domain.VerificationToken, &verificationCheckedAt, &certificateID, 
+			&domain.CreatedAt, &domain.UpdatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan domain: %w", err)
+		}
+		
+		// Handle nullable fields
+		if provider.Valid {
+			domain.Provider = &provider.String
+		}
+		if zoneID.Valid {
+			domain.ZoneID = &zoneID.String
+		}
+		if verificationCheckedAt.Valid {
+			domain.VerificationCheckedAt = &verificationCheckedAt.Time
+		}
+		if certificateID.Valid {
+			domain.CertificateID = &certificateID.Int64
+		}
+		
+		domains = append(domains, domain)
+	}
+	
+	return domains, rows.Err()
+}
+
+// UpdateDomainStatus updates a domain's status and optionally its certificate ID
+func (s *Store) UpdateDomainStatus(ctx context.Context, id int64, status string, certID *int64) error {
+	// Validate status
+	validStatuses := map[string]bool{
+		DomainStatusPending:   true,
+		DomainStatusVerifying: true,
+		DomainStatusVerified:  true,
+		DomainStatusActive:    true,
+		DomainStatusError:     true,
+	}
+	
+	if !validStatuses[status] {
+		return fmt.Errorf("invalid domain status: %s", status)
+	}
+	
+	result, err := s.db.ExecContext(ctx,
+		`UPDATE domains SET status = ?, certificate_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+		status, certID, id)
+	
+	if err != nil {
+		return fmt.Errorf("failed to update domain status: %w", err)
+	}
+	
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	
+	if rowsAffected == 0 {
+		return fmt.Errorf("domain not found: %d", id)
+	}
+	
+	return nil
+}
+
+// GetDB returns the database connection (for services that need direct access)
+func (s *Store) GetDB() *sql.DB {
+	return s.db
+}
+
+// GetEnhancedCertificate retrieves an enhanced certificate by ID
+func (s *Store) GetEnhancedCertificate(ctx context.Context, id int64) (EnhancedCertificate, error) {
+	var cert EnhancedCertificate
+	
+	query := `
+		SELECT id, domain, type, issuer, not_before, not_after, status, 
+			   pem_cert, pem_chain, pem_key_enc, pem_key_nonce, 
+			   created_at, updated_at
+		FROM certificates_enhanced 
+		WHERE id = ?
+	`
+	
+	err := s.db.QueryRowContext(ctx, query, id).Scan(
+		&cert.ID, &cert.Domain, &cert.Type, &cert.Issuer, 
+		&cert.NotBefore, &cert.NotAfter, &cert.Status,
+		&cert.PEMCert, &cert.PEMChain, &cert.PEMKeyEnc, &cert.PEMKeyNonce,
+		&cert.CreatedAt, &cert.UpdatedAt,
+	)
+	if err != nil {
+		return cert, fmt.Errorf("failed to get enhanced certificate: %w", err)
+	}
+	
+	// Decrypt key data if present and master key is available
+	masterKey, keyErr := s.getMasterKey()
+	if keyErr == nil && cert.PEMKeyEnc != nil && cert.PEMKeyNonce != nil && *cert.PEMKeyEnc != "" && *cert.PEMKeyNonce != "" {
+		if err := cert.DecryptPEMKey(masterKey); err != nil {
+			log.Warn().Err(err).Str("domain", cert.Domain).Msg("failed to decrypt certificate private key")
+		}
+	}
+	
+	return cert, nil
 }
 
 // UpdateCertificate updates an existing certificate

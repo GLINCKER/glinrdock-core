@@ -173,10 +173,10 @@ func (h *CertificateHandlers) ListCertificates(c *gin.Context) {
 			ID:        cert.ID,
 			Domain:    cert.Domain,
 			Type:      cert.Type,
-			HasCert:   cert.CertData != nil,
-			HasKey:    cert.KeyData != nil,
-			ExpiresAt: cert.ExpiresAt,
-			AutoRenew: cert.AutoRenew,
+			HasCert:   cert.PEMCert != nil,
+			HasKey:    cert.PEMKeyEnc != nil,
+			ExpiresAt: cert.NotAfter,
+			AutoRenew: false, // Enhanced certificates don't have auto-renew field (managed by ACME service)
 			CreatedAt: cert.CreatedAt,
 			UpdatedAt: cert.UpdatedAt,
 		}

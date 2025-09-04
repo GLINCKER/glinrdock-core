@@ -65,7 +65,7 @@ func TestGenerator_Render(t *testing.T) {
 						ServiceName: "web-service",
 					},
 				},
-				Certs: map[string]store.Certificate{},
+				Certs: map[string]store.EnhancedCertificate{},
 			},
 			wantErr: false,
 			checks: []func(config string) error{
@@ -117,12 +117,12 @@ func TestGenerator_Render(t *testing.T) {
 						ServiceName: "secure-service",
 					},
 				},
-				Certs: map[string]store.Certificate{
+				Certs: map[string]store.EnhancedCertificate{
 					"secure.example.com": {
 						ID:       1,
 						Domain:   "secure.example.com",
-						CertData: stringPtr("cert-data"),
-						KeyData:  stringPtr("key-data"),
+						PEMCert:  stringPtr("cert-data"),
+						PEMKeyEnc: stringPtr("key-data"),
 					},
 				},
 			},
@@ -164,7 +164,7 @@ func TestGenerator_Render(t *testing.T) {
 						ServiceName: "service",
 					},
 				},
-				Certs: map[string]store.Certificate{},
+				Certs: map[string]store.EnhancedCertificate{},
 			},
 			wantErr: false,
 			checks: []func(config string) error{
@@ -198,7 +198,7 @@ func TestGenerator_Render(t *testing.T) {
 						ServiceName: "api-service",
 					},
 				},
-				Certs: map[string]store.Certificate{},
+				Certs: map[string]store.EnhancedCertificate{},
 			},
 			wantErr: false,
 			checks: []func(config string) error{
@@ -235,7 +235,7 @@ func TestGenerator_Render(t *testing.T) {
 						ServiceName: "service-a",
 					},
 				},
-				Certs: map[string]store.Certificate{},
+				Certs: map[string]store.EnhancedCertificate{},
 			},
 			wantErr: false,
 			checks: []func(config string) error{
@@ -318,7 +318,7 @@ func TestGenerator_Render_Deterministic(t *testing.T) {
 				ServiceName: "api-service",
 			},
 		},
-		Certs: map[string]store.Certificate{},
+		Certs: map[string]store.EnhancedCertificate{},
 	}
 
 	// Generate config multiple times
@@ -361,7 +361,7 @@ func TestGenerator_Render_StandardProxyHeaders(t *testing.T) {
 				ServiceName: "web-service",
 			},
 		},
-		Certs: map[string]store.Certificate{},
+		Certs: map[string]store.EnhancedCertificate{},
 	}
 
 	config, _, err := generator.Render(input)

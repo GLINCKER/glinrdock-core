@@ -51,6 +51,13 @@ const (
 	ActionNginxReload     Action = "nginx_reload"
 	ActionNginxValidate   Action = "nginx_validate"
 	ActionNginxConfigApply Action = "nginx_config_apply"
+	
+	// DNS and Domain actions
+	ActionDNSProviderCreate  Action = "dns_provider_create"
+	ActionDNSProviderList    Action = "dns_provider_list"
+	ActionDomainCreate       Action = "domain_create"
+	ActionDomainVerify       Action = "domain_verify"
+	ActionDomainStatusCheck  Action = "domain_status_check"
 )
 
 // Entry represents a single audit log entry
@@ -201,6 +208,16 @@ func (l *Logger) RecordCertificateAction(ctx context.Context, actor string, acti
 // RecordNginxAction records nginx-related actions
 func (l *Logger) RecordNginxAction(ctx context.Context, actor string, action Action, meta map[string]interface{}) {
 	l.Record(ctx, actor, action, "nginx", "", meta)
+}
+
+// RecordDNSAction records DNS provider-related actions
+func (l *Logger) RecordDNSAction(ctx context.Context, actor string, action Action, meta map[string]interface{}) {
+	l.Record(ctx, actor, action, "dns", "", meta)
+}
+
+// RecordDomainAction records domain-related actions
+func (l *Logger) RecordDomainAction(ctx context.Context, actor string, action Action, meta map[string]interface{}) {
+	l.Record(ctx, actor, action, "domain", "", meta)
 }
 
 // GetActorFromContext extracts actor information from context

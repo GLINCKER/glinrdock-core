@@ -785,21 +785,34 @@ type DNSProviderSpec struct {
 	Config     map[string]any `json:"config" binding:"required"`
 }
 
-// Domain represents a managed domain with optional auto-management
+// Domain represents a managed domain with verification and certificate support
 type Domain struct {
-	ID          int64     `json:"id" db:"id"`
-	Domain      string    `json:"domain" db:"domain"`
-	ProviderID  *int64    `json:"provider_id" db:"provider_id"`
-	AutoManage  bool      `json:"auto_manage" db:"auto_manage"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+	ID                   int64      `json:"id" db:"id"`
+	Name                 string     `json:"name" db:"name"`
+	Status               string     `json:"status" db:"status"`                         // pending|verifying|verified|active|error
+	Provider             *string    `json:"provider" db:"provider"`                     // 'cloudflare'|'manual'|NULL
+	ZoneID               *string    `json:"zone_id" db:"zone_id"`                       // provider zone identifier
+	VerificationToken    string     `json:"verification_token" db:"verification_token"` // random token
+	VerificationCheckedAt *time.Time `json:"verification_checked_at" db:"verification_checked_at"`
+	CertificateID        *int64     `json:"certificate_id" db:"certificate_id"`         // nullable FK to certificates
+	CreatedAt            time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt            time.Time  `json:"updated_at" db:"updated_at"`
 }
+
+// Domain status constants
+const (
+	DomainStatusPending   = "pending"
+	DomainStatusVerifying = "verifying"
+	DomainStatusVerified  = "verified"
+	DomainStatusActive    = "active"
+	DomainStatusError     = "error"
+)
 
 // DomainSpec represents the specification for creating/updating a domain
 type DomainSpec struct {
-	Domain     string `json:"domain" binding:"required"`
-	ProviderID *int64 `json:"provider_id,omitempty"`
-	AutoManage *bool  `json:"auto_manage,omitempty"`
+	Name     string  `json:"name" binding:"required"`
+	Provider *string `json:"provider,omitempty"`
+	ZoneID   *string `json:"zone_id,omitempty"`
 }
 
 // DomainVerification represents a domain ownership verification attempt

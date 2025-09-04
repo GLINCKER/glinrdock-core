@@ -12,8 +12,8 @@ simpleIconsManager.preloadCommonIcons();
 import { preloadHelpArticlesForSearch } from "./utils/searchRegistry";
 // Start preloading help articles in the background (non-blocking)
 setTimeout(() => {
-  preloadHelpArticlesForSearch().catch(error => 
-    console.warn('Background help preload failed:', error)
+  preloadHelpArticlesForSearch().catch((error) =>
+    console.warn("Background help preload failed:", error)
   );
 }, 1000); // Delay to not interfere with initial app loading
 // import { Router, Route, Switch, useLocation } from "wouter/preact";
@@ -31,6 +31,7 @@ import {
   DiagnosticsPanel,
   useDiagnostics,
 } from "./components/DiagnosticsPanel";
+import { ModalProvider } from "./components/ModalProvider";
 import { Login } from "./pages";
 import { Menu } from "lucide-preact";
 
@@ -55,7 +56,7 @@ function MainApp() {
     const path = window.location.pathname;
     if (path === "/app" || path === "/app/") return "dashboard";
     const segments = path.split("/").filter(Boolean);
-    
+
     if (segments.length > 1) {
       // Handle nested routes like /app/services/123, /app/services/123/logs, /app/services/123/networking
       if (segments[1] === "services" && segments.length > 2) {
@@ -254,7 +255,8 @@ function MainApp() {
 
   return (
     <ErrorBoundary>
-      <div class="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white fade-in">
+      <ModalProvider>
+        <div class="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white fade-in">
         {/* Global banners - offline, API health, auth expired */}
         <GlobalBanners />
 
@@ -278,7 +280,7 @@ function MainApp() {
         flex flex-col flex-1 min-h-screen
         transition-all duration-300 ease-in-out 
         bg-gray-50 dark:bg-gray-950
-        ${isSidebarOpen ? 'ml-56' : 'md:ml-16'}
+        ${isSidebarOpen ? "ml-56" : "md:ml-16"}
       `}
           >
             {/* Mobile & Tablet Top Bar */}
@@ -343,7 +345,8 @@ function MainApp() {
           isVisible={diagnostics.isVisible}
           onClose={diagnostics.hide}
         />
-      </div>
+        </div>
+      </ModalProvider>
     </ErrorBoundary>
   );
 }

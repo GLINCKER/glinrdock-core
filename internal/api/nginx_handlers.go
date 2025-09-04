@@ -200,7 +200,7 @@ func (h *NginxHandlers) GetCurrentConfig(c *gin.Context) {
 	}
 
 	// Convert certificates to map
-	certMap := make(map[string]store.Certificate)
+	certMap := make(map[string]store.EnhancedCertificate)
 	for _, cert := range certificates {
 		certMap[cert.Domain] = cert
 	}
@@ -277,7 +277,7 @@ func (h *NginxHandlers) ValidateCurrentConfig(c *gin.Context) {
 		return
 	}
 
-	certMap := make(map[string]store.Certificate)
+	certMap := make(map[string]store.EnhancedCertificate)
 	for _, cert := range certificates {
 		certMap[cert.Domain] = cert
 	}

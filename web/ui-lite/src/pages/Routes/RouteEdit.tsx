@@ -14,7 +14,11 @@ import {
   Settings,
   Lock,
   FileText,
-  AlertTriangle
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  RefreshCw,
+  ExternalLink
 } from "lucide-preact";
 
 interface RouteEditProps {
@@ -41,6 +45,18 @@ export function RouteEdit({ routeId }: RouteEditProps) {
   // Data fetching
   const { data: certificates } = useApiData<Certificate[]>(() => apiClient.listCertificates(), []);
   const { data: services } = useApiData<ServiceDetail[]>(() => apiClient.listServices(), []);
+  
+  // DNS & TLS data
+  const { data: domainStatus } = useApiData(() => 
+    domain ? apiClient.get(`/v1/domains/${domain}/status`).catch(() => null) : Promise.resolve(null), 
+    [domain]
+  );
+  const { data: domainData } = useApiData(() => 
+    apiClient.get("/v1/domains").then(domains => 
+      domains.find(d => d.domain === domain)
+    ).catch(() => null), 
+    [domain]
+  );
   
   useEffect(() => {
     loadRoute();
@@ -76,6 +92,32 @@ export function RouteEdit({ routeId }: RouteEditProps) {
   const showToast = (message: string, type: "success" | "error" | "info") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 5000);
+  };
+
+  const handleVerifyDomain = async () => {
+    if (!domain) return;
+    
+    try {
+      await apiClient.post(`/v1/domains/${domain}/verify`);
+      showToast(`Domain verification initiated for ${domain}`, "info");
+      // Refetch domain status
+      setTimeout(() => {
+        // The useApiData hook will refetch automatically when domain changes
+      }, 1000);
+    } catch (error: any) {
+      showToast(error.message || "Failed to start domain verification", "error");
+    }
+  };
+
+  const handleIssueCertificate = async () => {
+    if (!domain) return;
+    
+    try {
+      await apiClient.post("/v1/certificates/issue", { domain });
+      showToast(`Certificate issuance initiated for ${domain}`, "info");
+    } catch (error: any) {
+      showToast(error.message || "Failed to start certificate issuance", "error");
+    }
   };
 
   const validateForm = () => {
@@ -444,12 +486,102 @@ export function RouteEdit({ routeId }: RouteEditProps) {
             </div>
           </div>
 
-          {/* DNS Hints */}
-          <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-6">
-            <h3 class="text-lg font-medium text-blue-900 dark:text-blue-300 mb-4">
-              <FileText class="w-5 h-5 inline mr-2" />
-              DNS Configuration
+          {/* DNS & TLS Panel */}
+          <div class="bg-gradient-to-br from-blue-50/80 to-purple-50/80 dark:from-blue-900/20 dark:to-purple-900/20 border border-blue-200/50 dark:border-blue-700/50 rounded-lg p-6">
+            <h3 class="text-lg font-medium text-blue-900 dark:text-blue-300 mb-4 flex items-center">
+              <Globe class="w-5 h-5 mr-2" />
+              DNS & TLS
             </h3>
+
+            {/* Domain Status */}
+            <div class="mb-4">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Domain Status</span>
+                {domainData ? (
+                  <span class={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                    domainData.verification_status === 'verified' 
+                      ? 'text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/30'
+                      : domainData.verification_status === 'failed' 
+                      ? 'text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/30'
+                      : 'text-yellow-700 dark:text-yellow-300 bg-yellow-100 dark:bg-yellow-900/30'
+                  }`}>
+                    {domainData.verification_status === 'verified' && <CheckCircle class="w-3 h-3" />}
+                    {domainData.verification_status === 'failed' && <AlertTriangle class="w-3 h-3" />}
+                    {domainData.verification_status === 'unverified' && <Clock class="w-3 h-3" />}
+                    {domainData.verification_status.charAt(0).toUpperCase() + domainData.verification_status.slice(1)}
+                  </span>
+                ) : (
+                  <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800">
+                    <AlertTriangle class="w-3 h-3" />
+                    Not Configured
+                  </span>
+                )}
+              </div>
+              
+              {!domainData && (
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                  Domain not configured in DNS management. 
+                  <a href="/app/settings/integrations" class="text-blue-600 dark:text-blue-400 hover:underline ml-1">
+                    Configure DNS
+                  </a>
+                </p>
+              )}
+            </div>
+
+            {/* DNS Actions */}
+            {domainData && (
+              <div class="mb-4 space-y-2">
+                <button
+                  onClick={handleVerifyDomain}
+                  class="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  <RefreshCw class="w-4 h-4" />
+                  Verify Domain
+                </button>
+                
+                {domainData.verification_status === 'verified' && (
+                  <button
+                    onClick={handleIssueCertificate}
+                    class="w-full flex items-center justify-center gap-2 px-3 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-lg transition-colors"
+                  >
+                    <Lock class="w-4 h-4" />
+                    Issue Certificate
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Certificate Status */}
+            {tls && (
+              <div class="mb-4 p-3 bg-white/60 dark:bg-gray-800/60 rounded-lg border border-blue-200/30 dark:border-blue-700/30">
+                <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-2 flex items-center">
+                  <Shield class="w-4 h-4 mr-2" />
+                  TLS Certificate
+                </h4>
+                {availableCerts.length > 0 ? (
+                  <div class="space-y-2">
+                    {availableCerts.map(cert => (
+                      <div key={cert.id} class="flex items-center justify-between text-xs">
+                        <span class="font-medium text-green-700 dark:text-green-300">
+                          {cert.type.charAt(0).toUpperCase() + cert.type.slice(1)} Cert
+                        </span>
+                        {cert.expires_at && (
+                          <span class="text-gray-600 dark:text-gray-400">
+                            Exp: {new Date(cert.expires_at).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p class="text-xs text-gray-600 dark:text-gray-400">
+                    No certificate available for {domain}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* DNS Configuration */}
             <div class="space-y-3 text-sm">
               <div>
                 <span class="block text-blue-700 dark:text-blue-400 font-medium mb-1">External DNS:</span>
@@ -462,6 +594,36 @@ export function RouteEdit({ routeId }: RouteEditProps) {
                 <code class="block p-2 bg-blue-100 dark:bg-blue-900/40 rounded text-blue-800 dark:text-blue-200 font-mono text-xs">
                   {selectedService?.name}:{port}
                 </code>
+              </div>
+              {domainData && domainData.auto_manage && (
+                <div class="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                  <CheckCircle class="w-3 h-3" />
+                  Auto-managed by DNS provider
+                </div>
+              )}
+            </div>
+
+            {/* Quick Links */}
+            <div class="mt-4 pt-3 border-t border-blue-200/50 dark:border-blue-700/50">
+              <div class="flex items-center justify-between text-xs">
+                <a
+                  href="/app/settings/integrations"
+                  class="flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  <Settings class="w-3 h-3" />
+                  DNS Settings
+                </a>
+                {domain && (
+                  <a
+                    href={`http${tls ? 's' : ''}://${domain}${path || ''}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    <ExternalLink class="w-3 h-3" />
+                    Test Route
+                  </a>
+                )}
               </div>
             </div>
           </div>

@@ -153,7 +153,6 @@ func TestStore_ListCertificates(t *testing.T) {
 		assert.Greater(t, cert.ID, int64(0))
 		assert.NotEmpty(t, cert.Domain)
 		assert.Equal(t, "uploaded", cert.Type)
-		assert.True(t, cert.AutoRenew)
 		assert.NotZero(t, cert.CreatedAt)
 		assert.NotZero(t, cert.UpdatedAt)
 	}

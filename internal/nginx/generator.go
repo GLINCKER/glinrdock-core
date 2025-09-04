@@ -41,17 +41,44 @@ server {
     {{- end}}
     server_name {{$route.Domain}};
 
+    # ACME HTTP-01 challenge location (always present for certificate issuance)
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/lib/glinr/acme-http01;
+        try_files $uri =404;
+    }
+
     {{- if $route.TLS}}
     {{- if $cert}}
+    # SSL certificate configuration
     ssl_certificate /etc/nginx/certs/{{$route.Domain}}.crt;
     ssl_certificate_key /etc/nginx/certs/{{$route.Domain}}.key;
-    {{- else}}
-    # Certificate not found for {{$route.Domain}}
-    return 503;
+    {{- if ne $cert.PEMChain nil}}
+    ssl_trusted_certificate /etc/nginx/certs/{{$route.Domain}}.chain.crt;
     {{- end}}
+    
+    # SSL security configuration
     ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256;
+    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-CHACHA20-POLY1305;
     ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
+    
+    # Security headers for HTTPS
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options DENY always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    
+    # HTTP to HTTPS redirect for non-ACME requests
+    if ($scheme = http) {
+        return 301 https://$server_name$request_uri;
+    }
+    {{- else}}
+    # Certificate not found for {{$route.Domain}} - serve 503 for HTTPS requests
+    if ($scheme = https) {
+        return 503;
+    }
+    {{- end}}
     {{- end}}
 
     # Standard proxy headers
@@ -179,7 +206,7 @@ func (g *Generator) Render(input RenderInput) (string, string, error) {
 			var buf bytes.Buffer
 			data := struct {
 				Route store.RouteWithService
-				Cert  *store.Certificate
+				Cert  *store.EnhancedCertificate
 			}{
 				Route: route,
 			}
@@ -232,8 +259,8 @@ func (g *Generator) GenerateConfiguration(ctx context.Context, routes []RouteCon
 
 // RenderInput contains data needed for nginx config generation
 type RenderInput struct {
-	Routes []store.RouteWithService     `json:"routes"`
-	Certs  map[string]store.Certificate `json:"certs"`
+	Routes []store.RouteWithService              `json:"routes"`
+	Certs  map[string]store.EnhancedCertificate `json:"certs"`
 }
 
 // UpstreamName generates a deterministic upstream name for a service
