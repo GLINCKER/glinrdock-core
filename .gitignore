@@ -83,3 +83,4 @@ glinrdockd
 bin/
 build/
 *.test
+glinrdock/
