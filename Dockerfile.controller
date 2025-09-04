@@ -1,0 +1,68 @@
+# Multi-stage build for hardened GLINRDOCK Controller
+# Based on user specification: FROM scratch (or distroless/static), read-only root FS, non-root user
+
+# Build stage - Use the latest available Go version
+FROM golang:1.23-alpine AS builder
+
+# Set GOTOOLCHAIN to allow using newer Go versions
+ENV GOTOOLCHAIN=go1.24.5
+
+# Install build dependencies
+RUN apk add --no-cache git ca-certificates tzdata
+
+# Set working directory
+WORKDIR /build
+
+# Copy go.mod and go.sum first for better caching
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build the binary with static linking and optimizations
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    -ldflags='-w -s -extldflags "-static"' \
+    -a -installsuffix cgo \
+    -o glinrdockd \
+    ./cmd/glinrdockd
+
+# Create directory structure in builder
+RUN mkdir -p /app/data /app/logs /app/certs && \
+    chown -R 65532:65532 /app
+
+# Final stage - Use distroless for better security than scratch
+FROM gcr.io/distroless/static-debian12:nonroot
+
+# Copy timezone data and CA certificates from builder
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+# Copy the binary and directory structure
+COPY --from=builder --chown=65532:65532 /build/glinrdockd /app/glinrdockd
+COPY --from=builder --chown=65532:65532 /app/data /app/data
+COPY --from=builder --chown=65532:65532 /app/logs /app/logs
+COPY --from=builder --chown=65532:65532 /app/certs /app/certs
+
+# Set working directory
+WORKDIR /app
+
+# Expose port
+EXPOSE 8080
+
+# Health check disabled for maximum security (distroless has no shell/curl)
+# For Kubernetes, use readiness/liveness probes: HTTP GET /v1/health
+
+# Use non-root user (nobody)
+USER 65532:65532
+
+# Set entrypoint
+ENTRYPOINT ["/app/glinrdockd"]
+
+# Labels for metadata
+LABEL org.opencontainers.image.title="GLINRDOCK Controller" \
+      org.opencontainers.image.description="Hardened container orchestration controller" \
+      org.opencontainers.image.vendor="GLINR" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.url="https://github.com/GLINCKER/glinrdock" \
+      org.opencontainers.image.documentation="https://docs.glinrdock.com"

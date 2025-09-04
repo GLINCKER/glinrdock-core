@@ -1,0 +1,97 @@
+# GlinrDock Caddy Configuration
+# Automatic HTTPS with Let's Encrypt
+
+{$DOMAIN:localhost} {
+	# Enable HSTS
+	header {
+		# Security headers
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		X-XSS-Protection "1; mode=block"
+		Referrer-Policy strict-origin-when-cross-origin
+		
+		# HSTS (optional, enable for production)
+		# Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+	}
+
+	# Main GlinrDock application
+	reverse_proxy /app/* glinrdock:8080 {
+		header_up Host {upstream_hostport}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	# API endpoints
+	reverse_proxy /v1/* glinrdock:8080 {
+		header_up Host {upstream_hostport}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	# Static assets
+	reverse_proxy /assets/* glinrdock:8080 {
+		header_up Host {upstream_hostport}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	# Root path - redirect to app
+	redir / /app/
+
+	# Health check endpoint
+	reverse_proxy /health glinrdock:8080 {
+		header_up Host {upstream_hostport}
+	}
+
+	# Optional: Grafana (if monitoring profile is enabled)
+	reverse_proxy /grafana/* grafana:3000 {
+		header_up Host {upstream_hostport}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	# Optional: Prometheus (if monitoring profile is enabled)
+	reverse_proxy /prometheus/* prometheus:9090 {
+		header_up Host {upstream_hostport}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	# Enable compression
+	encode gzip
+
+	# Access logging
+	log {
+		output file /var/log/caddy/access.log {
+			roll_size 100mb
+			roll_keep 5
+		}
+		format json
+	}
+
+	# Error page customization
+	handle_errors {
+		@404 expression {http.error.status_code} == 404
+		handle @404 {
+			rewrite * /404.html
+			file_server
+		}
+		
+		@5xx expression {http.error.status_code} >= 500
+		handle @5xx {
+			rewrite * /50x.html
+			file_server
+		}
+	}
+}
+
+# Health check endpoint without SSL redirect
+:8080 {
+	reverse_proxy /health glinrdock:8080
+	respond "Caddy OK" 200
+}

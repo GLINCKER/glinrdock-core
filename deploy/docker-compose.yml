@@ -1,0 +1,218 @@
+version: '3.8'
+
+services:
+  glinrdock:
+    image: ghcr.io/glincker/glinrdock:latest
+    container_name: glinrdock
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # Core settings
+      - GLINRDOCK_HTTP_ADDR=:8080
+      - GLINRDOCK_DATA_DIR=/data
+      - GLINRDOCK_LOG_LEVEL=info
+      
+      # Authentication - CHANGE THIS!
+      - ADMIN_TOKEN=${ADMIN_TOKEN:-your-secure-admin-token-here}
+      
+      # CORS settings for web UI
+      - GLINRDOCK_CORS_ORIGINS=http://localhost:8080,https://your-domain.com
+      
+      # Optional webhook secret for GitHub/GitLab integration
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET:-}
+      
+      # Optional database settings (defaults to SQLite in /data)
+      # - DATABASE_URL=postgres://user:pass@postgres:5432/glinrdock
+      
+      # Docker socket access
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      # Data persistence
+      - glinrdock_data:/data
+      
+      # Docker socket for container management
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      
+      # Optional: Custom configuration
+      # - ./config:/config:ro
+    networks:
+      - glinrdock
+    depends_on:
+      - caddy
+    labels:
+      # Caddy reverse proxy labels
+      - "caddy=your-domain.com"
+      - "caddy.reverse_proxy={{upstreams 8080}}"
+      - "caddy.header=X-Real-IP {remote_host}"
+      - "caddy.header=X-Forwarded-For {remote_host}"
+      - "caddy.encode=gzip"
+
+  # Caddy reverse proxy with automatic HTTPS
+  caddy:
+    image: caddy:2-alpine
+    container_name: glinrdock-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"  # HTTP/3
+    environment:
+      # Caddy configuration
+      - DOMAIN=${DOMAIN:-localhost}
+      - EMAIL=${EMAIL:-admin@example.com}
+    volumes:
+      # Caddy configuration
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      
+      # SSL certificates persistence
+      - caddy_data:/data
+      - caddy_config:/config
+      
+      # Optional: Static files
+      # - ./static:/srv:ro
+    networks:
+      - glinrdock
+    labels:
+      - "caddy_ingress_network=glinrdock"
+
+  # Optional: PostgreSQL database for production use
+  postgres:
+    image: postgres:15-alpine
+    container_name: glinrdock-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-glinrdock}
+      - POSTGRES_USER=${POSTGRES_USER:-glinrdock}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-your-secure-db-password}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - glinrdock
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    profiles:
+      - postgres  # Only start with --profile postgres
+    
+  # Optional: Redis for caching and session storage
+  redis:
+    image: redis:7-alpine
+    container_name: glinrdock-redis
+    restart: unless-stopped
+    command: >
+      --requirepass ${REDIS_PASSWORD:-your-secure-redis-password}
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - glinrdock
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    profiles:
+      - redis  # Only start with --profile redis
+
+  # Optional: Monitoring with Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: glinrdock-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - glinrdock
+    profiles:
+      - monitoring  # Only start with --profile monitoring
+
+  # Optional: Grafana for dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: glinrdock-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_DOMAIN=${DOMAIN:-localhost}
+      - GF_SERVER_ROOT_URL=https://${DOMAIN:-localhost}/grafana/
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana:/etc/grafana/provisioning:ro
+    networks:
+      - glinrdock
+    profiles:
+      - monitoring  # Only start with --profile monitoring
+      
+  # Optional: Log aggregation with Loki
+  loki:
+    image: grafana/loki:latest
+    container_name: glinrdock-loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    networks:
+      - glinrdock
+    profiles:
+      - logging  # Only start with --profile logging
+
+volumes:
+  glinrdock_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_DIR:-./data}
+      
+  caddy_data:
+    driver: local
+  
+  caddy_config:
+    driver: local
+    
+  postgres_data:
+    driver: local
+    
+  redis_data:
+    driver: local
+    
+  prometheus_data:
+    driver: local
+    
+  grafana_data:
+    driver: local
+    
+  loki_data:
+    driver: local
+
+networks:
+  glinrdock:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

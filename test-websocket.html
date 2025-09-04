@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+</head>
+<body>
+    <h1>WebSocket Test</h1>
+    <div id="status">Connecting...</div>
+    <div id="messages"></div>
+    
+    <script>
+        const statusEl = document.getElementById('status');
+        const messagesEl = document.getElementById('messages');
+        
+        function log(message) {
+            console.log(message);
+            messagesEl.innerHTML += '<div>' + new Date().toISOString() + ': ' + message + '</div>';
+        }
+        
+        const wsUrl = 'ws://localhost:8080/v1/services/1/stats?token=test-token';
+        log('Connecting to: ' + wsUrl);
+        
+        const ws = new WebSocket(wsUrl);
+        
+        ws.onopen = function() {
+            statusEl.innerHTML = 'Connected';
+            log('WebSocket connected successfully');
+        };
+        
+        ws.onmessage = function(event) {
+            log('Received: ' + event.data);
+        };
+        
+        ws.onclose = function(event) {
+            statusEl.innerHTML = 'Disconnected';
+            log('WebSocket closed: code=' + event.code + ', reason=' + event.reason);
+        };
+        
+        ws.onerror = function(error) {
+            statusEl.innerHTML = 'Error';
+            log('WebSocket error: ' + error);
+        };
+    </script>
+</body>
+</html>

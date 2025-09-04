@@ -1,0 +1,59 @@
+run:
+  timeout: 2m
+  modules-download-mode: readonly
+
+linters-settings:
+  govet:
+    check-shadowing: true
+  gofmt:
+    simplify: true
+  gocyclo:
+    min-complexity: 15
+  dupl:
+    threshold: 100
+  goconst:
+    min-len: 3
+    min-occurrences: 2
+  misspell:
+    locale: US
+  revive:
+    rules:
+      - name: exported
+        disabled: false
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - typecheck
+    - unused
+    - gofmt
+    - goimports
+    - misspell
+    - goconst
+    - revive
+  disable:
+    - gocyclo
+    - dupl
+    - maligned
+    - prealloc
+    - funlen
+    - lll
+    - gci
+
+issues:
+  exclude-use-default: false
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+    - path: vendor/
+      linters:
+        - all
+    - text: "G404: Use of weak random number generator"
+      linters:
+        - gosec

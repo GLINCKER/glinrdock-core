@@ -1,0 +1,7 @@
+# Global ownership - all files require review from core team
+* @GLINCKER/core-team
+
+# Security-sensitive files require additional review
+/docs/SECURITY.md @GLINCKER/core-team @GLINCKER/security-team
+/docs/THREAT_MODEL.md @GLINCKER/core-team @GLINCKER/security-team
+/internal/auth/ @GLINCKER/core-team @GLINCKER/security-team

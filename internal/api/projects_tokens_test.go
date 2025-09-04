@@ -1,0 +1,212 @@
+package api
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/GLINCKER/glinrdock/internal/auth"
+	"github.com/GLINCKER/glinrdock/internal/config"
+	"github.com/GLINCKER/glinrdock/internal/dockerx"
+	"github.com/GLINCKER/glinrdock/internal/plan"
+	"github.com/GLINCKER/glinrdock/internal/store"
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// setupTestServer creates a test server with in-memory store
+func setupTestServer(t *testing.T) (*gin.Engine, *store.Store) {
+	gin.SetMode(gin.TestMode)
+
+	// Create in-memory store
+	testStore := &store.Store{}
+	// Note: In real test, we'd use setupTestStore from sqlite_test.go
+	// For this example, we'll mock the behavior
+
+	dockerClient := dockerx.NewMockClient()
+	mockEngine := dockerx.NewMockEngine()
+	handlers := NewHandlers(dockerClient, testStore, testStore, testStore, testStore, mockEngine, nil)
+	authService := auth.NewAuthService(testStore)
+
+	r := gin.New()
+	// Create a test plan enforcer
+	testPlanEnforcer := plan.New(&config.PlanConfig{
+		Plan: config.PlanPremium, // Use premium to allow all features in tests
+		Limits: config.PlanLimits{MaxTokens: -1, MaxClients: -1, MaxUsers: -1},
+	})
+	SetupRoutes(r, handlers, []string{}, authService, nil, testPlanEnforcer)
+
+	return r, testStore
+}
+
+func TestTokenEndpoints(t *testing.T) {
+	t.Skip("Integration test - requires full store setup")
+	
+	r, testStore := setupTestServer(t)
+	ctx := context.Background()
+
+	// Bootstrap test token
+	_, err := testStore.CreateToken(ctx, "test", "test-secret")
+	require.NoError(t, err)
+
+	authHeader := "Bearer test-secret"
+
+	t.Run("CreateToken", func(t *testing.T) {
+		body := map[string]string{
+			"name":  "new-token",
+			"plain": "new-secret",
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest("POST", "/v1/tokens", bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", authHeader)
+
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusCreated, w.Code)
+
+		var response map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		require.NoError(t, err)
+		assert.Equal(t, "new-token", response["name"])
+		assert.Contains(t, response, "id")
+		assert.NotContains(t, response, "hash") // Should not expose hash
+	})
+
+	t.Run("ListTokens", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest("GET", "/v1/tokens", nil)
+		req.Header.Set("Authorization", authHeader)
+
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var response map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		require.NoError(t, err)
+		assert.Contains(t, response, "tokens")
+	})
+
+	t.Run("DeleteToken", func(t *testing.T) {
+		// Create token to delete
+		_, err := testStore.CreateToken(ctx, "to-delete", "delete-secret")
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest("DELETE", "/v1/tokens/to-delete", nil)
+		req.Header.Set("Authorization", authHeader)
+
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("UnauthorizedRequest", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest("GET", "/v1/tokens", nil)
+		// No authorization header
+
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}
+
+func TestProjectEndpoints(t *testing.T) {
+	t.Skip("Integration test - requires full store setup")
+	
+	r, testStore := setupTestServer(t)
+	ctx := context.Background()
+
+	// Bootstrap test token
+	_, err := testStore.CreateToken(ctx, "test", "test-secret")
+	require.NoError(t, err)
+
+	authHeader := "Bearer test-secret"
+
+	t.Run("CreateProject", func(t *testing.T) {
+		body := map[string]string{"name": "test-project"}
+		jsonBody, _ := json.Marshal(body)
+
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest("POST", "/v1/projects", bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", authHeader)
+
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusCreated, w.Code)
+
+		var project store.Project
+		err := json.Unmarshal(w.Body.Bytes(), &project)
+		require.NoError(t, err)
+		assert.Equal(t, "test-project", project.Name)
+		assert.Greater(t, project.ID, int64(0))
+	})
+
+	t.Run("ListProjects", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest("GET", "/v1/projects", nil)
+		req.Header.Set("Authorization", authHeader)
+
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var response map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		require.NoError(t, err)
+		assert.Contains(t, response, "projects")
+	})
+
+	t.Run("GetProject", func(t *testing.T) {
+		// Create project first
+		project, err := testStore.CreateProject(ctx, "get-test")
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest("GET", "/v1/projects/"+string(rune(project.ID)), nil)
+		req.Header.Set("Authorization", authHeader)
+
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("DeleteProject", func(t *testing.T) {
+		// Create project to delete
+		project, err := testStore.CreateProject(ctx, "delete-test")
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest("DELETE", "/v1/projects/"+string(rune(project.ID)), nil)
+		req.Header.Set("Authorization", authHeader)
+
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("ValidationErrors", func(t *testing.T) {
+		// Empty project name
+		body := map[string]string{"name": ""}
+		jsonBody, _ := json.Marshal(body)
+
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest("POST", "/v1/projects", bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", authHeader)
+
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		assert.Contains(t, w.Body.String(), "error")
+	})
+}

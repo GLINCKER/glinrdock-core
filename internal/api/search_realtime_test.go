@@ -1,0 +1,248 @@
+package api
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"testing"
+	"time"
+
+	"github.com/GLINCKER/glinrdock/internal/store"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// setupTestStore creates a test store for integration tests
+func setupTestStore(t *testing.T) *store.Store {
+	// Use unique in-memory database for each test
+	dsn := fmt.Sprintf("file:memdb%d_%s?mode=memory&cache=shared", time.Now().UnixNano(), t.Name())
+	db, err := sql.Open("sqlite3", dsn)
+	require.NoError(t, err)
+
+	testStore := &store.Store{db: db}
+
+	// Run migrations
+	ctx := context.Background()
+	err = testStore.Migrate(ctx)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		testStore.Close()
+	})
+
+	return testStore
+}
+
+func TestRealTimeIndexing_ProjectLifecycle(t *testing.T) {
+	testStore := setupTestStore(t)
+	ctx := context.Background()
+
+	t.Run("project creation and indexing", func(t *testing.T) {
+		// Create project directly via store to test indexing hooks
+		project, err := testStore.CreateProject(ctx, "test-project-indexing")
+		require.NoError(t, err)
+
+		// Index the project manually to simulate the async indexing from handlers
+		err = testStore.IndexProject(ctx, project.ID)
+		require.NoError(t, err)
+
+		// Verify project is searchable
+		filter := store.SearchFilter{
+			Type:       "project",
+			Limit:      10,
+			AllowBasic: true,
+		}
+		hits, err := testStore.SearchQuery(ctx, "test-project-indexing", filter)
+		require.NoError(t, err)
+
+		found := false
+		for _, hit := range hits {
+			if hit.Title == "test-project-indexing" && hit.Type == "project" {
+				found = true
+				assert.Equal(t, project.ID, hit.EntityID)
+				break
+			}
+		}
+		assert.True(t, found, "project should be found in search index")
+	})
+
+	t.Run("project deletion and index cleanup", func(t *testing.T) {
+		// Create and index project
+		project, err := testStore.CreateProject(ctx, "delete-test-project")
+		require.NoError(t, err)
+
+		err = testStore.IndexProject(ctx, project.ID)
+		require.NoError(t, err)
+
+		// Verify it's indexed
+		filter := store.SearchFilter{
+			Type:       "project",
+			Limit:      10,
+			AllowBasic: true,
+		}
+		hits, err := testStore.SearchQuery(ctx, "delete-test-project", filter)
+		require.NoError(t, err)
+		assert.Greater(t, len(hits), 0, "project should be indexed before deletion")
+
+		// Delete project and clean up index
+		err = testStore.DeleteProject(ctx, project.ID)
+		require.NoError(t, err)
+
+		// Simulate the async delete from index
+		err = testStore.SearchDeleteByEntity(ctx, "project", project.ID)
+		require.NoError(t, err)
+
+		// Verify project is no longer in index
+		hits, err = testStore.SearchQuery(ctx, "delete-test-project", filter)
+		require.NoError(t, err)
+
+		found := false
+		for _, hit := range hits {
+			if hit.Title == "delete-test-project" {
+				found = true
+				break
+			}
+		}
+		assert.False(t, found, "deleted project should not be found in search index")
+	})
+}
+
+func TestRealTimeIndexing_ServiceLifecycle(t *testing.T) {
+	testStore := setupTestStore(t)
+	ctx := context.Background()
+
+	// Create a test project first
+	project, err := testStore.CreateProject(ctx, "test-project-for-service")
+	require.NoError(t, err)
+
+	t.Run("service creation and indexing", func(t *testing.T) {
+		// Create service directly via store
+		spec := store.ServiceSpec{
+			Name:  "test-service-indexing",
+			Image: "nginx:latest",
+			Env:   make(map[string]string),
+			Ports: make([]store.PortMap, 0),
+		}
+		
+		service, err := testStore.CreateService(ctx, project.ID, spec)
+		require.NoError(t, err)
+
+		// Index the service manually to simulate the async indexing from handlers
+		err = testStore.IndexService(ctx, service.ID)
+		require.NoError(t, err)
+
+		// Verify service is searchable
+		filter := store.SearchFilter{
+			Type:       "service",
+			Limit:      10,
+			AllowBasic: true,
+		}
+		hits, err := testStore.SearchQuery(ctx, "test-service-indexing", filter)
+		require.NoError(t, err)
+
+		found := false
+		for _, hit := range hits {
+			if hit.Title == "test-service-indexing" && hit.Type == "service" {
+				found = true
+				assert.Equal(t, service.ID, hit.EntityID)
+				break
+			}
+		}
+		assert.True(t, found, "service should be found in search index")
+	})
+
+	t.Run("service deletion and index cleanup", func(t *testing.T) {
+		// Create and index service
+		spec := store.ServiceSpec{
+			Name:  "delete-test-service",
+			Image: "redis:latest",
+			Env:   make(map[string]string),
+			Ports: make([]store.PortMap, 0),
+		}
+		
+		service, err := testStore.CreateService(ctx, project.ID, spec)
+		require.NoError(t, err)
+
+		err = testStore.IndexService(ctx, service.ID)
+		require.NoError(t, err)
+
+		// Verify it's indexed
+		filter := store.SearchFilter{
+			Type:       "service",
+			Limit:      10,
+			AllowBasic: true,
+		}
+		hits, err := testStore.SearchQuery(ctx, "delete-test-service", filter)
+		require.NoError(t, err)
+		assert.Greater(t, len(hits), 0, "service should be indexed before deletion")
+
+		// Delete service and clean up index
+		err = testStore.DeleteService(ctx, service.ID)
+		require.NoError(t, err)
+
+		// Simulate the async delete from index
+		err = testStore.SearchDeleteByEntity(ctx, "service", service.ID)
+		require.NoError(t, err)
+
+		// Verify service is no longer in index
+		hits, err = testStore.SearchQuery(ctx, "delete-test-service", filter)
+		require.NoError(t, err)
+
+		found := false
+		for _, hit := range hits {
+			if hit.Title == "delete-test-service" {
+				found = true
+				break
+			}
+		}
+		assert.False(t, found, "deleted service should not be found in search index")
+	})
+}
+
+func TestRealTimeIndexing_AcceptanceCriteria(t *testing.T) {
+	testStore := setupTestStore(t)
+	ctx := context.Background()
+
+	t.Run("service appears in search within one second after creation", func(t *testing.T) {
+		// Create project
+		project, err := testStore.CreateProject(ctx, "fast-project")
+		require.NoError(t, err)
+
+		// Create service
+		spec := store.ServiceSpec{
+			Name:  "fast-service",
+			Image: "nginx:latest",
+			Env:   make(map[string]string),
+			Ports: make([]store.PortMap, 0),
+		}
+
+		start := time.Now()
+		service, err := testStore.CreateService(ctx, project.ID, spec)
+		require.NoError(t, err)
+
+		// Index the service (simulating async indexing)
+		err = testStore.IndexService(ctx, service.ID)
+		require.NoError(t, err)
+
+		elapsed := time.Since(start)
+		assert.Less(t, elapsed, 1*time.Second, "indexing should complete within 1 second")
+
+		// Verify service is searchable
+		filter := store.SearchFilter{
+			Type:       "service",
+			Limit:      10,
+			AllowBasic: true,
+		}
+		hits, err := testStore.SearchQuery(ctx, "fast-service", filter)
+		require.NoError(t, err)
+
+		found := false
+		for _, hit := range hits {
+			if hit.Title == "fast-service" {
+				found = true
+				break
+			}
+		}
+		assert.True(t, found, "service should be immediately searchable after creation")
+	})
+}

@@ -1,0 +1,297 @@
+package api
+
+import (
+	"net/http"
+
+	"github.com/GLINCKER/glinrdock/internal/store"
+	"github.com/gin-gonic/gin"
+)
+
+// Environment API Handlers
+
+// ListEnvironments returns all environments
+func (h *Handlers) ListEnvironments(c *gin.Context) {
+	environments, err := h.environmentStore.ListEnvironments()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve environments"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"environments": environments,
+	})
+}
+
+// GetEnvironment returns a single environment with merged variables
+func (h *Handlers) GetEnvironment(c *gin.Context) {
+	envID := c.Param("id")
+	if envID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Environment ID is required"})
+		return
+	}
+
+	envWithVars, err := h.environmentStore.GetEnvironmentWithVariables(envID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Environment not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, envWithVars)
+}
+
+// CreateEnvironment creates a new environment
+func (h *Handlers) CreateEnvironment(c *gin.Context) {
+	var req store.EnvironmentCreateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate environment type
+	if !store.IsValidEnvironmentType(req.Type) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid environment type. Must be one of: development, staging, production, testing",
+		})
+		return
+	}
+
+	// Validate inheritance (if specified)
+	if req.InheritFrom != nil {
+		_, err := h.environmentStore.GetEnvironment(*req.InheritFrom)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Parent environment not found"})
+			return
+		}
+	}
+
+	environment, err := h.environmentStore.CreateEnvironment(req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create environment"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, environment)
+}
+
+// UpdateEnvironment updates an existing environment
+func (h *Handlers) UpdateEnvironment(c *gin.Context) {
+	envID := c.Param("id")
+	if envID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Environment ID is required"})
+		return
+	}
+
+	var req store.EnvironmentUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	environment, err := h.environmentStore.UpdateEnvironment(envID, req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update environment"})
+		return
+	}
+
+	c.JSON(http.StatusOK, environment)
+}
+
+// DeleteEnvironment deletes an environment
+func (h *Handlers) DeleteEnvironment(c *gin.Context) {
+	envID := c.Param("id")
+	if envID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Environment ID is required"})
+		return
+	}
+
+	err := h.environmentStore.DeleteEnvironment(envID)
+	if err != nil {
+		if err.Error() == "cannot delete active environment" {
+			c.JSON(http.StatusConflict, gin.H{"error": "Cannot delete active environment"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete environment"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Environment deleted successfully"})
+}
+
+// DuplicateEnvironment creates a copy of an environment
+func (h *Handlers) DuplicateEnvironment(c *gin.Context) {
+	sourceID := c.Param("id")
+	if sourceID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Source environment ID is required"})
+		return
+	}
+
+	var req store.EnvironmentDuplicateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	environment, err := h.environmentStore.DuplicateEnvironment(sourceID, req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to duplicate environment"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, environment)
+}
+
+// SetActiveEnvironment sets the active environment
+func (h *Handlers) SetActiveEnvironment(c *gin.Context) {
+	envID := c.Param("id")
+	if envID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Environment ID is required"})
+		return
+	}
+
+	err := h.environmentStore.SetActiveEnvironment(envID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to set active environment"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Environment activated successfully"})
+}
+
+// Environment Variables Handlers
+
+// GetEnvironmentVariables returns all variables for an environment
+func (h *Handlers) GetEnvironmentVariables(c *gin.Context) {
+	envID := c.Param("id")
+	if envID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Environment ID is required"})
+		return
+	}
+
+	variables, err := h.environmentStore.GetEnvironmentVariables(envID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve variables"})
+		return
+	}
+
+	// Mask secret values
+	for i := range variables {
+		if variables[i].IsSecret {
+			variables[i].Value = "••••••••"
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"variables": variables,
+	})
+}
+
+// GetMergedEnvironmentVariables returns merged variables with inheritance
+func (h *Handlers) GetMergedEnvironmentVariables(c *gin.Context) {
+	envID := c.Param("id")
+	if envID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Environment ID is required"})
+		return
+	}
+
+	mergedVars, err := h.environmentStore.GetMergedVariables(envID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to resolve variables"})
+		return
+	}
+
+	// Mask secret values
+	for i := range mergedVars {
+		if mergedVars[i].IsSecret {
+			mergedVars[i].Value = "••••••••"
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"merged_variables": mergedVars,
+	})
+}
+
+// SetEnvironmentVariable sets or updates a single variable
+func (h *Handlers) SetEnvironmentVariable(c *gin.Context) {
+	envID := c.Param("id")
+	key := c.Param("key")
+	
+	if envID == "" || key == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Environment ID and variable key are required"})
+		return
+	}
+
+	var req store.VariableSetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	variable, err := h.environmentStore.SetEnvironmentVariable(envID, req, key)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to set variable"})
+		return
+	}
+
+	// Mask secret value in response
+	if variable.IsSecret {
+		variable.Value = "••••••••"
+	}
+
+	c.JSON(http.StatusOK, variable)
+}
+
+// DeleteEnvironmentVariable deletes a variable
+func (h *Handlers) DeleteEnvironmentVariable(c *gin.Context) {
+	envID := c.Param("id")
+	key := c.Param("key")
+	
+	if envID == "" || key == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Environment ID and variable key are required"})
+		return
+	}
+
+	err := h.environmentStore.DeleteEnvironmentVariable(envID, key)
+	if err != nil {
+		if err.Error() == "variable not found" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Variable not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete variable"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Variable deleted successfully"})
+}
+
+// BulkUpdateEnvironmentVariables performs bulk variable operations
+func (h *Handlers) BulkUpdateEnvironmentVariables(c *gin.Context) {
+	envID := c.Param("id")
+	if envID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Environment ID is required"})
+		return
+	}
+
+	var req store.VariableBulkUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate operation
+	if req.Operation != "merge" && req.Operation != "replace" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Operation must be 'merge' or 'replace'"})
+		return
+	}
+
+	err := h.environmentStore.BulkUpdateVariables(envID, req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update variables"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Variables updated successfully",
+		"count":   len(req.Variables),
+	})
+}

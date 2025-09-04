@@ -1,0 +1,59 @@
+# Server block for {{.Route.Domain}}
+{{- $route := .Route }}
+{{- $cert := .Cert }}
+upstream svc_{{$route.ServiceID}}_{{$route.Port}} {
+    server {{$route.ServiceName}}:{{$route.Port}};
+}
+
+server {
+    listen 80;
+    {{- if $route.TLS}}
+    listen 443 ssl http2;
+    {{- end}}
+    server_name {{$route.Domain}};
+
+    {{- if $route.TLS}}
+    {{- if $cert}}
+    ssl_certificate /etc/nginx/certs/{{$route.Domain}}.crt;
+    ssl_certificate_key /etc/nginx/certs/{{$route.Domain}}.key;
+    {{- else}}
+    # Certificate not found for {{$route.Domain}}
+    return 503;
+    {{- end}}
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256;
+    ssl_prefer_server_ciphers off;
+    {{- end}}
+
+    # Standard proxy headers
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $server_name;
+    proxy_set_header X-Forwarded-Port $server_port;
+
+    # Proxy configuration
+    proxy_connect_timeout 30s;
+    proxy_send_timeout 30s;
+    proxy_read_timeout 30s;
+    proxy_redirect off;
+
+    {{- if $route.Path}}
+    location {{$route.Path}} {
+        proxy_pass http://svc_{{$route.ServiceID}}_{{$route.Port}};
+        {{- if $route.ProxyConfig}}
+        # Custom proxy configuration
+        # {{$route.ProxyConfig}}
+        {{- end}}
+    }
+    {{- else}}
+    location / {
+        proxy_pass http://svc_{{$route.ServiceID}}_{{$route.Port}};
+        {{- if $route.ProxyConfig}}
+        # Custom proxy configuration  
+        # {{$route.ProxyConfig}}
+        {{- end}}
+    }
+    {{- end}}
+}

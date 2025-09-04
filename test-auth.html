@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test GLINR Auth</title>
+</head>
+<body>
+    <h1>Test GLINR Dock Authentication</h1>
+    <button onclick="setTokenAndRedirect()">Set Token and Test</button>
+    <div id="result"></div>
+
+    <script>
+        function setTokenAndRedirect() {
+            // Set the token in localStorage
+            localStorage.setItem('glinrdock_token', 'test-token');
+            
+            // Test API call
+            fetch('http://localhost:8080/v1/health', {
+                headers: {
+                    'Authorization': 'Bearer test-token'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('API test successful:', data);
+                document.getElementById('result').innerHTML = 
+                    '<p style="color: green;">✅ Token set and API verified. Redirecting to app...</p>';
+                
+                // Redirect to the main app
+                setTimeout(() => {
+                    window.location.href = 'http://localhost:5173/?page=administration';
+                }, 1000);
+            })
+            .catch(error => {
+                console.error('API test failed:', error);
+                document.getElementById('result').innerHTML = 
+                    '<p style="color: red;">❌ API test failed: ' + error.message + '</p>';
+            });
+        }
+    </script>
+</body>
+</html>

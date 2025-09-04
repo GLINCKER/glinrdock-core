@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Reset GLINR Dock Token</title>
+</head>
+<body>
+    <h1>GLINR Dock Token Reset</h1>
+    <p>Current token: <span id="current-token">Loading...</span></p>
+    <button onclick="clearToken()">Clear Token</button>
+    <button onclick="setTestToken()">Set Test Token</button>
+    <button onclick="checkToken()">Check Token</button>
+    
+    <script>
+        function getCurrentToken() {
+            return localStorage.getItem('glinrdock_token') || 'No token found';
+        }
+        
+        function clearToken() {
+            localStorage.removeItem('glinrdock_token');
+            updateDisplay();
+            alert('Token cleared');
+        }
+        
+        function setTestToken() {
+            localStorage.setItem('glinrdock_token', 'test-token');
+            updateDisplay();
+            alert('Test token set');
+        }
+        
+        function updateDisplay() {
+            document.getElementById('current-token').textContent = getCurrentToken();
+        }
+        
+        async function checkToken() {
+            const token = getCurrentToken();
+            if (token === 'No token found') {
+                alert('No token found');
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:8080/v1/health', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const result = await response.text();
+                alert(`Token test result: ${response.status} - ${result}`);
+            } catch (error) {
+                alert(`Token test error: ${error.message}`);
+            }
+        }
+        
+        // Update display on load
+        updateDisplay();
+    </script>
+</body>
+</html>

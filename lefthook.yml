@@ -1,0 +1,27 @@
+pre-commit:
+  parallel: true
+  commands:
+    fmt:
+      run: go fmt ./...
+      stage_fixed: true
+    vet:
+      run: go vet ./...
+    lint:
+      run: golangci-lint run --timeout=2m
+    apphelp-manifest:
+      glob: "appdocs/**/*.md"
+      run: make apphelp-manifest
+      stage_fixed: true
+
+commit-msg:
+  commands:
+    conventional:
+      run: scripts/commit_msg_lint.sh {1}
+
+pre-push:
+  parallel: true  
+  commands:
+    test:
+      run: go test -race -short ./...
+    vuln:
+      run: govulncheck ./...
