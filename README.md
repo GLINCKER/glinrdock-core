@@ -1,6 +1,6 @@
 # glinrdock
 
-A single-node container manager for Spring Boot applications with tiny resource footprint.
+A lightweight Docker container management system with nginx proxy support and minimal resource footprint.
 
 ## Quick Start
 
@@ -34,14 +34,14 @@ See [docs/reference/API.md](docs/reference/API.md) for complete API reference.
 
 ## Encrypted Secrets-at-Rest
 
-GLINRDOCK supports encrypted environment variables for sensitive configuration data:
+glinrdock supports encrypted environment variables for sensitive configuration data:
 
 ### Quick Setup
 ```bash
 # Generate a secure encryption key
 export GLINRDOCK_SECRET=$(openssl rand -base64 32)
 
-# Start GLINRDOCK with encryption enabled
+# Start glinrdock with encryption enabled
 ./glinrdockd
 ```
 
