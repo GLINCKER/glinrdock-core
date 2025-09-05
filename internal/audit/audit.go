@@ -56,7 +56,9 @@ const (
 	ActionDNSProviderCreate  Action = "dns_provider_create"
 	ActionDNSProviderList    Action = "dns_provider_list"
 	ActionDomainCreate       Action = "domain_create"
+	ActionDomainConfigure    Action = "domain_configure"
 	ActionDomainVerify       Action = "domain_verify"
+	ActionDomainActivate     Action = "domain_activate"
 	ActionDomainStatusCheck  Action = "domain_status_check"
 )
 

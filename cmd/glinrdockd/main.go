@@ -136,6 +136,11 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to migrate store")
 	}
 
+	// Initialize FTS5 after migrations complete
+	if err := storeInstance.InitializeFTS5(); err != nil {
+		log.Error().Err(err).Msg("failed to initialize FTS5, falling back to basic search")
+	}
+
 	// Setup authentication service
 	authService := auth.NewAuthService(storeInstance)
 

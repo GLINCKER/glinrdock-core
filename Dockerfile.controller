@@ -7,8 +7,8 @@ FROM golang:1.23-alpine AS builder
 # Set GOTOOLCHAIN to allow using newer Go versions
 ENV GOTOOLCHAIN=go1.24.5
 
-# Install build dependencies
-RUN apk add --no-cache git ca-certificates tzdata
+# Install build dependencies (including gcc for CGO/FTS5)
+RUN apk add --no-cache git ca-certificates tzdata gcc musl-dev sqlite-dev
 
 # Set working directory
 WORKDIR /build
@@ -20,9 +20,10 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build the binary with static linking and optimizations
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-    -ldflags='-w -s -extldflags "-static"' \
+# Build the binary with CGO enabled for FTS5 support (native arch)
+RUN CGO_ENABLED=1 go build \
+    -tags fts5 \
+    -ldflags='-w -s -linkmode external -extldflags "-static"' \
     -a -installsuffix cgo \
     -o glinrdockd \
     ./cmd/glinrdockd

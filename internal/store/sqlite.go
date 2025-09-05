@@ -14,6 +14,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 	"github.com/GLINCKER/glinrdock/internal/audit"
+	"github.com/GLINCKER/glinrdock/internal/crypto"
 	"github.com/GLINCKER/glinrdock/internal/github"
 	"github.com/rs/zerolog/log"
 )
@@ -964,8 +965,8 @@ func (s *Store) CreateRoute(ctx context.Context, serviceID int64, spec RouteSpec
 
 	// Insert route
 	result, err := s.db.ExecContext(ctx,
-		"INSERT INTO routes (service_id, domain, port, tls, path, certificate_id, proxy_config) VALUES (?, ?, ?, ?, ?, ?, ?)",
-		serviceID, spec.Domain, spec.Port, spec.TLS, spec.Path, spec.CertificateID, spec.ProxyConfig)
+		"INSERT INTO routes (service_id, domain, port, tls, path, certificate_id, domain_id, proxy_config) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+		serviceID, spec.Domain, spec.Port, spec.TLS, spec.Path, spec.CertificateID, spec.DomainID, spec.ProxyConfig)
 	if err != nil {
 		return Route{}, fmt.Errorf("failed to create route: %w", err)
 	}
@@ -994,7 +995,7 @@ func (s *Store) CreateRoute(ctx context.Context, serviceID int64, spec RouteSpec
 // ListRoutes returns all routes for a service
 func (s *Store) ListRoutes(ctx context.Context, serviceID int64) ([]Route, error) {
 	rows, err := s.db.QueryContext(ctx,
-		"SELECT id, service_id, domain, port, tls, path, certificate_id, proxy_config, created_at, updated_at FROM routes WHERE service_id = ? ORDER BY created_at",
+		"SELECT id, service_id, domain, port, tls, path, certificate_id, domain_id, proxy_config, created_at, updated_at FROM routes WHERE service_id = ? ORDER BY created_at",
 		serviceID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query routes: %w", err)
@@ -1004,7 +1005,7 @@ func (s *Store) ListRoutes(ctx context.Context, serviceID int64) ([]Route, error
 	var routes []Route
 	for rows.Next() {
 		var route Route
-		err := rows.Scan(&route.ID, &route.ServiceID, &route.Domain, &route.Port, &route.TLS, &route.Path, &route.CertificateID, &route.ProxyConfig, &route.CreatedAt, &route.UpdatedAt)
+		err := rows.Scan(&route.ID, &route.ServiceID, &route.Domain, &route.Port, &route.TLS, &route.Path, &route.CertificateID, &route.DomainID, &route.ProxyConfig, &route.CreatedAt, &route.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan route: %w", err)
 		}
@@ -1018,8 +1019,8 @@ func (s *Store) ListRoutes(ctx context.Context, serviceID int64) ([]Route, error
 func (s *Store) GetRoute(ctx context.Context, id int64) (Route, error) {
 	var route Route
 	err := s.db.QueryRowContext(ctx,
-		"SELECT id, service_id, domain, port, tls, path, certificate_id, proxy_config, created_at, updated_at FROM routes WHERE id = ?", id).
-		Scan(&route.ID, &route.ServiceID, &route.Domain, &route.Port, &route.TLS, &route.Path, &route.CertificateID, &route.ProxyConfig, &route.CreatedAt, &route.UpdatedAt)
+		"SELECT id, service_id, domain, port, tls, path, certificate_id, domain_id, proxy_config, created_at, updated_at FROM routes WHERE id = ?", id).
+		Scan(&route.ID, &route.ServiceID, &route.Domain, &route.Port, &route.TLS, &route.Path, &route.CertificateID, &route.DomainID, &route.ProxyConfig, &route.CreatedAt, &route.UpdatedAt)
 
 	if err == sql.ErrNoRows {
 		return Route{}, fmt.Errorf("route not found: %d", id)
@@ -1034,7 +1035,7 @@ func (s *Store) GetRoute(ctx context.Context, id int64) (Route, error) {
 // GetAllRoutes retrieves all routes (for nginx config generation)
 func (s *Store) GetAllRoutes(ctx context.Context) ([]Route, error) {
 	rows, err := s.db.QueryContext(ctx,
-		"SELECT id, service_id, domain, port, tls, path, certificate_id, proxy_config, created_at, updated_at FROM routes ORDER BY domain")
+		"SELECT id, service_id, domain, port, tls, path, certificate_id, domain_id, proxy_config, created_at, updated_at FROM routes ORDER BY domain")
 	if err != nil {
 		return nil, fmt.Errorf("failed to query all routes: %w", err)
 	}
@@ -1043,7 +1044,7 @@ func (s *Store) GetAllRoutes(ctx context.Context) ([]Route, error) {
 	var routes []Route
 	for rows.Next() {
 		var route Route
-		err := rows.Scan(&route.ID, &route.ServiceID, &route.Domain, &route.Port, &route.TLS, &route.Path, &route.CertificateID, &route.ProxyConfig, &route.CreatedAt, &route.UpdatedAt)
+		err := rows.Scan(&route.ID, &route.ServiceID, &route.Domain, &route.Port, &route.TLS, &route.Path, &route.CertificateID, &route.DomainID, &route.ProxyConfig, &route.CreatedAt, &route.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan route: %w", err)
 		}
@@ -1305,20 +1306,63 @@ func (s *Store) ListCertificates(ctx context.Context) ([]EnhancedCertificate, er
 func (s *Store) CreateDNSProvider(ctx context.Context, spec DNSProviderSpec) (DNSProvider, error) {
 	var provider DNSProvider
 	
-	// Marshal config to JSON
+	// Load master key for encryption
+	masterKey, err := crypto.LoadMasterKeyFromEnv()
+	if err != nil {
+		return provider, fmt.Errorf("failed to load master key: %w", err)
+	}
+	
+	// Marshal legacy config to JSON for backward compatibility
 	configBytes, err := json.Marshal(spec.Config)
 	if err != nil {
 		return provider, fmt.Errorf("failed to marshal DNS provider config: %w", err)
 	}
 	configJSON := string(configBytes)
 	
+	// Marshal settings to JSON if provided
+	var settingsJSON *string
+	if spec.Settings != nil {
+		settingsBytes, err := json.Marshal(spec.Settings)
+		if err != nil {
+			return provider, fmt.Errorf("failed to marshal DNS provider settings: %w", err)
+		}
+		settingsStr := string(settingsBytes)
+		settingsJSON = &settingsStr
+	}
+	
+	// Create provider struct for encryption
 	now := time.Now()
+	active := true
+	provider = DNSProvider{
+		Name:      spec.Name,
+		Type:      spec.Type,
+		Label:     &spec.Label,
+		Email:     spec.Email,
+		APIToken:  spec.APIToken,
+		ConfigJSON: configJSON,
+		Settings:  settingsJSON,
+		Active:    &active,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	
+	// Encrypt API token if provided
+	if provider.APIToken != nil && *provider.APIToken != "" {
+		if err := provider.EncryptAPIToken(masterKey); err != nil {
+			return provider, fmt.Errorf("failed to encrypt API token: %w", err)
+		}
+	}
+	
+	// Insert into database
 	query := `
-		INSERT INTO dns_providers (name, type, config_json, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?)
+		INSERT INTO dns_providers (name, type, label, email, api_token, api_token_nonce, config_json, settings, active, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	
-	result, err := s.db.ExecContext(ctx, query, spec.Name, spec.Type, configJSON, now, now)
+	result, err := s.db.ExecContext(ctx, query, 
+		provider.Name, provider.Type, provider.Label, provider.Email, 
+		provider.APIToken, provider.APITokenNonce, provider.ConfigJSON, 
+		provider.Settings, provider.Active, provider.CreatedAt, provider.UpdatedAt)
 	if err != nil {
 		return provider, fmt.Errorf("failed to create DNS provider: %w", err)
 	}
@@ -1328,23 +1372,16 @@ func (s *Store) CreateDNSProvider(ctx context.Context, spec DNSProviderSpec) (DN
 		return provider, fmt.Errorf("failed to get DNS provider ID: %w", err)
 	}
 	
-	provider = DNSProvider{
-		ID:         id,
-		Name:       spec.Name,
-		Type:       spec.Type,
-		ConfigJSON: configJSON,
-		CreatedAt:  now,
-		UpdatedAt:  now,
-	}
-	
+	provider.ID = id
 	return provider, nil
 }
 
 // ListDNSProviders retrieves all DNS providers
 func (s *Store) ListDNSProviders(ctx context.Context) ([]DNSProvider, error) {
 	query := `
-		SELECT id, name, type, config_json, created_at, updated_at
+		SELECT id, name, type, label, email, api_token, api_token_nonce, config_json, settings, active, created_at, updated_at
 		FROM dns_providers
+		WHERE active IS NULL OR active = 1
 		ORDER BY name
 	`
 	
@@ -1358,8 +1395,9 @@ func (s *Store) ListDNSProviders(ctx context.Context) ([]DNSProvider, error) {
 	for rows.Next() {
 		var provider DNSProvider
 		err := rows.Scan(
-			&provider.ID, &provider.Name, &provider.Type, 
-			&provider.ConfigJSON, &provider.CreatedAt, &provider.UpdatedAt,
+			&provider.ID, &provider.Name, &provider.Type, &provider.Label, &provider.Email,
+			&provider.APIToken, &provider.APITokenNonce, &provider.ConfigJSON, 
+			&provider.Settings, &provider.Active, &provider.CreatedAt, &provider.UpdatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan DNS provider: %w", err)
@@ -1368,6 +1406,52 @@ func (s *Store) ListDNSProviders(ctx context.Context) ([]DNSProvider, error) {
 	}
 	
 	return providers, rows.Err()
+}
+
+// GetDNSProvider retrieves a specific DNS provider by ID
+func (s *Store) GetDNSProvider(ctx context.Context, id int64) (DNSProvider, error) {
+	var provider DNSProvider
+	
+	query := `
+		SELECT id, name, type, label, email, api_token, api_token_nonce, config_json, settings, active, created_at, updated_at
+		FROM dns_providers
+		WHERE id = ? AND (active IS NULL OR active = 1)
+	`
+	
+	err := s.db.QueryRowContext(ctx, query, id).Scan(
+		&provider.ID, &provider.Name, &provider.Type, &provider.Label, &provider.Email,
+		&provider.APIToken, &provider.APITokenNonce, &provider.ConfigJSON, 
+		&provider.Settings, &provider.Active, &provider.CreatedAt, &provider.UpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return provider, ErrNotFound
+		}
+		return provider, fmt.Errorf("failed to get DNS provider: %w", err)
+	}
+	
+	return provider, nil
+}
+
+// DeleteDNSProvider soft deletes a DNS provider by setting active = false
+func (s *Store) DeleteDNSProvider(ctx context.Context, id int64) error {
+	query := `UPDATE dns_providers SET active = 0, updated_at = ? WHERE id = ?`
+	
+	result, err := s.db.ExecContext(ctx, query, time.Now(), id)
+	if err != nil {
+		return fmt.Errorf("failed to delete DNS provider: %w", err)
+	}
+	
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get affected rows: %w", err)
+	}
+	
+	if rowsAffected == 0 {
+		return ErrNotFound
+	}
+	
+	return nil
 }
 
 // Domain Methods
@@ -1453,6 +1537,69 @@ func (s *Store) GetDomainByName(ctx context.Context, name string) (*Domain, erro
 	}
 	
 	return &domain, nil
+}
+
+// GetDomainByID retrieves a domain by its ID
+func (s *Store) GetDomainByID(ctx context.Context, id int64) (*Domain, error) {
+	var domain Domain
+	var provider, zoneID sql.NullString
+	var verificationCheckedAt sql.NullTime
+	var certificateID sql.NullInt64
+	
+	err := s.db.QueryRowContext(ctx,
+		`SELECT id, name, status, provider, zone_id, verification_token, verification_checked_at, certificate_id, created_at, updated_at
+		 FROM domains WHERE id = ?`, id).
+		Scan(&domain.ID, &domain.Name, &domain.Status, &provider, &zoneID, &domain.VerificationToken, 
+			&verificationCheckedAt, &certificateID, &domain.CreatedAt, &domain.UpdatedAt)
+	
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("domain not found with ID: %d", id)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get domain: %w", err)
+	}
+	
+	// Handle nullable fields
+	if provider.Valid {
+		domain.Provider = &provider.String
+	}
+	if zoneID.Valid {
+		domain.ZoneID = &zoneID.String
+	}
+	if verificationCheckedAt.Valid {
+		domain.VerificationCheckedAt = &verificationCheckedAt.Time
+	}
+	if certificateID.Valid {
+		domain.CertificateID = &certificateID.Int64
+	}
+	
+	return &domain, nil
+}
+
+// GetDomain is an alias for GetDomainByID to match RouteStore interface
+func (s *Store) GetDomain(ctx context.Context, id int64) (Domain, error) {
+	domain, err := s.GetDomainByID(ctx, id)
+	if err != nil {
+		return Domain{}, err
+	}
+	return *domain, nil
+}
+
+// UpdateDomainVerificationChecked updates the verification timestamp for a domain
+func (s *Store) UpdateDomainVerificationChecked(ctx context.Context, id int64, checkedAt *time.Time) error {
+	query := `UPDATE domains SET verification_checked_at = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+	
+	var checkedAtVal interface{}
+	if checkedAt != nil {
+		checkedAtVal = *checkedAt
+	}
+	
+	_, err := s.db.ExecContext(ctx, query, checkedAtVal, id)
+	if err != nil {
+		return fmt.Errorf("failed to update domain verification timestamp: %w", err)
+	}
+	
+	return nil
 }
 
 // ListDomains returns domains filtered by status (empty slice returns all domains)

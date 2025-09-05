@@ -17,6 +17,8 @@ export function ArticleToc({ toc, updatedAt, tags }: ArticleTocProps) {
   const [activeId, setActiveId] = useState<string>('')
   const [copied, setCopied] = useState(false)
   const observerRef = useRef<IntersectionObserver>()
+  
+  console.log('🔗 ArticleToc received TOC:', toc)
 
   // Copy current page URL
   const copyLink = async () => {

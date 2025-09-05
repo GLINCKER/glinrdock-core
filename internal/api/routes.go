@@ -93,6 +93,20 @@ func SetupRoutes(r *gin.Engine, handlers *Handlers, corsOrigins []string, authSe
 				projects.GET("/:id/routes", handlers.ListServiceRoutes)
 			}
 			
+			// Deployment templates and automation (deployer+ can deploy, all can view templates)
+			deployment := protected.Group("/deploy")
+			{
+				// Template management - all authenticated users can view templates
+				deployment.GET("/templates", handlers.deploymentHandlers.GetDeploymentTemplates)
+				deployment.GET("/templates/:id", handlers.deploymentHandlers.GetDeploymentTemplate)
+				
+				// Auto-detection for repositories - all authenticated users can analyze
+				deployment.POST("/detect", handlers.deploymentHandlers.AutoDetectProject)
+				
+				// Deployment execution - deployer+ only
+				deployment.POST("", authService.RequireRole(store.RoleDeployer), handlers.deploymentHandlers.DeployService)
+			}
+
 			// Service management (admin, deployer can manage; viewer can read)
 			services := protected.Group("/services")
 			{
@@ -161,6 +175,8 @@ func SetupRoutes(r *gin.Engine, handlers *Handlers, corsOrigins []string, authSe
 				system.POST("/nginx/validate", handlers.ValidateNginxConfig)
 				system.POST("/lockdown", handlers.SystemLockdown)
 				system.POST("/lift-lockdown", handlers.LiftLockdown)
+				system.POST("/start", handlers.SystemStart)
+				system.POST("/stop", handlers.SystemStop)
 				system.POST("/emergency-restart", handlers.EmergencyRestart)
 				system.GET("/logs", handlers.GetSystemLogs)
 				system.GET("/log-paths", handlers.GetLogPaths)
@@ -263,6 +279,35 @@ func SetupRoutes(r *gin.Engine, handlers *Handlers, corsOrigins []string, authSe
 				certificates.GET("/:id", handlers.GetCertificate)
 				certificates.DELETE("/:id", handlers.DeleteCertificate)
 				certificates.POST("/:id/renew", handlers.RenewCertificate)
+			}
+
+			// Domain management API (admin only)
+			if handlers.domainHandlers != nil {
+				domains := protected.Group("/domains")
+				domains.Use(authService.RequireAdminRole())
+				{
+					domains.POST("", handlers.domainHandlers.CreateDomain)
+					domains.GET("", handlers.domainHandlers.ListDomains)
+					domains.GET("/:id", handlers.domainHandlers.GetDomain)
+					domains.POST("/:id/auto-configure", handlers.domainHandlers.AutoConfigureDomain)
+					domains.POST("/:id/verify", handlers.domainHandlers.VerifyDomain)
+					domains.POST("/:id/activate", handlers.domainHandlers.ActivateDomain)
+				}
+			}
+
+			// DNS Provider management API (admin only)
+			if handlers.dnsProviderHandlers != nil {
+				dns := protected.Group("/dns")
+				dns.Use(authService.RequireAdminRole())
+				{
+					providers := dns.Group("/providers")
+					{
+						providers.POST("", handlers.dnsProviderHandlers.CreateDNSProvider)
+						providers.GET("", handlers.dnsProviderHandlers.ListDNSProviders)
+						providers.GET("/:id", handlers.dnsProviderHandlers.GetDNSProvider)
+						providers.DELETE("/:id", handlers.dnsProviderHandlers.DeleteDNSProvider)
+					}
+				}
 			}
 
 			// Nginx Proxy management API (admin only)

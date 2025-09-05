@@ -50,7 +50,7 @@ type SearchBadge struct {
 
 // SearchFilter represents search filtering options
 type SearchFilter struct {
-	Type        string `json:"type,omitempty"`         // project|service|route|setting|registry|env_template|page|help
+	Type        string `json:"type,omitempty"`         // project|service|route|setting|registry|env_template|page|help|operation
 	ProjectID   *int64 `json:"project_id,omitempty"`  
 	ProjectName string `json:"project_name,omitempty"` // project name fragment for filtering
 	Status      string `json:"status,omitempty"`       // running|stopped (for services)
@@ -378,6 +378,10 @@ func (s *Store) generateSearchBadges(entityType string, entityID int64) []Search
 		badges = append(badges, SearchBadge{Key: "type", Value: "template"})
 	case "help":
 		badges = append(badges, SearchBadge{Key: "type", Value: "help"})
+	case "setting":
+		badges = append(badges, SearchBadge{Key: "type", Value: "setting"})
+	case "operation":
+		badges = append(badges, SearchBadge{Key: "type", Value: "action"})
 	}
 	
 	return badges
@@ -391,27 +395,35 @@ func prepareFTS5Query(q string) string {
 		return "*"
 	}
 	
-	// Split into terms and add prefix matching for the last term
+	// For short queries (1-2 chars), use simple prefix matching
+	if len(q) <= 2 {
+		// Escape quotes and add prefix matching
+		escaped := strings.ReplaceAll(q, `"`, `""`)
+		return `"` + escaped + `*"`
+	}
+	
+	// Split into terms and add prefix matching for all terms
 	terms := strings.Fields(q)
 	if len(terms) == 0 {
 		return "*"
 	}
 	
-	// Escape quotes and build FTS5 query
+	// Build FTS5 query with prefix matching on all terms
 	var ftsTerms []string
-	for i, term := range terms {
+	for _, term := range terms {
 		// Escape quotes
 		term = strings.ReplaceAll(term, `"`, `""`)
 		
-		// Add prefix matching to the last term
-		if i == len(terms)-1 && len(term) > 1 {
+		// Add prefix matching to all terms that are reasonable length
+		if len(term) >= 1 {
 			term = term + "*"
 		}
 		
 		ftsTerms = append(ftsTerms, `"`+term+`"`)
 	}
 	
-	return strings.Join(ftsTerms, " AND ")
+	// Use OR for better prefix matching experience
+	return strings.Join(ftsTerms, " OR ")
 }
 
 // SearchReindex rebuilds the entire search index from canonical tables
@@ -563,7 +575,7 @@ func (s *Store) IndexProject(ctx context.Context, projectID int64) error {
 	defer tx.Rollback()
 
 	// Remove existing project entry
-	if _, err := tx.ExecContext(ctx, "DELETE FROM search_docs WHERE type = 'project' AND entity_id = ?", projectID); err != nil {
+	if _, err := tx.ExecContext(ctx, "DELETE FROM search_docs WHERE entity_type = 'project' AND entity_id = ?", projectID); err != nil {
 		return fmt.Errorf("failed to remove existing project index: %w", err)
 	}
 
@@ -594,7 +606,7 @@ func (s *Store) IndexProject(ctx context.Context, projectID int64) error {
 	urlPath := fmt.Sprintf("/app/projects/%d", id)
 
 	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO search_docs (type, entity_id, title, subtitle, content, tags, url_path, created_at)
+		INSERT INTO search_docs (entity_type, entity_id, title, subtitle, body, tags, url_path, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		"project", id, title, subtitle, name, tags, urlPath, time.Now()); err != nil {
 		return fmt.Errorf("failed to index project: %w", err)
@@ -612,7 +624,7 @@ func (s *Store) IndexService(ctx context.Context, serviceID int64) error {
 	defer tx.Rollback()
 
 	// Remove existing service entry
-	if _, err := tx.ExecContext(ctx, "DELETE FROM search_docs WHERE type = 'service' AND entity_id = ?", serviceID); err != nil {
+	if _, err := tx.ExecContext(ctx, "DELETE FROM search_docs WHERE entity_type = 'service' AND entity_id = ?", serviceID); err != nil {
 		return fmt.Errorf("failed to remove existing service index: %w", err)
 	}
 
@@ -642,7 +654,7 @@ func (s *Store) IndexService(ctx context.Context, serviceID int64) error {
 	urlPath := fmt.Sprintf("/app/services/%d", id)
 
 	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO search_docs (type, entity_id, title, subtitle, content, tags, url_path, created_at)
+		INSERT INTO search_docs (entity_type, entity_id, title, subtitle, body, tags, url_path, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		"service", id, title, subtitle, content, tags, urlPath, time.Now()); err != nil {
 		return fmt.Errorf("failed to index service: %w", err)
@@ -660,13 +672,13 @@ func (s *Store) IndexRoute(ctx context.Context, routeID int64) error {
 	defer tx.Rollback()
 
 	// Remove existing route entry
-	if _, err := tx.ExecContext(ctx, "DELETE FROM search_docs WHERE type = 'route' AND entity_id = ?", routeID); err != nil {
+	if _, err := tx.ExecContext(ctx, "DELETE FROM search_docs WHERE entity_type = 'route' AND entity_id = ?", routeID); err != nil {
 		return fmt.Errorf("failed to remove existing route index: %w", err)
 	}
 
 	// Index the specific route
 	row := tx.QueryRowContext(ctx, `
-		SELECT r.id, r.domain, r.port, r.tls, r.protocol,
+		SELECT r.id, r.domain, r.port, r.tls,
 		       s.name as service_name, p.name as project_name
 		FROM routes r
 		JOIN services s ON r.service_id = s.id
@@ -674,11 +686,11 @@ func (s *Store) IndexRoute(ctx context.Context, routeID int64) error {
 		WHERE r.id = ?`, routeID)
 	
 	var id int64
-	var domain, protocol, serviceName, projectName string
+	var domain, serviceName, projectName string
 	var port int
 	var tls bool
 	
-	if err := row.Scan(&id, &domain, &port, &tls, &protocol, &serviceName, &projectName); err != nil {
+	if err := row.Scan(&id, &domain, &port, &tls, &serviceName, &projectName); err != nil {
 		if err == sql.ErrNoRows {
 			// Route was deleted, just commit the removal
 			return tx.Commit()
@@ -687,8 +699,10 @@ func (s *Store) IndexRoute(ctx context.Context, routeID int64) error {
 	}
 
 	title := domain
+	protocol := "http"
 	tlsStatus := "HTTP"
 	if tls {
+		protocol = "https"
 		tlsStatus = "HTTPS"
 	}
 	subtitle := fmt.Sprintf("%s • %s:%d → %s", projectName, tlsStatus, port, serviceName)
@@ -697,7 +711,7 @@ func (s *Store) IndexRoute(ctx context.Context, routeID int64) error {
 	urlPath := fmt.Sprintf("/app/routes")
 
 	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO search_docs (type, entity_id, title, subtitle, content, tags, url_path, created_at)
+		INSERT INTO search_docs (entity_type, entity_id, title, subtitle, body, tags, url_path, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		"route", id, title, subtitle, content, tags, urlPath, time.Now()); err != nil {
 		return fmt.Errorf("failed to index route: %w", err)
@@ -721,7 +735,7 @@ func (s *Store) IndexRegistryByStringID(ctx context.Context, registryID string) 
 	}
 
 	// Remove existing registry entry
-	if _, err := tx.ExecContext(ctx, "DELETE FROM search_docs WHERE type = 'registry' AND entity_id = ?", entityID); err != nil {
+	if _, err := tx.ExecContext(ctx, "DELETE FROM search_docs WHERE entity_type = 'registry' AND entity_id = ?", entityID); err != nil {
 		return fmt.Errorf("failed to remove existing registry index: %w", err)
 	}
 
@@ -748,7 +762,7 @@ func (s *Store) IndexRegistryByStringID(ctx context.Context, registryID string) 
 	urlPath := "/app/settings/registries"
 
 	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO search_docs (type, entity_id, title, subtitle, content, tags, url_path, created_at)
+		INSERT INTO search_docs (entity_type, entity_id, title, subtitle, body, tags, url_path, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		"registry", entityID, title, subtitle, content, tags, urlPath, time.Now()); err != nil {
 		return fmt.Errorf("failed to index registry: %w", err)
@@ -766,7 +780,7 @@ func (s *Store) IndexRegistry(ctx context.Context, registryID int64) error {
 	defer tx.Rollback()
 
 	// Remove existing registry entry
-	if _, err := tx.ExecContext(ctx, "DELETE FROM search_docs WHERE type = 'registry' AND entity_id = ?", registryID); err != nil {
+	if _, err := tx.ExecContext(ctx, "DELETE FROM search_docs WHERE entity_type = 'registry' AND entity_id = ?", registryID); err != nil {
 		return fmt.Errorf("failed to remove existing registry index: %w", err)
 	}
 
@@ -794,7 +808,7 @@ func (s *Store) IndexRegistry(ctx context.Context, registryID int64) error {
 	urlPath := "/app/settings/registries"
 
 	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO search_docs (type, entity_id, title, subtitle, content, tags, url_path, created_at)
+		INSERT INTO search_docs (entity_type, entity_id, title, subtitle, body, tags, url_path, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		"registry", id, title, subtitle, content, tags, urlPath, time.Now()); err != nil {
 		return fmt.Errorf("failed to index registry: %w", err)
@@ -879,7 +893,7 @@ func (s *Store) indexServices(ctx context.Context, tx *sql.Tx) error {
 			Title:      name,
 			Subtitle:   subtitle,
 			Body:       body,
-			Tags:       fmt.Sprintf("service %s %s docker container", projectName, name),
+			Tags:       fmt.Sprintf("service %s %s %s docker container deployment microservice", projectName, name, image),
 			ProjectID:  &projectID,
 			URLPath:    fmt.Sprintf("/app/services/%d", id),
 		}
@@ -1148,6 +1162,95 @@ func (s *Store) indexPagesStatic(ctx context.Context, tx *sql.Tx) error {
 		}
 	}
 
+	// Add comprehensive settings pages with rich content
+	settingsPages := []struct {
+		slug     string
+		title    string
+		subtitle string
+		urlPath  string
+		content  string
+		tags     string
+	}{
+		// Settings Sub-pages with Rich Context
+		{"settings-system-admin", "System Administration", "System security and administration controls", "/app/settings/system-admin", "System Administration lockdown mode emergency security restart backup restore system health maintenance", "system admin lockdown emergency security restart backup restore maintenance"},
+		{"settings-auth", "Authentication", "User authentication and authorization", "/app/settings/auth", "Authentication authorization login logout session management security user access", "authentication authorization login logout session management security user access"},
+		{"settings-license", "License Management", "Software license activation and management", "/app/settings/license", "License management activation deactivation features limits plan upgrade enterprise", "license management activation deactivation features limits plan upgrade enterprise"},
+		{"settings-plan-limits", "Plan & Limits", "Resource usage and plan limitations", "/app/settings/plan-limits", "Plan limits usage quotas resources services projects capacity billing upgrade", "plan limits usage quotas resources services projects capacity billing upgrade"},
+		{"settings-integrations-github", "GitHub Integration", "GitHub repository and OAuth integration", "/app/settings/integrations/github", "GitHub integration OAuth repository webhooks continuous deployment CI CD source control", "github integration oauth repository webhooks continuous deployment ci cd source control"},
+		{"settings-integrations-proxy", "Nginx Proxy Settings", "Reverse proxy and load balancing configuration", "/app/settings/integrations/proxy", "Nginx proxy reverse proxy load balancing SSL certificates HTTPS configuration networking", "nginx proxy reverse proxy load balancing ssl certificates https configuration networking"},
+		{"settings-certificates", "SSL Certificates", "SSL/TLS certificate management", "/app/settings/certificates", "SSL certificates TLS HTTPS security encryption domain verification Let's Encrypt", "ssl certificates tls https security encryption domain verification lets encrypt"},
+		{"settings-env-templates", "Environment Templates", "Environment variable templates and configurations", "/app/settings/environments", "Environment templates variables configuration database development production staging", "environment templates variables configuration database development production staging"},
+	}
+
+	// Index settings pages
+	for _, page := range settingsPages {
+		entityID := int64(len(page.slug))
+		for _, b := range []byte(page.slug) {
+			entityID = entityID*31 + int64(b)
+		}
+		if entityID < 0 {
+			entityID = -entityID
+		}
+
+		doc := &SearchDoc{
+			EntityType: "setting",
+			EntityID:   entityID,
+			Title:      page.title,
+			Subtitle:   page.subtitle,
+			Body:       page.content,
+			Tags:       page.tags,
+			ProjectID:  nil,
+			URLPath:    page.urlPath,
+		}
+
+		if err := s.insertSearchDocTx(ctx, tx, doc); err != nil {
+			return fmt.Errorf("failed to index settings page %s: %w", page.slug, err)
+		}
+	}
+
+	// Add searchable system operations and actions
+	operations := []struct {
+		slug     string
+		title    string
+		subtitle string
+		urlPath  string
+		content  string
+		tags     string
+	}{
+		{"operation-lockdown", "Enable Lockdown Mode", "Emergency system lockdown and security mode", "/app/settings/system-admin", "Lockdown mode emergency security disable access maintenance mode system protection", "lockdown emergency security disable access maintenance mode system protection"},
+		{"operation-backup", "Create System Backup", "Backup system configuration and data", "/app/settings/system-admin", "Backup system configuration export data restore recovery disaster", "backup system configuration export data restore recovery disaster"},
+		{"operation-restore", "Restore System Backup", "Restore system from backup file", "/app/settings/system-admin", "Restore system backup recovery import configuration disaster recovery", "restore system backup recovery import configuration disaster recovery"},
+		{"operation-reindex", "Rebuild Search Index", "Rebuild and refresh search index", "/app/settings/system-admin", "Reindex search rebuild refresh index maintenance search optimization", "reindex search rebuild refresh index maintenance search optimization"},
+		{"operation-activate-license", "Activate License", "Activate software license key", "/app/settings/license", "Activate license key registration enterprise features unlock premium", "activate license key registration enterprise features unlock premium"},
+		{"operation-ssl-setup", "SSL Certificate Setup", "Configure SSL certificates for domains", "/app/settings/certificates", "SSL certificate setup HTTPS domain verification security encryption", "ssl certificate setup https domain verification security encryption"},
+	}
+
+	// Index operations
+	for _, op := range operations {
+		entityID := int64(len(op.slug))
+		for _, b := range []byte(op.slug) {
+			entityID = entityID*31 + int64(b)
+		}
+		if entityID < 0 {
+			entityID = -entityID
+		}
+
+		doc := &SearchDoc{
+			EntityType: "operation",
+			EntityID:   entityID,
+			Title:      op.title,
+			Subtitle:   op.subtitle,
+			Body:       op.content,
+			Tags:       op.tags,
+			ProjectID:  nil,
+			URLPath:    op.urlPath,
+		}
+
+		if err := s.insertSearchDocTx(ctx, tx, doc); err != nil {
+			return fmt.Errorf("failed to index operation %s: %w", op.slug, err)
+		}
+	}
+
 	return nil
 }
 
@@ -1349,27 +1452,34 @@ func prepareFTS5PrefixQuery(prefix string) string {
 		return "*"
 	}
 	
-	// Split into terms and add prefix matching to the last term
+	// For very short queries, use simple prefix matching
+	if len(prefix) <= 2 {
+		escaped := strings.ReplaceAll(prefix, `"`, `""`)
+		return `"` + escaped + `*"`
+	}
+	
+	// Split into terms and add prefix matching to all terms
 	terms := strings.Fields(prefix)
 	if len(terms) == 0 {
 		return "*"
 	}
 	
-	// Escape quotes and build FTS5 prefix query
+	// Build FTS5 prefix query with prefix matching on all terms
 	var ftsTerms []string
-	for i, term := range terms {
+	for _, term := range terms {
 		// Escape quotes
 		term = strings.ReplaceAll(term, `"`, `""`)
 		
-		// Add prefix matching to the last term, exact matching to others
-		if i == len(terms)-1 {
+		// Add prefix matching to all terms
+		if len(term) >= 1 {
 			term = term + "*"
 		}
 		
 		ftsTerms = append(ftsTerms, `"`+term+`"`)
 	}
 	
-	return strings.Join(ftsTerms, " AND ")
+	// Use OR for better prefix matching experience in suggestions
+	return strings.Join(ftsTerms, " OR ")
 }
 
 // SearchQueryBasic performs basic SQL LIKE search when FTS5 is unavailable or fails

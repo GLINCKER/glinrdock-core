@@ -1,10 +1,29 @@
 import { useState, useEffect } from 'preact/hooks'
 import { apiClient, useApiData } from '../api'
 import { Toast } from '../components/ui'
-import { Settings as SettingsIcon, Server, Shield, Database, Key } from 'lucide-preact'
+import { 
+  Settings as SettingsIcon, 
+  Server, 
+  Shield, 
+  Database, 
+  Key,
+  Home,
+  Lock,
+  UserCheck,
+  CreditCard,
+  ScrollText,
+  Plug,
+  Monitor,
+  Crown
+} from 'lucide-preact'
 import { isAdminSync } from '../rbac'
+import { Link } from 'wouter'
+import { Breadcrumb } from '../components/Breadcrumb'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 export function Settings() {
+  usePageTitle("Settings");
+
   const [toastConfig, setToastConfig] = useState({ show: false, message: '', type: 'info' as 'info' | 'success' | 'error' })
   const [showTokenModal, setShowTokenModal] = useState(false)
   const [showLockdownModal, setShowLockdownModal] = useState(false)
@@ -183,61 +202,6 @@ export function Settings() {
     return true
   }
 
-  const handleRestoreUpload = (event: Event) => {
-    const target = event.target as HTMLInputElement
-    const file = target.files?.[0]
-    if (!file) return
-
-    if (validateRestoreFile(file)) {
-      setRestoreFile(file)
-      showToast(`Backup file selected: ${file.name}`, 'info')
-    }
-  }
-
-  const handleRestoreDrop = (event: DragEvent) => {
-    event.preventDefault()
-    setDragOver(false)
-    
-    const files = event.dataTransfer?.files
-    if (!files || files.length === 0) return
-    
-    const file = files[0]
-    if (validateRestoreFile(file)) {
-      setRestoreFile(file)
-      showToast(`Backup file selected: ${file.name}`, 'info')
-    }
-  }
-
-  const handleRestoreDragOver = (event: DragEvent) => {
-    event.preventDefault()
-    setDragOver(true)
-  }
-
-  const handleRestoreDragLeave = (event: DragEvent) => {
-    event.preventDefault()
-    setDragOver(false)
-  }
-
-  const handleRestoreBackup = async () => {
-    if (!restoreFile) return
-
-    setRestoringBackup(true)
-    try {
-      await apiClient.restoreBackup(restoreFile)
-      showToast('Backup restore initiated successfully. System will restart shortly.', 'success')
-      setShowRestoreModal(false)
-      setRestoreFile(null)
-      
-      setTimeout(() => {
-        window.location.reload()
-      }, 3000)
-    } catch (error: any) {
-      showToast(error.message || 'Failed to restore backup', 'error')
-    } finally {
-      setRestoringBackup(false)
-    }
-  }
-
   const handleSystemLockdown = async () => {
     try {
       await apiClient.systemLockdown('Manual lockdown initiated from Settings page')
@@ -306,1075 +270,212 @@ export function Settings() {
   }, [])
 
   return (
-    <div class="space-y-6 fade-in">
-      {/* Header */}
-      <div>
-        <h1 class="text-3xl font-bold mb-2">
-          <span class="bg-gradient-to-r from-[#8b008b] via-[#9c40ff] to-[#e94057] bg-clip-text text-transparent">
-            Settings
-          </span>
-        </h1>
-        <p class="text-gray-600 dark:text-gray-400">System configuration and emergency controls</p>
-      </div>
+    <div class="min-h-screen">
+      <div class="relative z-10 p-3 sm:p-6 max-w-7xl mx-auto space-y-6 fade-in">
+        {/* Breadcrumb */}
+        <Breadcrumb
+          items={[
+            { label: "Home", href: "/", icon: Home },
+            { label: "Settings", active: true, icon: SettingsIcon },
+          ]}
+          className="text-gray-600 dark:text-gray-300"
+        />
 
-      {/* System Status Card */}
-      <div class="bg-gradient-to-r from-white/95 via-gray-50/90 to-white/95 dark:from-gray-800/95 dark:via-gray-900/90 dark:to-gray-800/95 rounded-2xl p-6 shadow-lg shadow-[#10b981]/10">
-        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
-          <svg class="w-6 h-6 text-[#10b981] mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-          </svg>
-          System Status
-        </h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Docker Engine</span>
-              <div class="flex items-center">
-                <div class={`w-2 h-2 rounded-full mr-2 ${systemInfo?.docker_status === 'connected' ? 'bg-[#10b981]' : 'bg-[#e94057]'}`}></div>
-                <span class="text-xs font-medium text-gray-900 dark:text-white capitalize">
-                  {systemInfo?.docker_status || 'Unknown'}
-                </span>
-              </div>
-            </div>
-            <p class="text-xs text-gray-600 dark:text-gray-400">Container orchestration engine</p>
-          </div>
-          
-          <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">System Info</span>
-              <span class="text-xs font-mono text-gray-900 dark:text-white">
-                {systemInfo?.os || 'Unknown'}/{systemInfo?.arch || 'Unknown'}
+        {/* Header */}
+        <div class="flex items-center justify-between mb-8">
+          <div>
+            <h1 class="text-3xl font-bold mb-3">
+              <span class="bg-gradient-to-r from-[#9c40ff] via-[#e94057] to-[#8b008b] bg-clip-text text-transparent">
+                Settings
               </span>
-            </div>
-            <p class="text-xs text-gray-600 dark:text-gray-400">
-              Runtime: v{systemInfo?.go_version?.replace(/^go/, '') || 'Unknown'}
+            </h1>
+            <p class="text-gray-700 dark:text-gray-300 text-base">
+              Configure system settings, security, and platform features
             </p>
           </div>
         </div>
-      </div>
 
-      {/* Emergency Controls */}
-      <div class="bg-gradient-to-r from-white/95 via-gray-50/90 to-white/95 dark:from-gray-800/95 dark:via-gray-900/90 dark:to-gray-800/95 rounded-2xl p-6 shadow-lg shadow-[#e94057]/10">
-        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
-          <svg class="w-6 h-6 text-[#e94057] mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          Emergency Controls
-        </h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class={`p-4 rounded-xl border ${
-            isLockdownActive 
-              ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800/30' 
-              : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/30'
-          }`}>
-            <h3 class={`text-sm font-semibold mb-2 ${
-              isLockdownActive 
-                ? 'text-orange-900 dark:text-orange-300' 
-                : 'text-red-900 dark:text-red-300'
-            }`}>
-              {isLockdownActive ? 'System Lockdown Active' : 'System Lockdown'}
-            </h3>
-            <p class={`text-xs mb-4 ${
-              isLockdownActive 
-                ? 'text-orange-700 dark:text-orange-400' 
-                : 'text-red-700 dark:text-red-400'
-            }`}>
-              {isLockdownActive 
-                ? 'System is currently in lockdown mode. Only admin access is permitted.' 
-                : 'Immediately restrict access to admin-only operations. Use during security incidents.'
-              }
-            </p>
-            {isLockdownActive ? (
-              <button 
-                onClick={handleLiftLockdown}
-                class="w-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors"
-              >
-                <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
-                </svg>
-                Lift Lockdown
-              </button>
-            ) : (
-              <button 
-                onClick={() => setShowLockdownModal(true)}
-                class="w-full bg-red-500 hover:bg-red-600 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors"
-              >
-                <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-                Initiate Lockdown
-              </button>
-            )}
-          </div>
-          
-          <div class="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-xl border border-orange-200 dark:border-orange-800/30">
-            <div class="flex items-center justify-between mb-2">
-              <h3 class="text-sm font-semibold text-orange-900 dark:text-orange-300">Emergency Restart</h3>
-              {shouldShowRestartInfo() && (
-                <div class="flex items-center text-xs text-orange-600 dark:text-orange-400">
-                  <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Last: {formatTimeAgo(systemStatus.last_restart.time_ago)} ago
-                </div>
-              )}
+        {/* Settings Cards */}
+        <div class="space-y-8">
+          {/* Authentication & Security Section */}
+          <div class="space-y-4">
+            <div class="flex items-center gap-3">
+              <div class="p-2 bg-gradient-to-br from-purple-100 to-indigo-100 dark:from-purple-900/30 dark:to-indigo-900/30 rounded-xl">
+                <Shield class="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              </div>
+              <div>
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Authentication & Security</h2>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Manage authentication, tokens, and certificates</p>
+              </div>
             </div>
-            <p class="text-xs text-orange-700 dark:text-orange-400 mb-3">
-              Force restart all services. Will cause brief downtime but may resolve critical issues.
-            </p>
             
-            {/* Restart Status Display */}
-            {shouldShowRestartInfo() && (
-              <div class="mb-3 p-3 bg-green-100 dark:bg-green-900/30 rounded-lg border border-green-200 dark:border-green-800/30">
-                <div class="flex items-center text-xs text-green-800 dark:text-green-300">
-                  <svg class="w-4 h-4 mr-2 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <div>
-                    <div class="font-semibold">Last successful restart</div>
-                    <div class="font-mono text-xs mt-1">
-                      {new Date(systemStatus.last_restart.timestamp).toLocaleString()}
-                    </div>
-                    <div class="text-xs opacity-75 mt-1">
-                      System has been running for {formatTimeAgo(systemStatus.last_restart.time_ago)}
-                    </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Link href="/settings/certificates" class="p-6 bg-white dark:glassmorphism border border-gray-200 dark:border-white/10 rounded-2xl shadow-lg dark:shadow-xl hover:shadow-xl dark:hover:shadow-2xl transition-all group">
+                <div class="flex items-center justify-between mb-4">
+                  <div class="p-3 bg-gradient-to-br from-green-100 to-emerald-100 dark:from-green-900/30 dark:to-emerald-900/30 rounded-xl">
+                    <Lock class="w-6 h-6 text-green-600 dark:text-green-400" />
                   </div>
-                </div>
-              </div>
-            )}
-            
-            <button 
-              onClick={() => setShowEmergencyModal(true)}
-              class="w-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors"
-            >
-              <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Emergency Restart
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Authentication & Access */}
-      <div class="bg-gradient-to-r from-white/95 via-gray-50/90 to-white/95 dark:from-gray-800/95 dark:via-gray-900/90 dark:to-gray-800/95 rounded-2xl p-6 shadow-lg shadow-[#9c40ff]/10">
-        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
-          <svg class="w-6 h-6 text-[#9c40ff] mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m0 0a2 2 0 012 2 2 2 0 01-2 2 2 2 0 01-2-2m0 0V9a2 2 0 012-2m0 0V7a2 2 0 011-1.732c.445-.264.99-.398 1.548-.416C18.418 5.359 19 5.932 19 6.616V8M15 7a2 2 0 00-2 2m0 0a2 2 0 00-2 2 2 2 0 002 2 2 2 0 002-2m0 0V9a2 2 0 00-2-2m0 0V7a2 2 0 00-1-1.732c-.445-.264-.99-.398-1.548-.416C10.582 5.359 10 5.932 10 6.616V8" />
-          </svg>
-          Authentication & Access
-        </h2>
-        <div class="space-y-4">
-          <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-            <div class="flex items-center justify-between">
-              <div>
-                <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Current Session</h3>
-                <p class="text-xs text-gray-600 dark:text-gray-400">Authenticated via API token</p>
-              </div>
-              <div class="flex space-x-2">
-                <button 
-                  onClick={() => setShowTokenModal(true)}
-                  class="btn btn-secondary text-sm"
-                >
-                  <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m0 0a2 2 0 012 2 2 2 0 01-2 2 2 2 0 01-2-2m0 0V9a2 2 0 012-2m0 0V7a2 2 0 011-1.732c.445-.264.99-.398 1.548-.416C18.418 5.359 19 5.932 19 6.616V8M15 7a2 2 0 00-2 2m0 0a2 2 0 00-2 2 2 2 0 002 2 2 2 0 002-2m0 0V9a2 2 0 00-2-2m0 0V7a2 2 0 00-1-1.732c-.445-.264-.99-.398-1.548-.416C10.582 5.359 10 5.932 10 6.616V8" />
+                  <svg class="w-5 h-5 text-gray-400 group-hover:text-green-500 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
-                  Manage Tokens
-                </button>
-                <button 
-                  onClick={handleSignOut}
-                  class="btn btn-danger text-sm"
-                >
-                  <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
-                  Sign Out
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* License & Plan */}
-      <div class="bg-gradient-to-r from-white/95 via-gray-50/90 to-white/95 dark:from-gray-800/95 dark:via-gray-900/90 dark:to-gray-800/95 rounded-2xl p-6 shadow-lg shadow-[#9c40ff]/10">
-        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
-          <svg class="w-6 h-6 text-[#9c40ff] mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-          </svg>
-          License & Plan
-        </h2>
-        
-        <div class="space-y-4">
-          <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-            <div class="flex items-center justify-between mb-3">
-              <div>
-                <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-1">Current License</h3>
-                <div class="flex items-center gap-2">
-                  {licenseStatus?.valid ? (
-                    <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300">
-                      ✓ Valid
-                    </span>
-                  ) : (
-                    <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-300">
-                      No License
-                    </span>
-                  )}
-                  <span class={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                    licenseStatus?.plan === 'FREE' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' :
-                    licenseStatus?.plan === 'PRO' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300' :
-                    'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300'
-                  }`}>
-                    {licenseStatus?.plan || 'FREE'}
-                  </span>
                 </div>
-              </div>
-              <div class="flex space-x-2">
-                <button
-                  onClick={() => setShowLicenseModal(true)}
-                  class="px-3 py-2 bg-[#9c40ff] hover:bg-[#8b008b] text-white text-sm font-medium rounded-lg transition-colors"
-                >
-                  {licenseStatus?.valid ? 'Update License' : 'Activate License'}
-                </button>
-                {licenseStatus?.valid && (
-                  <button
-                    onClick={handleLicenseDeactivate}
-                    disabled={deactivatingLicense}
-                    class="px-3 py-2 border border-red-300 dark:border-red-600 text-red-600 dark:text-red-400 text-sm font-medium rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
-                  >
-                    {deactivatingLicense ? 'Deactivating...' : 'Deactivate'}
-                  </button>
-                )}
-              </div>
-            </div>
-            
-            {licenseStatus?.valid && licenseStatus.name && (
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
-                <div>
-                  <p class="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Licensed To</p>
-                  <p class="text-sm font-medium text-gray-900 dark:text-white">{licenseStatus.name}</p>
-                </div>
-                {licenseStatus.org && (
-                  <div>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Organization</p>
-                    <p class="text-sm font-medium text-gray-900 dark:text-white">{licenseStatus.org}</p>
-                  </div>
-                )}
-                {licenseStatus.expiry && (
-                  <div>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Expires</p>
-                    <p class={`text-sm font-medium ${
-                      licenseStatus.expiring_soon 
-                        ? 'text-amber-600 dark:text-amber-400' 
-                        : 'text-gray-900 dark:text-white'
-                    }`}>
-                      {new Date(licenseStatus.expiry).toLocaleDateString()}
-                      {licenseStatus.expiring_soon && ' (Soon)'}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {licenseStatus && (
-            <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-              <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Plan Limits</h3>
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {Object.entries(licenseStatus.limits).map(([key, limit]) => {
-                  const usage = licenseStatus.usage[key.toLowerCase()] || 0
-                  const isUnlimited = limit === -1
-                  const percentage = isUnlimited ? 0 : Math.min((usage / limit) * 100, 100)
-                  
-                  return (
-                    <div key={key} class="space-y-1">
-                      <div class="flex justify-between items-center">
-                        <span class="text-xs text-gray-500 dark:text-gray-400">
-                          {key.replace('Max', '').replace(/([A-Z])/g, ' $1').trim()}
-                        </span>
-                        <span class="text-xs text-gray-700 dark:text-gray-300">
-                          {usage}/{isUnlimited ? '∞' : limit}
-                        </span>
-                      </div>
-                      {!isUnlimited && (
-                        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
-                          <div
-                            class={`h-1.5 rounded-full transition-all ${
-                              percentage >= 90 ? 'bg-red-500' : 
-                              percentage >= 70 ? 'bg-amber-500' : 
-                              'bg-green-500'
-                            }`}
-                            style={{ width: `${percentage}%` }}
-                          ></div>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Backup & Restore */}
-      <div class="bg-gradient-to-r from-white/95 via-gray-50/90 to-white/95 dark:from-gray-800/95 dark:via-gray-900/90 dark:to-gray-800/95 rounded-2xl p-6 shadow-lg shadow-[#10b981]/10">
-        <div class="flex items-center justify-between mb-6">
-          <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center">
-            <svg class="w-6 h-6 text-[#10b981] mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
-            </svg>
-            Backup & Restore
-          </h2>
-          <div class="flex items-center space-x-2">
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border border-orange-200 dark:border-orange-800">
-              <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              BETA
-            </span>
-          </div>
-        </div>
-        
-        {/* Beta Warning */}
-        <div class="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-          <div class="flex items-start space-x-3">
-            <svg class="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <div class="text-sm">
-              <p class="font-medium text-yellow-800 dark:text-yellow-300 mb-2">Beta Feature - Use with Caution</p>
-              <ul class="text-yellow-700 dark:text-yellow-400 space-y-1 text-xs">
-                <li>• Backup & restore functionality is still in development</li>
-                <li>• May not capture all system data correctly</li>
-                <li>• Restore process might not fully restore system state</li>
-                <li>• Recommended for testing and development environments only</li>
-                <li>• Create external backups for production systems</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800/30">
-            <h3 class="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">Create Backup</h3>
-            <p class="text-xs text-blue-700 dark:text-blue-400 mb-4">
-              Download a complete system backup including database, certificates, and configuration files.
-            </p>
-            <button 
-              onClick={() => setShowBackupModal(true)}
-              class="w-full bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors"
-            >
-              <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
-              Create Backup
-            </button>
-          </div>
-          
-          <div class="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800/30">
-            <h3 class="text-sm font-semibold text-green-900 dark:text-green-300 mb-2">Restore from Backup</h3>
-            <p class="text-xs text-green-700 dark:text-green-400 mb-4">
-              Restore your system from a previous backup. This will overwrite current data and restart services.
-            </p>
-            <button 
-              onClick={() => setShowRestoreModal(true)}
-              class="w-full bg-green-500 hover:bg-green-600 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors"
-            >
-              <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-              </svg>
-              Restore Backup
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* System Configuration */}
-      <div class="bg-gradient-to-r from-white/95 via-gray-50/90 to-white/95 dark:from-gray-800/95 dark:via-gray-900/90 dark:to-gray-800/95 rounded-2xl p-6 shadow-lg shadow-[#ffaa40]/10">
-        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
-          <svg class="w-6 h-6 text-[#ffaa40] mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-          System Configuration
-        </h2>
-        
-        {/* Configuration Links */}
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <a
-            href="/app/settings/certificates"
-            class="p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border border-green-200/50 dark:border-green-700/50 hover:border-green-300 dark:hover:border-green-600 transition-all hover:shadow-md group"
-          >
-            <div class="flex items-center justify-between">
-              <div class="flex items-center">
-                <div class="w-10 h-10 bg-green-100 dark:bg-green-800/50 rounded-lg flex items-center justify-center mr-3">
-                  <Shield class="w-5 h-5 text-green-600 dark:text-green-400" />
-                </div>
-                <div>
-                  <h3 class="text-sm font-semibold text-green-900 dark:text-green-300">SSL Certificates</h3>
-                  <p class="text-xs text-green-700 dark:text-green-400">Manage SSL certificates and keys</p>
-                </div>
-              </div>
-              <svg class="w-4 h-4 text-green-600 dark:text-green-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
-          </a>
-          
-          <a
-            href="/app/settings/integrations"
-            class="p-4 bg-gradient-to-r from-purple-50 to-violet-50 dark:from-purple-900/20 dark:to-violet-900/20 rounded-xl border border-purple-200/50 dark:border-purple-700/50 hover:border-purple-300 dark:hover:border-purple-600 transition-all hover:shadow-md group"
-          >
-            <div class="flex items-center justify-between">
-              <div class="flex items-center">
-                <div class="w-10 h-10 bg-purple-100 dark:bg-purple-800/50 rounded-lg flex items-center justify-center mr-3">
-                  <Key class="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div>
-                  <h3 class="text-sm font-semibold text-purple-900 dark:text-purple-300">Integrations</h3>
-                  <p class="text-xs text-purple-700 dark:text-purple-400">GitHub OAuth and App settings</p>
-                </div>
-              </div>
-              <svg class="w-4 h-4 text-purple-600 dark:text-purple-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
-          </a>
-        </div>
-        <div class="space-y-4">
-          <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-            <div class="flex items-center justify-between">
-              <div>
-                <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Auto-refresh Dashboard</h3>
-                <p class="text-xs text-gray-600 dark:text-gray-400">Automatically refresh metrics every 30 seconds</p>
-              </div>
-              <label class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" class="sr-only peer" defaultChecked />
-                <div class="w-11 h-6 bg-gray-300 dark:bg-gray-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[#9c40ff] rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#9c40ff]"></div>
-              </label>
-            </div>
-          </div>
-          
-          <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-            <div class="flex items-center justify-between">
-              <div>
-                <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Log Retention</h3>
-                <p class="text-xs text-gray-600 dark:text-gray-400">Keep container logs for debugging</p>
-              </div>
-              <select class="bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white text-sm rounded-lg px-3 py-2 border-none focus:ring-2 focus:ring-[#9c40ff]">
-                <option value="7">7 days</option>
-                <option value="14" selected>14 days</option>
-                <option value="30">30 days</option>
-                <option value="90">90 days</option>
-              </select>
-            </div>
-          </div>
-          
-          <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-            <div class="flex items-center justify-between">
-              <div>
-                <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Resource Monitoring</h3>
-                <p class="text-xs text-gray-600 dark:text-gray-400">Enable detailed resource tracking</p>
-              </div>
-              <label class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" class="sr-only peer" defaultChecked />
-                <div class="w-11 h-6 bg-gray-300 dark:bg-gray-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[#9c40ff] rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#9c40ff]"></div>
-              </label>
-            </div>
-          </div>
-        </div>
-      </div>
-
-
-      {/* About Section */}
-      <div class="bg-gradient-to-r from-white/95 via-gray-50/90 to-white/95 dark:from-gray-800/95 dark:via-gray-900/90 dark:to-gray-800/95 rounded-2xl p-6 shadow-lg shadow-[#8b008b]/10">
-        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
-          <svg class="w-6 h-6 text-[#8b008b] mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          System Information
-        </h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="space-y-3">
-            <div class="flex justify-between items-center">
-              <span class="text-sm text-gray-600 dark:text-gray-400">UI Version</span>
-              <span class="text-sm font-mono text-gray-900 dark:text-white">GLINR Dock UI-Lite v1.0.0</span>
-            </div>
-            <div class="flex justify-between items-center">
-              <span class="text-sm text-gray-600 dark:text-gray-400">Bundle Size</span>
-              <span class="text-sm font-mono text-gray-900 dark:text-white">~25KB gzipped</span>
-            </div>
-            <div class="flex justify-between items-center">
-              <span class="text-sm text-gray-600 dark:text-gray-400">License</span>
-              <span class="text-sm font-mono text-gray-900 dark:text-white">MIT</span>
-            </div>
-            <div class="flex justify-between items-center">
-              <span class="text-sm text-gray-600 dark:text-gray-400">Build Type</span>
-              <span class="text-sm font-mono text-gray-900 dark:text-white">Lightweight PaaS</span>
-            </div>
-          </div>
-          <div class="space-y-3">
-            <div class="flex justify-between items-center">
-              <span class="text-sm text-gray-600 dark:text-gray-400">Backend Version</span>
-              <span class="text-sm font-mono text-gray-900 dark:text-white">
-                {systemInfo?.go_version?.replace(/^go/, 'Go ') || 'Unknown'}
-              </span>
-            </div>
-            <div class="flex justify-between items-center">
-              <span class="text-sm text-gray-600 dark:text-gray-400">Platform</span>
-              <span class="text-sm font-mono text-gray-900 dark:text-white">
-                {systemInfo ? `${systemInfo.os}/${systemInfo.arch}` : 'Unknown'}
-              </span>
-            </div>
-            <div class="flex justify-between items-center">
-              <span class="text-sm text-gray-600 dark:text-gray-400">Docker Status</span>
-              <span class={`text-sm font-mono ${systemInfo?.docker_status === 'connected' ? 'text-[#10b981]' : 'text-[#e94057]'}`}>
-                {systemInfo?.docker_status?.toUpperCase() || 'UNKNOWN'}
-              </span>
-            </div>
-            <div class="flex justify-between items-center">
-              <span class="text-sm text-gray-600 dark:text-gray-400">Support Logs</span>
-              <a
-                href="/app/logs"
-                class="text-sm font-mono text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline transition-colors"
-              >
-                View System Logs
-              </a>
-            </div>
-          </div>
-        </div>
-        
-        <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-          <div class="flex flex-wrap gap-2">
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#10b981]/20 text-[#10b981]">Container Orchestration</span>
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#9c40ff]/20 text-[#9c40ff]">Docker Integration</span>
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#e94057]/20 text-[#e94057]">Load Balancing</span>
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#ffaa40]/20 text-[#ffaa40]">Real-time Metrics</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Token Management Modal */}
-      {showTokenModal && (
-        <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-lg">
-            <div class="flex items-center justify-between mb-6">
-              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Pro Plan Feature</h3>
-              <button 
-                onClick={() => setShowTokenModal(false)}
-                class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              >
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            
-            <div class="text-center py-6">
-              <div class="w-16 h-16 bg-[#9c40ff]/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <svg class="w-8 h-8 text-[#9c40ff]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m0 0a2 2 0 012 2 2 2 0 01-2 2 2 2 0 01-2-2m0 0V9a2 2 0 012-2m0 0V7a2 2 0 011-1.732c.445-.264.99-.398 1.548-.416C18.418 5.359 19 5.932 19 6.616V8" />
-                </svg>
-              </div>
-              <h4 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Advanced Token Management</h4>
-              <p class="text-gray-600 dark:text-gray-400 mb-6">
-                Create and manage multiple API tokens with role-based access control in GLINR Dock Pro.
-              </p>
-              <button 
-                onClick={() => setShowTokenModal(false)}
-                class="btn btn-secondary mr-3"
-              >
-                Maybe Later
-              </button>
-              <button class="btn btn-primary bg-gradient-to-r from-[#9c40ff] to-[#8b008b] border-none">
-                Upgrade to Pro Plan
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Lockdown Modal */}
-      {showLockdownModal && (
-        <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-lg">
-            <div class="flex items-center justify-between mb-6">
-              <h3 class="text-lg font-semibold text-red-600 dark:text-red-400 flex items-center">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                System Lockdown
-              </h3>
-              <button 
-                onClick={() => setShowLockdownModal(false)}
-                class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              >
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            
-            <div class="mb-6">
-              <p class="text-gray-600 dark:text-gray-400 mb-4">
-                This will immediately restrict access to admin-only operations. Regular users will lose access until lockdown is lifted.
-              </p>
-              <div class="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg flex items-start space-x-3">
-                <svg class="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p class="text-sm text-red-700 dark:text-red-300">
-                  <strong>Warning:</strong> This action cannot be undone from the UI. You'll need admin token access to restore normal operations.
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">DNS & Certificates</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  Manage DNS providers, SSL certificates, and secure connections for your domains.
                 </p>
-              </div>
-            </div>
-            
-            <div class="flex space-x-3">
-              <button 
-                onClick={() => setShowLockdownModal(false)}
-                class="flex-1 btn btn-secondary"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleSystemLockdown}
-                class="flex-1 bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
-              >
-                Confirm Lockdown
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+                <div class="flex items-center text-xs">
+                  <span class="text-green-600 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded">Configured</span>
+                </div>
+              </Link>
 
-      {/* Emergency Restart Modal */}
-      {showEmergencyModal && (
-        <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-lg">
-            <div class="flex items-center justify-between mb-6">
-              <h3 class="text-lg font-semibold text-orange-600 dark:text-orange-400 flex items-center">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                Emergency Restart
-              </h3>
-              <button 
-                onClick={() => setShowEmergencyModal(false)}
-                class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              >
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            
-            <div class="mb-6">
-              <p class="text-gray-600 dark:text-gray-400 mb-4">
-                This will force restart all system services. The platform will be unavailable for 30-60 seconds.
-              </p>
-              
-              {/* Last Restart Info */}
-              {shouldShowRestartInfo() && (
-                <div class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800/30">
-                  <div class="flex items-center text-sm text-blue-700 dark:text-blue-300">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <div>
-                      <div class="font-medium">Last restart: {formatTimeAgo(systemStatus.last_restart.time_ago)} ago</div>
-                      <div class="text-xs font-mono opacity-75 mt-1">
-                        {new Date(systemStatus.last_restart.timestamp).toLocaleString()}
-                      </div>
-                    </div>
+              <Link href="/settings/auth" class="p-6 bg-white dark:glassmorphism border border-gray-200 dark:border-white/10 rounded-2xl shadow-lg dark:shadow-xl hover:shadow-xl dark:hover:shadow-2xl transition-all group">
+                <div class="flex items-center justify-between mb-4">
+                  <div class="p-3 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-xl">
+                    <UserCheck class="w-6 h-6 text-blue-600 dark:text-blue-400" />
                   </div>
-                </div>
-              )}
-              
-              <div class="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg flex items-start space-x-3">
-                <svg class="w-5 h-5 text-orange-600 dark:text-orange-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div class="text-sm text-orange-700 dark:text-orange-300">
-                  <p class="font-medium mb-1">Impact:</p>
-                  <ul class="text-xs space-y-1">
-                    <li>• All active connections will be dropped</li>
-                    <li>• Running containers will be restarted</li>
-                    <li>• Service discovery will be refreshed</li>
-                    <li>• System metrics will reset</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-            
-            <div class="flex space-x-3">
-              <button 
-                onClick={() => setShowEmergencyModal(false)}
-                class="flex-1 btn btn-secondary"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleEmergencyRestart}
-                class="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
-              >
-                Restart Now
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Create Backup Modal */}
-      {showBackupModal && (
-        <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-lg">
-            <div class="flex items-center justify-between mb-6">
-              <h3 class="text-lg font-semibold text-blue-600 dark:text-blue-400 flex items-center">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                Create System Backup
-              </h3>
-              <div class="flex items-center space-x-2">
-                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300">
-                  BETA
-                </span>
-                <button 
-                  onClick={() => setShowBackupModal(false)}
-                  class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                >
-                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <svg class="w-5 h-5 text-gray-400 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
-                </button>
-              </div>
-            </div>
-            
-            <div class="mb-6">
-              <p class="text-gray-600 dark:text-gray-400 mb-4">
-                This will create a complete system backup containing:
-              </p>
-              
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div class="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
-                  <div class="flex items-center mb-2">
-                    <svg class="w-4 h-4 text-blue-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.79 4 8.5 4s8.5-1.79 8.5-4V7c0-2.21-3.79-4-8.5-4S4 4.79 4 7z" />
-                    </svg>
-                    <h4 class="font-medium text-gray-900 dark:text-gray-100 text-sm">Core Data</h4>
-                  </div>
-                  <ul class="text-xs text-gray-600 dark:text-gray-400 space-y-1">
-                    <li>• SQLite database (projects, services, routes)</li>
-                    <li>• User accounts and tokens</li>
-                    <li>• System configuration</li>
-                  </ul>
                 </div>
-                
-                <div class="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
-                  <div class="flex items-center mb-2">
-                    <svg class="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                    <h4 class="font-medium text-gray-900 dark:text-gray-100 text-sm">Security & Config</h4>
-                  </div>
-                  <ul class="text-xs text-gray-600 dark:text-gray-400 space-y-1">
-                    <li>• SSL certificates and private keys</li>
-                    <li>• Nginx proxy configuration</li>
-                    <li>• Environment settings</li>
-                  </ul>
-                </div>
-              </div>
-              
-              <div class="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg flex items-start space-x-3 mb-4">
-                <svg class="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div class="text-sm text-green-700 dark:text-green-300">
-                  <div class="flex items-center mb-1">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                    </svg>
-                    <p class="font-medium">Enhanced Backup Features:</p>
-                  </div>
-                  <ul class="text-xs space-y-1">
-                    <li>• Compressed .tar.gz archive format</li>
-                    <li>• Manifest.json with backup metadata</li>
-                    <li>• System info and creation timestamp</li>
-                    <li>• Validation-ready for restore process</li>
-                  </ul>
-                </div>
-              </div>
-              
-              <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg flex items-start space-x-3">
-                <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                <p class="text-sm text-blue-700 dark:text-blue-300">
-                  <strong>Download:</strong> The backup will be automatically downloaded to your browser's download folder with timestamp.
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Authentication</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  Configure authentication methods, user access controls, and session management.
                 </p>
-              </div>
-            </div>
-            
-            <div class="flex space-x-3">
-              <button 
-                onClick={() => setShowBackupModal(false)}
-                class="flex-1 btn btn-secondary"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleCreateBackup}
-                disabled={creatingBackup}
-                class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
-              >
-                {creatingBackup ? 'Creating Backup...' : 'Create & Download'}
-              </button>
+                <div class="flex items-center text-xs">
+                  <span class="text-green-600 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded">Active</span>
+                </div>
+              </Link>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Restore Backup Modal */}
-      {showRestoreModal && (
-        <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-2xl">
-            <div class="flex items-center justify-between mb-6">
-              <h3 class="text-lg font-semibold text-green-600 dark:text-green-400 flex items-center">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                </svg>
-                Restore from Backup
-              </h3>
-              <div class="flex items-center space-x-2">
-                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300">
-                  BETA
-                </span>
-                <button 
-                  onClick={() => { setShowRestoreModal(false); setRestoreFile(null); setDragOver(false) }}
-                  class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                >
-                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+          {/* Plan & Licensing Section */}
+          <div class="space-y-4">
+            <div class="flex items-center gap-3">
+              <div class="p-2 bg-gradient-to-br from-blue-100 to-cyan-100 dark:from-blue-900/30 dark:to-cyan-900/30 rounded-xl">
+                <CreditCard class="w-5 h-5 text-blue-600 dark:text-blue-400" />
               </div>
-            </div>
-            
-            <div class="mb-6">
-              {/* Enhanced File Upload Area */}
-              <div class="mb-6">
-                <div
-                  onDrop={handleRestoreDrop}
-                  onDragOver={handleRestoreDragOver}
-                  onDragLeave={handleRestoreDragLeave}
-                  class={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 ${
-                    dragOver 
-                      ? 'border-green-500 bg-green-50 dark:bg-green-900/20' 
-                      : restoreFile 
-                        ? 'border-green-300 bg-green-50 dark:bg-green-900/10'
-                        : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50'
-                  }`}
-                >
-                  {restoreFile ? (
-                    <div class="space-y-3">
-                      <div class="flex items-center justify-center">
-                        <svg class="w-12 h-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <div>
-                        <p class="text-lg font-semibold text-green-600 dark:text-green-400">{restoreFile.name}</p>
-                        <p class="text-sm text-gray-600 dark:text-gray-400">
-                          Size: {(restoreFile.size / (1024 * 1024)).toFixed(1)} MB
-                        </p>
-                        <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                          Type: {restoreFile.type || 'application/gzip'}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => setRestoreFile(null)}
-                        class="text-red-600 dark:text-red-400 text-sm hover:text-red-700 dark:hover:text-red-300"
-                      >
-                        Remove file
-                      </button>
-                    </div>
-                  ) : (
-                    <div class="space-y-4">
-                      <div class="flex items-center justify-center">
-                        <svg 
-                          class={`w-16 h-16 ${dragOver ? 'text-green-500' : 'text-gray-400 dark:text-gray-500'}`} 
-                          fill="none" 
-                          stroke="currentColor" 
-                          viewBox="0 0 24 24"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                        </svg>
-                      </div>
-                      <div class="space-y-2">
-                        <p class={`text-lg font-medium ${dragOver ? 'text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}>
-                          {dragOver ? 'Drop backup file here' : 'Drag & drop backup file here'}
-                        </p>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">
-                          or click to browse files
-                        </p>
-                        <p class="text-xs text-gray-400 dark:text-gray-500">
-                          Supports: .tar.gz, .tgz (1KB - 500MB)
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  
-                  <input
-                    type="file"
-                    accept=".tar.gz,.tgz"
-                    onChange={handleRestoreUpload}
-                    class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  />
-                </div>
-              </div>
-              
-              {/* File Requirements */}
-              <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg mb-4">
-                <div class="flex items-start space-x-3">
-                  <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <div class="text-sm text-blue-700 dark:text-blue-300">
-                    <div class="flex items-center mb-2">
-                      <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                      </svg>
-                      <p class="font-medium">Backup File Validation:</p>
-                    </div>
-                    <ul class="text-xs space-y-1">
-                      <li>• <strong>Format:</strong> .tar.gz or .tgz compressed archive</li>
-                      <li>• <strong>Size:</strong> Between 1KB and 500MB</li>
-                      <li>• <strong>Structure:</strong> Must contain manifest.json with metadata</li>
-                      <li>• <strong>Contents:</strong> Database (db.sqlite), certificates, nginx config</li>
-                      <li>• <strong>Origin:</strong> Created by GLINRDOCK backup system</li>
-                      <li>• <strong>Validation:</strong> Archive integrity and version compatibility checked</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Warning */}
-              <div class="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg">
-                <div class="flex items-start space-x-3">
-                  <svg class="w-5 h-5 text-orange-600 dark:text-orange-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <div class="text-sm text-orange-700 dark:text-orange-300">
-                    <div class="flex items-center mb-2">
-                      <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <p class="font-medium">Warning: This will overwrite all current data</p>
-                    </div>
-                    <ul class="text-xs space-y-1">
-                      <li>• All current projects, services, and configuration will be replaced</li>
-                      <li>• System will restart automatically during restore</li>
-                      <li>• Process cannot be undone once started</li>
-                      <li>• Expected downtime: 30-60 seconds</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div class="flex space-x-3">
-              <button 
-                onClick={() => { setShowRestoreModal(false); setRestoreFile(null); setDragOver(false) }}
-                class="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleRestoreBackup}
-                disabled={!restoreFile || restoringBackup}
-                class="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {restoringBackup ? (
-                  <span class="flex items-center justify-center">
-                    <svg class="animate-spin -ml-1 mr-3 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Restoring System...
-                  </span>
-                ) : (
-                  'Restore System'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* License Activation Modal */}
-      {showLicenseModal && (
-        <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
-            <div class="flex items-center justify-between mb-6">
-              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Activate License</h3>
-              <button
-                onClick={() => setShowLicenseModal(false)}
-                class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              >
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div class="space-y-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  License Content
-                </label>
-                <textarea
-                  value={licenseText}
-                  onChange={(e) => setLicenseText((e.target as HTMLTextAreaElement).value)}
-                  placeholder="Paste your license content here..."
-                  class="w-full h-48 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm font-mono resize-none focus:ring-2 focus:ring-[#9c40ff] focus:border-transparent"
-                />
-              </div>
-
-              <div class="flex items-center gap-4">
-                <span class="text-sm text-gray-600 dark:text-gray-400">Or</span>
-                <label class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  <span class="text-sm text-gray-700 dark:text-gray-300">Upload .license file</span>
-                  <input
-                    type="file"
-                    accept=".license,.json,.txt"
-                    onChange={handleLicenseFileUpload}
-                    class="hidden"
-                  />
-                </label>
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Plan & Licensing</h2>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Manage subscription plans and licenses</p>
               </div>
             </div>
-
-            <div class="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowLicenseModal(false)}
-                class="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleLicenseActivate}
-                disabled={activatingLicense || !licenseText.trim()}
-                class="flex-1 bg-[#9c40ff] hover:bg-[#8b008b] text-white font-medium py-2 px-4 rounded-lg text-sm transition-colors disabled:opacity-50"
-              >
-                {activatingLicense ? 'Activating...' : 'Activate License'}
-              </button>
-            </div>
+            
+            <Link href="/settings/plan-limits" class="p-6 bg-white dark:glassmorphism border border-gray-200 dark:border-white/10 rounded-2xl shadow-lg dark:shadow-xl hover:shadow-xl dark:hover:shadow-2xl transition-all group block">
+              <div class="flex items-center justify-between mb-4">
+                <div class="p-3 bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-900/30 dark:to-amber-900/30 rounded-xl">
+                  <CreditCard class="w-6 h-6 text-orange-600 dark:text-orange-400" />
+                </div>
+                <svg class="w-5 h-5 text-gray-400 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Plan & Limits</h3>
+              <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Current plan status, resource limits, and license management
+              </p>
+              <div class="flex items-center text-xs">
+                <span class="text-orange-600 bg-orange-100 dark:bg-orange-900/30 px-2 py-1 rounded">FREE Plan</span>
+              </div>
+            </Link>
           </div>
+
+          {/* System Administration Section */}
+          <div class="space-y-4">
+            <div class="flex items-center gap-3">
+              <div class="p-2 bg-gradient-to-br from-red-100 to-orange-100 dark:from-red-900/30 dark:to-orange-900/30 rounded-xl">
+                <Shield class="w-5 h-5 text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white">System Administration</h2>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Emergency controls, monitoring, and backups</p>
+              </div>
+            </div>
+            
+            <Link href="/settings/system-admin" class="p-6 bg-white dark:glassmorphism border border-gray-200 dark:border-white/10 rounded-2xl shadow-lg dark:shadow-xl hover:shadow-xl dark:hover:shadow-2xl transition-all group block">
+              <div class="flex items-center justify-between mb-4">
+                <div class="p-3 bg-gradient-to-br from-red-100 to-rose-100 dark:from-red-900/30 dark:to-rose-900/30 rounded-xl">
+                  <Monitor class="w-6 h-6 text-red-600 dark:text-red-400" />
+                </div>
+                <svg class="w-5 h-5 text-gray-400 group-hover:text-red-500 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">System Administration</h3>
+              <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Emergency controls, system monitoring, and backup management
+              </p>
+              <div class="flex items-center text-xs">
+                <span class="text-green-600 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded">System Healthy</span>
+              </div>
+            </Link>
+          </div>
+
+          {/* Integrations Section */}
+          <div class="space-y-4">
+            <div class="flex items-center gap-3">
+              <div class="p-2 bg-gradient-to-br from-green-100 to-teal-100 dark:from-green-900/30 dark:to-teal-900/30 rounded-xl">
+                <Plug class="w-5 h-5 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Integrations</h2>
+                <p class="text-sm text-gray-600 dark:text-gray-400">External service connections and configurations</p>
+              </div>
+            </div>
+            
+            <Link href="/settings/integrations" class="p-6 bg-white dark:glassmorphism border border-gray-200 dark:border-white/10 rounded-2xl shadow-lg dark:shadow-xl hover:shadow-xl dark:hover:shadow-2xl transition-all group block">
+              <div class="flex items-center justify-between mb-4">
+                <div class="p-3 bg-gradient-to-br from-teal-100 to-cyan-100 dark:from-teal-900/30 dark:to-cyan-900/30 rounded-xl">
+                  <Plug class="w-6 h-6 text-teal-600 dark:text-teal-400" />
+                </div>
+                <svg class="w-5 h-5 text-gray-400 group-hover:text-teal-500 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">External Integrations</h3>
+              <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                GitHub, DNS providers, and Nginx proxy configuration
+              </p>
+              <div class="grid grid-cols-3 gap-2 text-xs mt-4">
+                <span class="text-orange-600 bg-orange-100 dark:bg-orange-900/30 px-2 py-1 rounded text-center">GitHub</span>
+                <span class="text-green-600 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded text-center">DNS</span>
+                <span class="text-gray-600 bg-gray-100 dark:bg-gray-800/30 px-2 py-1 rounded text-center">Nginx</span>
+              </div>
+            </Link>
+          </div>
+
+          {/* Environment Templates Section */}
+          <div class="space-y-4">
+            <div class="flex items-center gap-3">
+              <div class="p-2 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-xl">
+                <ScrollText class="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+              </div>
+              <div>
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Environment Templates</h2>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Pre-configured environment variable templates</p>
+              </div>
+            </div>
+            
+            <Link href="/settings/environment-templates" class="p-6 bg-white dark:glassmorphism border border-gray-200 dark:border-white/10 rounded-2xl shadow-lg dark:shadow-xl hover:shadow-xl dark:hover:shadow-2xl transition-all group block">
+              <div class="flex items-center justify-between mb-4">
+                <div class="p-3 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-xl">
+                  <ScrollText class="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                </div>
+                <svg class="w-5 h-5 text-gray-400 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Environment Templates</h3>
+              <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Manage reusable environment variable templates for deployments
+              </p>
+              <div class="flex items-center text-xs">
+                <span class="text-indigo-600 bg-indigo-100 dark:bg-indigo-900/30 px-2 py-1 rounded">3 Templates</span>
+              </div>
+            </Link>
+          </div>
+
         </div>
-      )}
+      </div>
 
       {/* Toast Notifications */}
       <Toast

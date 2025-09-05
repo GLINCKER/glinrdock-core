@@ -1,5 +1,5 @@
 {
-  "generated": "2025-09-02T23:49:21.181092Z",
+  "generated": "2025-09-05T02:41:01.317735Z",
   "version": "1.0.0",
   "description": "GLINRDOCK App Help Documentation Manifest",
   "files": [
@@ -16,7 +16,7 @@
         "support"
       ],
       "version": "v1",
-      "updated_at": "2025-09-02T18:19:48.884319222-05:00",
+      "updated_at": "2025-09-02T18:19:48-05:00",
       "word_count": 1256,
       "etag": "d580f5d10730ff7ad2611652deeacf25"
     },
@@ -30,7 +30,7 @@
         "onboarding"
       ],
       "version": "v1",
-      "updated_at": "2025-09-02T18:15:04.995890667-05:00",
+      "updated_at": "2025-09-02T18:15:04-05:00",
       "word_count": 263,
       "etag": "9d0b67f80b02ea972d7ba74ee85376ce"
     },
@@ -45,7 +45,7 @@
         "deployment"
       ],
       "version": "v1",
-      "updated_at": "2025-09-02T18:15:25.552122725-05:00",
+      "updated_at": "2025-09-02T18:15:25-05:00",
       "word_count": 391,
       "etag": "40a7dd40b4e7e677da8024191a066182"
     },
@@ -61,7 +61,7 @@
         "support"
       ],
       "version": "v1",
-      "updated_at": "2025-09-02T18:15:51.116615284-05:00",
+      "updated_at": "2025-09-02T18:15:51-05:00",
       "word_count": 648,
       "etag": "623d65b8211eca23d5ed4328ff925d97"
     },
@@ -76,7 +76,7 @@
         "user-guide"
       ],
       "version": "v1",
-      "updated_at": "2025-09-02T18:14:34.514775739-05:00",
+      "updated_at": "2025-09-02T18:14:34-05:00",
       "word_count": 148,
       "etag": "8a6882745c0d949ff600c73b5315bbcd"
     },
@@ -93,9 +93,27 @@
         "git"
       ],
       "version": "v1",
-      "updated_at": "2025-09-02T18:19:04.919006622-05:00",
+      "updated_at": "2025-09-02T18:19:04-05:00",
       "word_count": 1076,
       "etag": "d5dcde015fe1938b50a9488dcac5063a"
+    },
+    {
+      "slug": "using/networking",
+      "title": "Networking \u0026 Reverse Proxy",
+      "section": "Using",
+      "rel_path": "using/networking.md",
+      "tags": [
+        "networking",
+        "proxy",
+        "nginx",
+        "ssl",
+        "certificates",
+        "routing"
+      ],
+      "version": "v1",
+      "updated_at": "2025-09-03T21:25:47-05:00",
+      "word_count": 948,
+      "etag": "8a3c24420987644a5a52ccefd9fc3374"
     },
     {
       "slug": "using/routes",
@@ -110,7 +128,7 @@
         "ssl"
       ],
       "version": "v1",
-      "updated_at": "2025-09-02T18:16:58.347589457-05:00",
+      "updated_at": "2025-09-02T18:16:58-05:00",
       "word_count": 858,
       "etag": "fc15887019c83993faa593d0784bd784"
     },
@@ -126,7 +144,7 @@
         "find"
       ],
       "version": "v1",
-      "updated_at": "2025-09-02T18:17:36.953585326-05:00",
+      "updated_at": "2025-09-02T18:17:36-05:00",
       "word_count": 948,
       "etag": "9a6b7f76c98d6ebeb82214904eeb8a6f"
     },
@@ -142,9 +160,42 @@
         "management"
       ],
       "version": "v1",
-      "updated_at": "2025-09-02T18:16:25.008363131-05:00",
+      "updated_at": "2025-09-02T18:16:25-05:00",
       "word_count": 746,
       "etag": "4e7b6b4cb5a779a28ae4663deae6d3cb"
+    },
+    {
+      "slug": "using/settings",
+      "title": "Settings Overview",
+      "section": "Using",
+      "rel_path": "using/settings.md",
+      "tags": [],
+      "version": "",
+      "updated_at": "2025-09-04T21:17:06.348794799-05:00",
+      "word_count": 1100,
+      "etag": "fc311bbb4d1beff2081b1e60b2a1274c"
+    },
+    {
+      "slug": "using/settings-authentication",
+      "title": "Authentication Settings",
+      "section": "Using",
+      "rel_path": "using/settings-authentication.md",
+      "tags": [],
+      "version": "",
+      "updated_at": "2025-09-04T21:18:11.750335747-05:00",
+      "word_count": 1544,
+      "etag": "ab8d4a1d36a03525da8c18fb58eb2d40"
+    },
+    {
+      "slug": "using/settings-system-admin",
+      "title": "System Administration Settings",
+      "section": "Using",
+      "rel_path": "using/settings-system-admin.md",
+      "tags": [],
+      "version": "",
+      "updated_at": "2025-09-04T21:19:39.235211412-05:00",
+      "word_count": 1871,
+      "etag": "a276f15fe8ebbf0db9ecc3fb948204ab"
     },
     {
       "slug": "using/templates",
@@ -158,26 +209,28 @@
         "presets"
       ],
       "version": "v1",
-      "updated_at": "2025-09-02T18:18:13.386831231-05:00",
+      "updated_at": "2025-09-02T18:18:13-05:00",
       "word_count": 968,
       "etag": "e0d0a7ea5cf66bd0089c058d5b0c9f72"
     }
   ],
   "stats": {
-    "total_files": 10,
-    "total_words": 7302,
+    "total_files": 14,
+    "total_words": 12765,
     "section_count": {
       "Guides": 3,
       "Home": 1,
       "Integrations": 1,
       "Support": 1,
-      "Using": 4
+      "Using": 8
     },
     "audience_count": {
-      "user": 10
+      "": 3,
+      "user": 11
     },
     "version_count": {
-      "v1": 10
+      "": 3,
+      "v1": 11
     }
   }
 }

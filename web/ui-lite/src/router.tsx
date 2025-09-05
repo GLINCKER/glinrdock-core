@@ -10,15 +10,21 @@ import { ServiceTemplates } from "./pages/ServiceTemplates";
 import { Routes } from "./pages/Routes";
 import { RouteWizard } from "./pages/Routes/Wizard";
 import { RouteEdit } from "./pages/Routes/RouteEdit";
+import { Deploy } from "./pages/Deploy";
 import { Nodes } from "./pages/Nodes";
 import { Administration } from "./pages/Administration";
 import { Clients } from "./pages/Clients";
 import { SpringBoot } from "./pages/Quickstart/SpringBoot";
 import { Settings } from "./pages/Settings";
-import { IntegrationsNew } from "./pages/Settings/IntegrationsNew";
+import { Integrations } from "./pages/Settings/Integrations";
+import { SystemAdmin } from "./pages/Settings/SystemAdmin";
 import { IntegrationsSetup } from "./pages/Settings/IntegrationsSetup";
 import { EnvironmentTemplatesDatabase } from "./pages/Settings/EnvironmentTemplatesDatabase";
 import { Certificates } from "./pages/Settings/Certificates";
+import { AuthNew } from "./pages/Settings/AuthNew";
+import { LicenseNew } from "./pages/Settings/LicenseNew";
+import { PlanLimitsNew } from "./pages/Settings/PlanLimitsNew";
+import { EnvironmentTemplatesNew } from "./pages/Settings/EnvironmentTemplatesNew";
 import { Registries } from "./pages/Registries";
 import { ServiceDetailPage } from "./pages/Services/Detail";
 import { NotFound } from "./components/NotFound";
@@ -50,6 +56,15 @@ function ServicesWrapper() {
 // Route edit wrapper to handle route parameters
 function RouteEditWrapper({ params }: { params: { id: string } }) {
   return <RouteEdit routeId={params.id} />;
+}
+
+// Redirect wrapper for legacy routes
+function RedirectWrapper({ to }: { to: string }) {
+  useEffect(() => {
+    window.history.pushState({}, '', to);
+  }, [to]);
+  
+  return null;
 }
 
 // Route wizard wrapper to handle sub-path routing
@@ -391,9 +406,26 @@ export function ContentRouter() {
         <Route path="/quickstart/spring" component={SpringBoot} />
         <Route path="/settings/environments/tpl-database" component={EnvironmentTemplatesDatabase} />
         <Route path="/settings/integrations/setup" component={IntegrationsSetup} />
-        <Route path="/settings/integrations/:tab?" component={IntegrationsNew} />
-        <Route path="/settings/integrations" component={IntegrationsNew} />
+        <Route path="/settings/integrations/dns">
+          <RedirectWrapper to="/app/settings/certificates" />
+        </Route>
+        <Route path="/settings/integrations/:tab?" component={Integrations} />
+        <Route path="/settings/integrations" component={Integrations} />
+        <Route path="/settings/system-admin" component={SystemAdmin} />
         <Route path="/settings/certificates" component={Certificates} />
+        <Route path="/settings/auth" component={AuthNew} />
+        <Route path="/settings/license" component={LicenseNew} />
+        <Route path="/settings/plan-limits" component={PlanLimitsNew} />
+        <Route path="/settings/environment-templates" component={EnvironmentTemplatesNew} />
+        <Route path="/settings/security">
+          <Settings />
+        </Route>
+        <Route path="/settings/platform">
+          <Settings />
+        </Route>
+        <Route path="/settings/system">
+          <Settings />
+        </Route>
         <Route path="/settings" component={Settings} />
         
         {/* Help routes - specific nested routes first */}
@@ -408,9 +440,12 @@ export function ContentRouter() {
         <Route path="/projects/:id?" component={Projects} />
         <Route path="/services" component={ServicesWrapper} />
         <Route path="/templates" component={ServiceTemplates} />
+        <Route path="/deploy" component={Deploy} />
         <Route path="/routes" component={Routes} />
         <Route path="/nodes" component={Nodes} />
-        <Route path="/administration" component={Administration} />
+        <Route path="/administration">
+          <RedirectWrapper to="/app/settings/system-admin" />
+        </Route>
         <Route path="/clients" component={Clients} />
         <Route path="/logs" component={Logs} />
         <Route path="/registries" component={Registries} />
@@ -437,9 +472,16 @@ function AppRoutes() {
       <Route path="/quickstart/spring" component={SpringBoot} />
       <Route path="/settings/environments/tpl-database" component={EnvironmentTemplatesDatabase} />
       <Route path="/settings/integrations/setup" component={IntegrationsSetup} />
-      <Route path="/settings/integrations/:tab?" component={IntegrationsNew} />
-      <Route path="/settings/integrations" component={IntegrationsNew} />
+      <Route path="/settings/integrations/dns">
+        <RedirectWrapper to="/app/settings/certificates" />
+      </Route>
+      <Route path="/settings/integrations/:tab?" component={Integrations} />
+      <Route path="/settings/integrations" component={Integrations} />
       <Route path="/settings/certificates" component={Certificates} />
+      <Route path="/settings/auth" component={AuthNew} />
+      <Route path="/settings/license" component={LicenseNew} />
+      <Route path="/settings/plan-limits" component={PlanLimitsNew} />
+      <Route path="/settings/environment-templates" component={EnvironmentTemplatesNew} />
       <Route path="/settings" component={Settings} />
       
       {/* Help routes - specific nested routes first */}
@@ -454,8 +496,11 @@ function AppRoutes() {
       <Route path="/projects/:id?" component={Projects} />
       <Route path="/services" component={ServicesWrapper} />
       <Route path="/templates" component={ServiceTemplates} />
+      <Route path="/deploy" component={Deploy} />
       <Route path="/nodes" component={Nodes} />
-      <Route path="/administration" component={Administration} />
+      <Route path="/administration">
+        <RedirectWrapper to="/app/settings/system-admin" />
+      </Route>
       <Route path="/clients" component={Clients} />
       <Route path="/logs" component={Logs} />
       <Route path="/registries" component={Registries} />

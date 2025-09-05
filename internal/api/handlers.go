@@ -59,10 +59,19 @@ type Handlers struct {
 	githubAppHandlers  *GitHubAppHandlers
 	searchHandlers     *SearchHandlers
 	helpHandlers       *HelpHandlers
+	domainHandlers     *DomainHandlers
+	dnsProviderHandlers *DNSProviderHandlers
+	deploymentHandlers *DeploymentHandlers
 }
 
 // NewHandlers creates new handlers with dependencies
 func NewHandlers(dockerClient dockerx.Client, mainStore *store.Store, tokenStore TokenStore, projectStore ProjectStore, serviceStore ServiceStore, routeStore RouteStore, envVarStore EnvVarStore, dockerEngine DockerEngine, nginxConfig *proxy.NginxConfig, cicdHandlers *CICDHandlers, certHandlers *CertHandlers, metricsHandlers *MetricsHandlers, webhookHandlers *WebhookHandlers, planEnforcer *plan.Enforcer, licenseManager *license.Manager, auditLogger *audit.Logger, config *config.PlanConfig, systemConfig *util.Config, eventCache *events.EventCache, environmentStore *store.EnvironmentStore, registryStore *store.RegistryStore, networkManager *docker.NetworkManager, oauthService *auth.OAuthService, githubHandlers *GitHubHandlers, settingsHandlers *SettingsHandlers, githubAppHandlers *GitHubAppHandlers, searchHandlers *SearchHandlers, helpHandlers *HelpHandlers) *Handlers {
+	
+	// Create domain, DNS provider, and deployment handlers
+	domainHandlers := NewDomainHandlers(mainStore, systemConfig, auditLogger)
+	dnsProviderHandlers := NewDNSProviderHandlers(mainStore, auditLogger)
+	deploymentHandlers := NewDeploymentHandlers(mainStore, auditLogger)
+	
 	return &Handlers{
 		dockerClient:     dockerClient,
 		store:            mainStore,
@@ -92,6 +101,9 @@ func NewHandlers(dockerClient dockerx.Client, mainStore *store.Store, tokenStore
 		githubAppHandlers:  githubAppHandlers,
 		searchHandlers:     searchHandlers,
 		helpHandlers:       helpHandlers,
+		domainHandlers:     domainHandlers,
+		dnsProviderHandlers: dnsProviderHandlers,
+		deploymentHandlers: deploymentHandlers,
 	}
 }
 

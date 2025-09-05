@@ -749,6 +749,7 @@ func isValidEntityType(entityType string) bool {
 		"env_template": true,
 		"page":         true,
 		"help":         true,
+		"operation":    true,
 	}
 	return validTypes[entityType]
 }

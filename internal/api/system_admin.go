@@ -98,6 +98,72 @@ func (h *Handlers) SystemLockdown(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// SystemStart starts the system service (admin only)
+func (h *Handlers) SystemStart(c *gin.Context) {
+	log.Info().
+		Str("admin_user", c.GetString("token_name")).
+		Msg("system start initiated")
+
+	// Audit log system start
+	if h.auditLogger != nil {
+		actor := c.GetString("token_name")
+		if actor == "" {
+			actor = "system"
+		}
+		h.auditLogger.RecordSystemAction(c.Request.Context(), actor, audit.ActionSystemRestart, map[string]interface{}{
+			"action":        "start",
+			"initiated_by":  actor,
+			"start_reason":  "system_start",
+		})
+	}
+
+	// In development/demo mode, just return success
+	// In production, this would actually start system services
+	c.JSON(http.StatusOK, gin.H{
+		"status":       "start_completed", 
+		"message":      "System start completed successfully.",
+		"timestamp":    time.Now().Format(time.RFC3339),
+	})
+
+	go func() {
+		log.Info().Msg("simulating system start sequence")
+		// Note: In production, this would trigger actual system start
+	}()
+}
+
+// SystemStop stops the system service (admin only) 
+func (h *Handlers) SystemStop(c *gin.Context) {
+	log.Warn().
+		Str("admin_user", c.GetString("token_name")).
+		Msg("system stop initiated")
+
+	// Audit log system stop
+	if h.auditLogger != nil {
+		actor := c.GetString("token_name")
+		if actor == "" {
+			actor = "system"
+		}
+		h.auditLogger.RecordSystemAction(c.Request.Context(), actor, audit.ActionSystemRestart, map[string]interface{}{
+			"action":       "stop",
+			"initiated_by": actor,
+			"stop_reason":  "system_stop",
+		})
+	}
+
+	// Return immediate response before shutdown simulation
+	c.JSON(http.StatusOK, gin.H{
+		"status":    "stop_initiated",
+		"message":   "System stop in progress. Service will be unavailable.",
+		"timestamp": time.Now().Format(time.RFC3339),
+	})
+
+	go func() {
+		log.Info().Msg("simulating system stop sequence")
+		// Note: In production, this would trigger actual graceful shutdown
+		// For now, just log the action
+	}()
+}
+
 // EmergencyRestart performs emergency system restart (admin only)
 func (h *Handlers) EmergencyRestart(c *gin.Context) {
 	// Record restart time

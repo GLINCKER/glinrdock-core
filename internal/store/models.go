@@ -343,6 +343,7 @@ type Route struct {
 	TLS           bool      `json:"tls"`
 	Path          *string   `json:"path,omitempty"`
 	CertificateID *int64    `json:"certificate_id,omitempty"`
+	DomainID      *int64    `json:"domain_id,omitempty"`
 	ProxyConfig   *string   `json:"proxy_config,omitempty"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     *time.Time `json:"updated_at,omitempty"`
@@ -355,6 +356,7 @@ type RouteSpec struct {
 	TLS           bool    `json:"tls"`
 	Path          *string `json:"path,omitempty"`
 	CertificateID *int64  `json:"certificate_id,omitempty"`
+	DomainID      *int64  `json:"domain_id,omitempty"`
 	ProxyConfig   *string `json:"proxy_config,omitempty"`
 }
 
@@ -770,19 +772,82 @@ const (
 
 // DNSProvider represents a DNS service provider for domain management
 type DNSProvider struct {
-	ID         int64     `json:"id" db:"id"`
-	Name       string    `json:"name" db:"name"`
-	Type       string    `json:"type" db:"type"` // cloudflare
-	ConfigJSON string    `json:"config_json" db:"config_json"` // Encrypted provider-specific config
-	CreatedAt  time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at" db:"updated_at"`
+	ID              int64     `json:"id" db:"id"`
+	Name            string    `json:"name" db:"name"`
+	Type            string    `json:"type" db:"type"` // cloudflare, route53, manual
+	Label           *string   `json:"label" db:"label"` // User-friendly label
+	Email           *string   `json:"email" db:"email"` // Email for providers like ACME
+	APIToken        *string   `json:"-" db:"api_token"` // Encrypted API token - never expose in JSON
+	APITokenNonce   *string   `json:"-" db:"api_token_nonce"` // Encryption nonce - never expose in JSON
+	ConfigJSON      string    `json:"config_json" db:"config_json"` // Legacy encrypted provider-specific config
+	Settings        *string   `json:"settings" db:"settings"` // JSON blob for additional provider-specific settings
+	Active          *bool     `json:"active" db:"active"` // Whether this provider is active
+	CreatedAt       time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // DNSProviderSpec represents the specification for creating/updating a DNS provider
 type DNSProviderSpec struct {
 	Name       string                 `json:"name" binding:"required"`
 	Type       string                 `json:"type" binding:"required"`
-	Config     map[string]any `json:"config" binding:"required"`
+	Label      string                 `json:"label" binding:"required"`
+	Email      *string                `json:"email,omitempty"`
+	APIToken   *string                `json:"api_token,omitempty"`
+	Config     map[string]any `json:"config" binding:"required"` // Legacy field for backward compatibility
+	Settings   map[string]any `json:"settings,omitempty"`
+}
+
+// EncryptAPIToken encrypts the API token using AES-GCM with the provided master key
+func (p *DNSProvider) EncryptAPIToken(masterKey []byte) error {
+	if p.APIToken == nil || *p.APIToken == "" {
+		return nil // No API token to encrypt
+	}
+	
+	// Encrypt the API token
+	nonce, ciphertext, err := crypto.Encrypt(masterKey, []byte(*p.APIToken))
+	if err != nil {
+		return fmt.Errorf("failed to encrypt API token: %w", err)
+	}
+	
+	// Encode as base64 for storage
+	encryptedData := base64.StdEncoding.EncodeToString(ciphertext)
+	encodedNonce := base64.StdEncoding.EncodeToString(nonce)
+	
+	// Update the struct
+	p.APIToken = &encryptedData
+	p.APITokenNonce = &encodedNonce
+	
+	return nil
+}
+
+// DecryptAPIToken decrypts the API token using AES-GCM with the provided master key
+func (p *DNSProvider) DecryptAPIToken(masterKey []byte) error {
+	if p.APIToken == nil || p.APITokenNonce == nil {
+		return nil // No API token to decrypt
+	}
+	
+	// Decode base64 encrypted data and nonce
+	encryptedData, err := base64.StdEncoding.DecodeString(*p.APIToken)
+	if err != nil {
+		return fmt.Errorf("failed to decode encrypted API token: %w", err)
+	}
+	
+	nonce, err := base64.StdEncoding.DecodeString(*p.APITokenNonce)
+	if err != nil {
+		return fmt.Errorf("failed to decode nonce: %w", err)
+	}
+	
+	// Decrypt the API token
+	plaintext, err := crypto.Decrypt(masterKey, nonce, encryptedData)
+	if err != nil {
+		return fmt.Errorf("failed to decrypt API token: %w", err)
+	}
+	
+	// Update the struct with decrypted data
+	decryptedToken := string(plaintext)
+	p.APIToken = &decryptedToken
+	
+	return nil
 }
 
 // Domain represents a managed domain with verification and certificate support
