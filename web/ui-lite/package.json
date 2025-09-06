@@ -1,8 +1,24 @@
 {
   "name": "glinrdock-ui",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0-beta",
+  "description": "GLINRDOCK Container Management Web Interface",
   "type": "module",
+  "author": "GLINCKER",
+  "license": "PROPRIETARY",
+  "homepage": "https://glinrdock.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/glincker/glinrdock-core.git",
+    "directory": "web/ui-lite"
+  },
+  "bugs": {
+    "url": "https://github.com/glincker/glinrdock-core/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -36,7 +52,7 @@
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.2.2",
-    "vite": "^5.0.8",
+    "vite": "^7.1.4",
     "vitest": "^1.0.4"
   }
 }
