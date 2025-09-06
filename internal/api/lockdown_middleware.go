@@ -38,10 +38,10 @@ func LockdownMiddleware() gin.HandlerFunc {
 		}
 
 		// Allow static assets and UI during lockdown (but functionality will be limited)
-		if strings.HasPrefix(path, "/static/") || 
-		   strings.HasPrefix(path, "/assets/") ||
-		   strings.HasPrefix(path, "/app/") ||
-		   path == "/app" {
+		if strings.HasPrefix(path, "/static/") ||
+			strings.HasPrefix(path, "/assets/") ||
+			strings.HasPrefix(path, "/app/") ||
+			path == "/app" {
 			c.Next()
 			return
 		}

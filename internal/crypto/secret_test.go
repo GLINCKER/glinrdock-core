@@ -193,7 +193,7 @@ func TestEndToEndWithEnvKey(t *testing.T) {
 
 func TestDifferentPlaintexts(t *testing.T) {
 	key := make([]byte, KeySize)
-	
+
 	testCases := [][]byte{
 		[]byte("short"),
 		[]byte("A longer message that spans multiple blocks and should still work correctly"),

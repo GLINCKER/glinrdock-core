@@ -156,7 +156,7 @@ func (h *GitHubAdminHandlers) ActivateRepository(c *gin.Context) {
 	if err == nil {
 		// Repository is already activated
 		c.JSON(http.StatusConflict, gin.H{
-			"error": "repository already activated",
+			"error":   "repository already activated",
 			"mapping": existingMapping,
 		})
 		return

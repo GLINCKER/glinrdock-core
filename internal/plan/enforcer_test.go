@@ -106,11 +106,11 @@ func TestEnforcer_CheckTokenQuota(t *testing.T) {
 
 func TestEnforcer_CheckClientQuota(t *testing.T) {
 	tests := []struct {
-		name         string
-		plan         config.Plan
-		clientCount  int
-		expectError  bool
-		errorType    error
+		name        string
+		plan        config.Plan
+		clientCount int
+		expectError bool
+		errorType   error
 	}{
 		{
 			name:        "FREE plan under limit",
@@ -187,7 +187,7 @@ func TestEnforcer_FeatureEnabled(t *testing.T) {
 			feature:  "lockdown",
 			expected: true,
 		},
-		
+
 		// Pro features
 		{
 			name:     "FREE plan SMTP alerts",
@@ -207,7 +207,7 @@ func TestEnforcer_FeatureEnabled(t *testing.T) {
 			feature:  "ci_integrations",
 			expected: true,
 		},
-		
+
 		// Premium features
 		{
 			name:     "FREE plan SSO",
@@ -233,7 +233,7 @@ func TestEnforcer_FeatureEnabled(t *testing.T) {
 			feature:  "audit_logs",
 			expected: true,
 		},
-		
+
 		// Unknown features
 		{
 			name:     "unknown feature",
@@ -325,7 +325,7 @@ func isTokenQuotaError(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "token quota exceeded")
 }
 
-// Helper to check if error is a client quota error  
+// Helper to check if error is a client quota error
 func isClientQuotaError(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "client quota exceeded")
 }

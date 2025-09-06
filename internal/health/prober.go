@@ -20,24 +20,24 @@ type ServiceStore interface {
 
 // Prober handles health checks for services
 type Prober struct {
-    store  ServiceStore
-    client *http.Client
+	store  ServiceStore
+	client *http.Client
 }
 
 // NewProber creates a new health prober
 func NewProber(store ServiceStore) *Prober {
-    return &Prober{
-        store: store,
-        client: &http.Client{
-            Timeout: 5 * time.Second, // Increased to 5s for better reliability
-            Transport: &http.Transport{
-                DisableKeepAlives:     true,
-                IdleConnTimeout:       30 * time.Second,
-                TLSHandshakeTimeout:   10 * time.Second,
-                ResponseHeaderTimeout: 10 * time.Second,
-            },
-        },
-    }
+	return &Prober{
+		store: store,
+		client: &http.Client{
+			Timeout: 5 * time.Second, // Increased to 5s for better reliability
+			Transport: &http.Transport{
+				DisableKeepAlives:     true,
+				IdleConnTimeout:       30 * time.Second,
+				TLSHandshakeTimeout:   10 * time.Second,
+				ResponseHeaderTimeout: 10 * time.Second,
+			},
+		},
+	}
 }
 
 // ProbeResult represents the result of a health check
@@ -48,21 +48,21 @@ type ProbeResult struct {
 
 // ProbeService performs a health check on a service
 func (p *Prober) ProbeService(ctx context.Context, service *store.Service, routes []store.Route) ProbeResult {
-    // Skip probing if service is crash looping
-    if service.CrashLooping {
-        return ProbeResult{Status: store.HealthStatusUnknown}
-    }
+	// Skip probing if service is crash looping
+	if service.CrashLooping {
+		return ProbeResult{Status: store.HealthStatusUnknown}
+	}
 
-    // Skip if service is not intended to be running.
-    // Note: service.Status is populated at runtime and may be empty when loaded from DB.
-    // Fall back to DesiredState to decide whether to probe.
-    if !(service.Status == store.ServiceStateRunning || service.DesiredState == store.ServiceStateRunning) {
-        return ProbeResult{Status: store.HealthStatusUnknown}
-    }
+	// Skip if service is not intended to be running.
+	// Note: service.Status is populated at runtime and may be empty when loaded from DB.
+	// Fall back to DesiredState to decide whether to probe.
+	if !(service.Status == store.ServiceStateRunning || service.DesiredState == store.ServiceStateRunning) {
+		return ProbeResult{Status: store.HealthStatusUnknown}
+	}
 
 	// Determine health check type
 	healthType := service.GetHealthCheckType()
-	
+
 	switch healthType {
 	case store.HealthCheckHTTP:
 		return p.probeHTTP(ctx, service, routes)
@@ -94,12 +94,12 @@ func (p *Prober) ProbeAndUpdate(ctx context.Context, serviceID int64) error {
 	}
 
 	result := p.ProbeService(ctx, &service, routes)
-	
+
 	// Log error if health check failed
 	if result.Error != nil {
 		log.Error().Err(result.Error).Int64("service_id", serviceID).Str("status", result.Status).Msg("health check failed")
 	}
-	
+
 	// Update health status in store
 	if updateErr := p.store.UpdateServiceHealth(ctx, serviceID, result.Status); updateErr != nil {
 		return fmt.Errorf("failed to update service health: %w", updateErr)
@@ -111,7 +111,7 @@ func (p *Prober) ProbeAndUpdate(ctx context.Context, serviceID int64) error {
 // probeHTTP performs HTTP health check with improved error handling
 func (p *Prober) probeHTTP(ctx context.Context, service *store.Service, routes []store.Route) ProbeResult {
 	url := service.GetHealthProbeURL(routes)
-	
+
 	if url == "" {
 		log.Debug().Int64("service_id", service.ID).Msg("no health URL available for HTTP probe")
 		return ProbeResult{Status: store.HealthStatusUnknown}
@@ -173,7 +173,7 @@ func (p *Prober) probeTCP(ctx context.Context, service *store.Service) ProbeResu
 	}
 
 	address := fmt.Sprintf("localhost:%d", service.Ports[0].Host)
-	
+
 	dialer := net.Dialer{Timeout: 3 * time.Second}
 	conn, err := dialer.DialContext(ctx, "tcp", address)
 	if err != nil {
@@ -194,7 +194,7 @@ func (p *Prober) probePostgres(ctx context.Context, service *store.Service) Prob
 	return p.probeTCP(ctx, service)
 }
 
-// probeMySQL performs MySQL-specific health check  
+// probeMySQL performs MySQL-specific health check
 func (p *Prober) probeMySQL(ctx context.Context, service *store.Service) ProbeResult {
 	// For now, use TCP connectivity as MySQL health check
 	// This could be enhanced with actual MySQL connection test
@@ -203,7 +203,7 @@ func (p *Prober) probeMySQL(ctx context.Context, service *store.Service) ProbeRe
 
 // probeRedis performs Redis-specific health check
 func (p *Prober) probeRedis(ctx context.Context, service *store.Service) ProbeResult {
-	// For now, use TCP connectivity as Redis health check  
+	// For now, use TCP connectivity as Redis health check
 	// This could be enhanced with Redis PING command
 	return p.probeTCP(ctx, service)
 }

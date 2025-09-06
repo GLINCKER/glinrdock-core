@@ -12,10 +12,11 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/crypto/bcrypt"
 	"github.com/GLINCKER/glinrdock/internal/audit"
+	"github.com/GLINCKER/glinrdock/internal/crypto"
 	"github.com/GLINCKER/glinrdock/internal/github"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/crypto/bcrypt"
 )
 
 //go:embed migrations/*.sql
@@ -97,7 +98,7 @@ func (s *Store) CreateToken(ctx context.Context, name, plain, role string) (Toke
 	if name == "" || len(name) > 64 {
 		return Token{}, fmt.Errorf("invalid token name: must be 1-64 characters")
 	}
-	
+
 	if !IsRoleValid(role) {
 		return Token{}, fmt.Errorf("invalid role: must be one of admin, deployer, viewer")
 	}
@@ -107,8 +108,8 @@ func (s *Store) CreateToken(ctx context.Context, name, plain, role string) (Toke
 		return Token{}, fmt.Errorf("failed to hash token: %w", err)
 	}
 
-	result, err := s.db.ExecContext(ctx, 
-		"INSERT INTO tokens (name, hash, role) VALUES (?, ?, ?)", 
+	result, err := s.db.ExecContext(ctx,
+		"INSERT INTO tokens (name, hash, role) VALUES (?, ?, ?)",
 		name, string(hash), role)
 	if err != nil {
 		return Token{}, fmt.Errorf("failed to create token: %w", err)
@@ -130,7 +131,7 @@ func (s *Store) CreateToken(ctx context.Context, name, plain, role string) (Toke
 
 // ListTokens returns all tokens (without hashes)
 func (s *Store) ListTokens(ctx context.Context) ([]Token, error) {
-	rows, err := s.db.QueryContext(ctx, 
+	rows, err := s.db.QueryContext(ctx,
 		"SELECT id, name, role, created_at, last_used_at FROM tokens ORDER BY created_at DESC")
 	if err != nil {
 		return nil, fmt.Errorf("failed to list tokens: %w", err)
@@ -141,7 +142,7 @@ func (s *Store) ListTokens(ctx context.Context) ([]Token, error) {
 	for rows.Next() {
 		var token Token
 		var lastUsedAt sql.NullTime
-		
+
 		err := rows.Scan(&token.ID, &token.Name, &token.Role, &token.CreatedAt, &lastUsedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan token: %w", err)
@@ -178,7 +179,7 @@ func (s *Store) DeleteTokenByName(ctx context.Context, name string) error {
 
 // TouchToken updates last_used_at for a token
 func (s *Store) TouchToken(ctx context.Context, name string) error {
-	_, err := s.db.ExecContext(ctx, 
+	_, err := s.db.ExecContext(ctx,
 		"UPDATE tokens SET last_used_at = CURRENT_TIMESTAMP WHERE name = ?", name)
 	if err != nil {
 		return fmt.Errorf("failed to touch token: %w", err)
@@ -191,10 +192,10 @@ func (s *Store) GetTokenByName(ctx context.Context, name string) (Token, error) 
 	var token Token
 	var lastUsedAt sql.NullTime
 
-	err := s.db.QueryRowContext(ctx, 
+	err := s.db.QueryRowContext(ctx,
 		"SELECT id, name, hash, role, created_at, last_used_at FROM tokens WHERE name = ?", name).
 		Scan(&token.ID, &token.Name, &token.Hash, &token.Role, &token.CreatedAt, &lastUsedAt)
-	
+
 	if err == sql.ErrNoRows {
 		return Token{}, fmt.Errorf("token not found: %s", name)
 	}
@@ -237,7 +238,7 @@ func (s *Store) CreateProject(ctx context.Context, name string) (Project, error)
 		return Project{}, fmt.Errorf("invalid project name: must be 1-64 characters")
 	}
 
-	result, err := s.db.ExecContext(ctx, 
+	result, err := s.db.ExecContext(ctx,
 		"INSERT INTO projects (name) VALUES (?)", name)
 	if err != nil {
 		return Project{}, fmt.Errorf("failed to create project: %w", err)
@@ -277,26 +278,26 @@ func (s *Store) CreateProjectWithWebhook(ctx context.Context, name string, repoU
 	if name == "" || len(name) > 64 {
 		return Project{}, fmt.Errorf("invalid project name: must be 1-64 characters")
 	}
-	
-	result, err := s.db.ExecContext(ctx, 
-		"INSERT INTO projects (name, repo_url, branch, image_target) VALUES (?, ?, ?, ?)", 
+
+	result, err := s.db.ExecContext(ctx,
+		"INSERT INTO projects (name, repo_url, branch, image_target) VALUES (?, ?, ?, ?)",
 		name, repoURL, branch, imageTarget)
 	if err != nil {
 		return Project{}, fmt.Errorf("failed to create project: %w", err)
 	}
-	
+
 	id, err := result.LastInsertId()
 	if err != nil {
 		return Project{}, fmt.Errorf("failed to get project ID: %w", err)
 	}
-	
+
 	// Generate network name and update the project
 	networkName := GenerateProjectNetworkName(id)
 	_, err = s.db.ExecContext(ctx, "UPDATE projects SET network_name = ? WHERE id = ?", networkName, id)
 	if err != nil {
 		return Project{}, fmt.Errorf("failed to set project network name: %w", err)
 	}
-	
+
 	// Get the full project back to include all fields
 	return s.GetProject(ctx, id)
 }
@@ -306,21 +307,21 @@ func (s *Store) UpdateProject(ctx context.Context, id int64, name string, repoUR
 	if name == "" || len(name) > 64 {
 		return Project{}, fmt.Errorf("invalid project name: must be 1-64 characters")
 	}
-	
-	_, err := s.db.ExecContext(ctx, 
-		"UPDATE projects SET name = ?, repo_url = ?, branch = ?, image_target = ? WHERE id = ?", 
+
+	_, err := s.db.ExecContext(ctx,
+		"UPDATE projects SET name = ?, repo_url = ?, branch = ?, image_target = ? WHERE id = ?",
 		name, repoURL, branch, imageTarget, id)
 	if err != nil {
 		return Project{}, fmt.Errorf("failed to update project: %w", err)
 	}
-	
+
 	// Get the updated project
 	return s.GetProject(ctx, id)
 }
 
 // ListProjects returns all projects
 func (s *Store) ListProjects(ctx context.Context) ([]Project, error) {
-	rows, err := s.db.QueryContext(ctx, 
+	rows, err := s.db.QueryContext(ctx,
 		"SELECT id, name, repo_url, branch, image_target, network_name, created_at FROM projects ORDER BY created_at DESC")
 	if err != nil {
 		return nil, fmt.Errorf("failed to list projects: %w", err)
@@ -335,7 +336,7 @@ func (s *Store) ListProjects(ctx context.Context) ([]Project, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan project: %w", err)
 		}
-		
+
 		if repoURL.Valid {
 			project.RepoURL = &repoURL.String
 		}
@@ -348,7 +349,7 @@ func (s *Store) ListProjects(ctx context.Context) ([]Project, error) {
 		if networkName.Valid {
 			project.NetworkName = &networkName.String
 		}
-		
+
 		projects = append(projects, project)
 	}
 
@@ -359,10 +360,10 @@ func (s *Store) ListProjects(ctx context.Context) ([]Project, error) {
 func (s *Store) GetProject(ctx context.Context, id int64) (Project, error) {
 	var project Project
 	var repoURL, branch, imageTarget, networkName sql.NullString
-	err := s.db.QueryRowContext(ctx, 
+	err := s.db.QueryRowContext(ctx,
 		"SELECT id, name, repo_url, branch, image_target, network_name, created_at FROM projects WHERE id = ?", id).
 		Scan(&project.ID, &project.Name, &repoURL, &branch, &imageTarget, &networkName, &project.CreatedAt)
-	
+
 	if err == sql.ErrNoRows {
 		return Project{}, fmt.Errorf("project not found: %d", id)
 	}
@@ -576,7 +577,7 @@ func (s *Store) GetServiceNetwork(ctx context.Context, serviceID int64) (Service
 		JOIN projects p ON s.project_id = p.id
 		WHERE s.id = ?
 	`
-	
+
 	var service struct {
 		ID          int64   `json:"id"`
 		Name        string  `json:"name"`
@@ -585,7 +586,7 @@ func (s *Store) GetServiceNetwork(ctx context.Context, serviceID int64) (Service
 		ProjectName string  `json:"project_name"`
 		NetworkName *string `json:"network_name"`
 	}
-	
+
 	err := s.db.QueryRowContext(ctx, query, serviceID).Scan(
 		&service.ID, &service.Name, &service.Ports, &service.ProjectID, &service.ProjectName, &service.NetworkName,
 	)
@@ -595,7 +596,7 @@ func (s *Store) GetServiceNetwork(ctx context.Context, serviceID int64) (Service
 		}
 		return ServiceNetwork{}, fmt.Errorf("failed to get service: %w", err)
 	}
-	
+
 	// Parse ports
 	var ports []PortMap
 	if service.Ports != "" {
@@ -603,10 +604,10 @@ func (s *Store) GetServiceNetwork(ctx context.Context, serviceID int64) (Service
 			return ServiceNetwork{}, fmt.Errorf("failed to parse ports: %w", err)
 		}
 	}
-	
+
 	// Generate alias and hints
 	alias := GenerateServiceAlias(service.ProjectName, service.Name)
-	
+
 	// Use project network name or generate one for backward compatibility
 	var network string
 	if service.NetworkName != nil && *service.NetworkName != "" {
@@ -614,7 +615,7 @@ func (s *Store) GetServiceNetwork(ctx context.Context, serviceID int64) (Service
 	} else {
 		network = GenerateProjectNetworkName(service.ProjectID)
 	}
-	
+
 	// Convert to internal port mappings
 	var portsInternal []InternalPortMapping
 	for _, port := range ports {
@@ -623,13 +624,13 @@ func (s *Store) GetServiceNetwork(ctx context.Context, serviceID int64) (Service
 			Protocol:  "tcp", // Default to TCP
 		})
 	}
-	
+
 	// Generate hints
 	dnsHint, curlHint := GenerateNetworkHints(alias, ports)
-	
+
 	// Generate aliases using the new function
 	aliases := GenerateServiceAliases(service.ProjectName, service.Name)
-	
+
 	// Get external hosts from routes
 	var externalHosts []string
 	routesQuery := `
@@ -637,7 +638,7 @@ func (s *Store) GetServiceNetwork(ctx context.Context, serviceID int64) (Service
 		FROM routes
 		WHERE service_id = ?
 	`
-	
+
 	rows, err := s.db.QueryContext(ctx, routesQuery, serviceID)
 	if err != nil {
 		// Log error but don't fail the main query
@@ -656,10 +657,10 @@ func (s *Store) GetServiceNetwork(ctx context.Context, serviceID int64) (Service
 			}
 		}
 	}
-	
+
 	// Generate internal DNS hint
 	internalDNS := fmt.Sprintf("%s.%s.local", service.Name, service.ProjectName)
-	
+
 	return ServiceNetwork{
 		ProjectNetwork: network,
 		Aliases:        aliases,
@@ -680,19 +681,19 @@ func (s *Store) CreateServiceLinks(ctx context.Context, serviceID int64, targetI
 		_, err := s.db.ExecContext(ctx, "DELETE FROM service_links WHERE service_id = ?", serviceID)
 		return err
 	}
-	
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
-	
+
 	// Clear existing links
 	_, err = tx.ExecContext(ctx, "DELETE FROM service_links WHERE service_id = ?", serviceID)
 	if err != nil {
 		return fmt.Errorf("failed to clear existing links: %w", err)
 	}
-	
+
 	// Validate target services exist
 	for _, targetID := range targetIDs {
 		var exists bool
@@ -704,22 +705,22 @@ func (s *Store) CreateServiceLinks(ctx context.Context, serviceID int64, targetI
 			return fmt.Errorf("target service not found: %d", targetID)
 		}
 	}
-	
+
 	// Insert new links
 	for _, targetID := range targetIDs {
 		if targetID == serviceID {
 			continue // Skip self-links
 		}
-		
-		_, err = tx.ExecContext(ctx, 
-			"INSERT INTO service_links (service_id, target_id) VALUES (?, ?)", 
+
+		_, err = tx.ExecContext(ctx,
+			"INSERT INTO service_links (service_id, target_id) VALUES (?, ?)",
 			serviceID, targetID,
 		)
 		if err != nil {
 			return fmt.Errorf("failed to create link to service %d: %w", targetID, err)
 		}
 	}
-	
+
 	return tx.Commit()
 }
 
@@ -733,33 +734,33 @@ func (s *Store) GetServiceLinks(ctx context.Context, serviceID int64) ([]LinkedS
 		WHERE sl.service_id = ?
 		ORDER BY s.name
 	`
-	
+
 	rows, err := s.db.QueryContext(ctx, query, serviceID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query service links: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var links []LinkedService
 	for rows.Next() {
 		var link LinkedService
 		var projectName string
-		
+
 		err := rows.Scan(&link.ID, &link.Name, &link.ProjectID, &projectName)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan service link: %w", err)
 		}
-		
+
 		// Generate alias
 		link.Alias = GenerateServiceAlias(projectName, link.Name)
-		
+
 		links = append(links, link)
 	}
-	
+
 	if err = rows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to iterate service links: %w", err)
 	}
-	
+
 	return links, nil
 }
 
@@ -792,14 +793,14 @@ func (s *Store) UpdateService(ctx context.Context, id int64, updates Service) er
 		project_id = ?,
 		health_path = ?
 		WHERE id = ?`
-	
-	result, err := s.db.ExecContext(ctx, query, 
-		updates.Name, 
+
+	result, err := s.db.ExecContext(ctx, query,
+		updates.Name,
 		updates.Description,
 		updates.Image,
-		updates.ContainerID, 
-		envJSON, 
-		portsJSON, 
+		updates.ContainerID,
+		envJSON,
+		portsJSON,
 		volumesJSON,
 		updates.ProjectID,
 		updates.HealthPath,
@@ -951,7 +952,7 @@ func (s *Store) CreateRoute(ctx context.Context, serviceID int64, spec RouteSpec
 	if spec.Domain == "" {
 		return Route{}, fmt.Errorf("domain cannot be empty")
 	}
-	
+
 	if len(spec.Domain) > 253 { // Max domain name length
 		return Route{}, fmt.Errorf("domain too long: max 253 characters")
 	}
@@ -964,8 +965,8 @@ func (s *Store) CreateRoute(ctx context.Context, serviceID int64, spec RouteSpec
 
 	// Insert route
 	result, err := s.db.ExecContext(ctx,
-		"INSERT INTO routes (service_id, domain, port, tls, path, certificate_id, proxy_config) VALUES (?, ?, ?, ?, ?, ?, ?)",
-		serviceID, spec.Domain, spec.Port, spec.TLS, spec.Path, spec.CertificateID, spec.ProxyConfig)
+		"INSERT INTO routes (service_id, domain, port, tls, path, certificate_id, domain_id, proxy_config) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+		serviceID, spec.Domain, spec.Port, spec.TLS, spec.Path, spec.CertificateID, spec.DomainID, spec.ProxyConfig)
 	if err != nil {
 		return Route{}, fmt.Errorf("failed to create route: %w", err)
 	}
@@ -994,7 +995,7 @@ func (s *Store) CreateRoute(ctx context.Context, serviceID int64, spec RouteSpec
 // ListRoutes returns all routes for a service
 func (s *Store) ListRoutes(ctx context.Context, serviceID int64) ([]Route, error) {
 	rows, err := s.db.QueryContext(ctx,
-		"SELECT id, service_id, domain, port, tls, path, certificate_id, proxy_config, created_at, updated_at FROM routes WHERE service_id = ? ORDER BY created_at",
+		"SELECT id, service_id, domain, port, tls, path, certificate_id, domain_id, proxy_config, created_at, updated_at FROM routes WHERE service_id = ? ORDER BY created_at",
 		serviceID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query routes: %w", err)
@@ -1004,7 +1005,7 @@ func (s *Store) ListRoutes(ctx context.Context, serviceID int64) ([]Route, error
 	var routes []Route
 	for rows.Next() {
 		var route Route
-		err := rows.Scan(&route.ID, &route.ServiceID, &route.Domain, &route.Port, &route.TLS, &route.Path, &route.CertificateID, &route.ProxyConfig, &route.CreatedAt, &route.UpdatedAt)
+		err := rows.Scan(&route.ID, &route.ServiceID, &route.Domain, &route.Port, &route.TLS, &route.Path, &route.CertificateID, &route.DomainID, &route.ProxyConfig, &route.CreatedAt, &route.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan route: %w", err)
 		}
@@ -1018,8 +1019,8 @@ func (s *Store) ListRoutes(ctx context.Context, serviceID int64) ([]Route, error
 func (s *Store) GetRoute(ctx context.Context, id int64) (Route, error) {
 	var route Route
 	err := s.db.QueryRowContext(ctx,
-		"SELECT id, service_id, domain, port, tls, path, certificate_id, proxy_config, created_at, updated_at FROM routes WHERE id = ?", id).
-		Scan(&route.ID, &route.ServiceID, &route.Domain, &route.Port, &route.TLS, &route.Path, &route.CertificateID, &route.ProxyConfig, &route.CreatedAt, &route.UpdatedAt)
+		"SELECT id, service_id, domain, port, tls, path, certificate_id, domain_id, proxy_config, created_at, updated_at FROM routes WHERE id = ?", id).
+		Scan(&route.ID, &route.ServiceID, &route.Domain, &route.Port, &route.TLS, &route.Path, &route.CertificateID, &route.DomainID, &route.ProxyConfig, &route.CreatedAt, &route.UpdatedAt)
 
 	if err == sql.ErrNoRows {
 		return Route{}, fmt.Errorf("route not found: %d", id)
@@ -1034,7 +1035,7 @@ func (s *Store) GetRoute(ctx context.Context, id int64) (Route, error) {
 // GetAllRoutes retrieves all routes (for nginx config generation)
 func (s *Store) GetAllRoutes(ctx context.Context) ([]Route, error) {
 	rows, err := s.db.QueryContext(ctx,
-		"SELECT id, service_id, domain, port, tls, path, certificate_id, proxy_config, created_at, updated_at FROM routes ORDER BY domain")
+		"SELECT id, service_id, domain, port, tls, path, certificate_id, domain_id, proxy_config, created_at, updated_at FROM routes ORDER BY domain")
 	if err != nil {
 		return nil, fmt.Errorf("failed to query all routes: %w", err)
 	}
@@ -1043,7 +1044,7 @@ func (s *Store) GetAllRoutes(ctx context.Context) ([]Route, error) {
 	var routes []Route
 	for rows.Next() {
 		var route Route
-		err := rows.Scan(&route.ID, &route.ServiceID, &route.Domain, &route.Port, &route.TLS, &route.Path, &route.CertificateID, &route.ProxyConfig, &route.CreatedAt, &route.UpdatedAt)
+		err := rows.Scan(&route.ID, &route.ServiceID, &route.Domain, &route.Port, &route.TLS, &route.Path, &route.CertificateID, &route.DomainID, &route.ProxyConfig, &route.CreatedAt, &route.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan route: %w", err)
 		}
@@ -1113,7 +1114,7 @@ func (s *Store) UpdateRoute(ctx context.Context, id int64, spec RouteSpec) (Rout
 	if spec.Domain == "" {
 		return Route{}, fmt.Errorf("domain cannot be empty")
 	}
-	
+
 	if len(spec.Domain) > 253 { // Max domain name length
 		return Route{}, fmt.Errorf("domain too long: max 253 characters")
 	}
@@ -1131,7 +1132,7 @@ func (s *Store) UpdateRoute(ctx context.Context, id int64, spec RouteSpec) (Rout
 	if err != nil {
 		return Route{}, fmt.Errorf("failed to update route: %w", err)
 	}
-	
+
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return Route{}, fmt.Errorf("failed to get rows affected: %w", err)
@@ -1151,7 +1152,7 @@ func (s *Store) CreateCertificate(ctx context.Context, spec CertificateSpec) (Ce
 	if spec.Domain == "" {
 		return Certificate{}, fmt.Errorf("domain cannot be empty")
 	}
-	
+
 	if len(spec.Domain) > 253 {
 		return Certificate{}, fmt.Errorf("domain too long: max 253 characters")
 	}
@@ -1177,7 +1178,7 @@ func (s *Store) CreateCertificate(ctx context.Context, spec CertificateSpec) (Ce
 		if err != nil {
 			return Certificate{}, fmt.Errorf("failed to get master key for encryption: %w", err)
 		}
-		
+
 		if err := cert.EncryptKeyData(masterKey); err != nil {
 			return Certificate{}, fmt.Errorf("failed to encrypt key data: %w", err)
 		}
@@ -1218,7 +1219,7 @@ func (s *Store) GetCertificate(ctx context.Context, id int64) (Certificate, erro
 		if err != nil {
 			return Certificate{}, fmt.Errorf("failed to get master key for decryption: %w", err)
 		}
-		
+
 		if err := cert.DecryptKeyData(masterKey); err != nil {
 			return Certificate{}, fmt.Errorf("failed to decrypt key data: %w", err)
 		}
@@ -1247,7 +1248,7 @@ func (s *Store) GetCertificateByDomain(ctx context.Context, domain string) (Cert
 		if err != nil {
 			return Certificate{}, fmt.Errorf("failed to get master key for decryption: %w", err)
 		}
-		
+
 		if err := cert.DecryptKeyData(masterKey); err != nil {
 			return Certificate{}, fmt.Errorf("failed to decrypt key data: %w", err)
 		}
@@ -1264,7 +1265,7 @@ func (s *Store) ListCertificates(ctx context.Context) ([]EnhancedCertificate, er
 			   created_at, updated_at
 		FROM certificates_enhanced 
 		ORDER BY domain`
-	
+
 	rows, err := s.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query enhanced certificates: %w", err)
@@ -1273,11 +1274,11 @@ func (s *Store) ListCertificates(ctx context.Context) ([]EnhancedCertificate, er
 
 	var certificates []EnhancedCertificate
 	masterKey, keyErr := s.getMasterKey()
-	
+
 	for rows.Next() {
 		var cert EnhancedCertificate
 		err := rows.Scan(
-			&cert.ID, &cert.Domain, &cert.Type, &cert.Issuer, 
+			&cert.ID, &cert.Domain, &cert.Type, &cert.Issuer,
 			&cert.NotBefore, &cert.NotAfter, &cert.Status,
 			&cert.PEMCert, &cert.PEMChain, &cert.PEMKeyEnc, &cert.PEMKeyNonce,
 			&cert.CreatedAt, &cert.UpdatedAt,
@@ -1285,14 +1286,14 @@ func (s *Store) ListCertificates(ctx context.Context) ([]EnhancedCertificate, er
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan enhanced certificate: %w", err)
 		}
-		
+
 		// Decrypt key data if present and master key is available
 		if keyErr == nil && cert.PEMKeyEnc != nil && cert.PEMKeyNonce != nil && *cert.PEMKeyEnc != "" && *cert.PEMKeyNonce != "" {
 			if err := cert.DecryptPEMKey(masterKey); err != nil {
 				log.Warn().Err(err).Str("domain", cert.Domain).Msg("failed to decrypt certificate private key")
 			}
 		}
-		
+
 		certificates = append(certificates, cert)
 	}
 
@@ -1304,70 +1305,153 @@ func (s *Store) ListCertificates(ctx context.Context) ([]EnhancedCertificate, er
 // CreateDNSProvider creates a new DNS provider
 func (s *Store) CreateDNSProvider(ctx context.Context, spec DNSProviderSpec) (DNSProvider, error) {
 	var provider DNSProvider
-	
-	// Marshal config to JSON
+
+	// Load master key for encryption
+	masterKey, err := crypto.LoadMasterKeyFromEnv()
+	if err != nil {
+		return provider, fmt.Errorf("failed to load master key: %w", err)
+	}
+
+	// Marshal legacy config to JSON for backward compatibility
 	configBytes, err := json.Marshal(spec.Config)
 	if err != nil {
 		return provider, fmt.Errorf("failed to marshal DNS provider config: %w", err)
 	}
 	configJSON := string(configBytes)
-	
+
+	// Marshal settings to JSON if provided
+	var settingsJSON *string
+	if spec.Settings != nil {
+		settingsBytes, err := json.Marshal(spec.Settings)
+		if err != nil {
+			return provider, fmt.Errorf("failed to marshal DNS provider settings: %w", err)
+		}
+		settingsStr := string(settingsBytes)
+		settingsJSON = &settingsStr
+	}
+
+	// Create provider struct for encryption
 	now := time.Now()
+	active := true
+	provider = DNSProvider{
+		Name:       spec.Name,
+		Type:       spec.Type,
+		Label:      &spec.Label,
+		Email:      spec.Email,
+		APIToken:   spec.APIToken,
+		ConfigJSON: configJSON,
+		Settings:   settingsJSON,
+		Active:     &active,
+		CreatedAt:  now,
+		UpdatedAt:  now,
+	}
+
+	// Encrypt API token if provided
+	if provider.APIToken != nil && *provider.APIToken != "" {
+		if err := provider.EncryptAPIToken(masterKey); err != nil {
+			return provider, fmt.Errorf("failed to encrypt API token: %w", err)
+		}
+	}
+
+	// Insert into database
 	query := `
-		INSERT INTO dns_providers (name, type, config_json, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?)
+		INSERT INTO dns_providers (name, type, label, email, api_token, api_token_nonce, config_json, settings, active, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
-	
-	result, err := s.db.ExecContext(ctx, query, spec.Name, spec.Type, configJSON, now, now)
+
+	result, err := s.db.ExecContext(ctx, query,
+		provider.Name, provider.Type, provider.Label, provider.Email,
+		provider.APIToken, provider.APITokenNonce, provider.ConfigJSON,
+		provider.Settings, provider.Active, provider.CreatedAt, provider.UpdatedAt)
 	if err != nil {
 		return provider, fmt.Errorf("failed to create DNS provider: %w", err)
 	}
-	
+
 	id, err := result.LastInsertId()
 	if err != nil {
 		return provider, fmt.Errorf("failed to get DNS provider ID: %w", err)
 	}
-	
-	provider = DNSProvider{
-		ID:         id,
-		Name:       spec.Name,
-		Type:       spec.Type,
-		ConfigJSON: configJSON,
-		CreatedAt:  now,
-		UpdatedAt:  now,
-	}
-	
+
+	provider.ID = id
 	return provider, nil
 }
 
 // ListDNSProviders retrieves all DNS providers
 func (s *Store) ListDNSProviders(ctx context.Context) ([]DNSProvider, error) {
 	query := `
-		SELECT id, name, type, config_json, created_at, updated_at
+		SELECT id, name, type, label, email, api_token, api_token_nonce, config_json, settings, active, created_at, updated_at
 		FROM dns_providers
+		WHERE active IS NULL OR active = 1
 		ORDER BY name
 	`
-	
+
 	rows, err := s.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query DNS providers: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var providers []DNSProvider
 	for rows.Next() {
 		var provider DNSProvider
 		err := rows.Scan(
-			&provider.ID, &provider.Name, &provider.Type, 
-			&provider.ConfigJSON, &provider.CreatedAt, &provider.UpdatedAt,
+			&provider.ID, &provider.Name, &provider.Type, &provider.Label, &provider.Email,
+			&provider.APIToken, &provider.APITokenNonce, &provider.ConfigJSON,
+			&provider.Settings, &provider.Active, &provider.CreatedAt, &provider.UpdatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan DNS provider: %w", err)
 		}
 		providers = append(providers, provider)
 	}
-	
+
 	return providers, rows.Err()
+}
+
+// GetDNSProvider retrieves a specific DNS provider by ID
+func (s *Store) GetDNSProvider(ctx context.Context, id int64) (DNSProvider, error) {
+	var provider DNSProvider
+
+	query := `
+		SELECT id, name, type, label, email, api_token, api_token_nonce, config_json, settings, active, created_at, updated_at
+		FROM dns_providers
+		WHERE id = ? AND (active IS NULL OR active = 1)
+	`
+
+	err := s.db.QueryRowContext(ctx, query, id).Scan(
+		&provider.ID, &provider.Name, &provider.Type, &provider.Label, &provider.Email,
+		&provider.APIToken, &provider.APITokenNonce, &provider.ConfigJSON,
+		&provider.Settings, &provider.Active, &provider.CreatedAt, &provider.UpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return provider, ErrNotFound
+		}
+		return provider, fmt.Errorf("failed to get DNS provider: %w", err)
+	}
+
+	return provider, nil
+}
+
+// DeleteDNSProvider soft deletes a DNS provider by setting active = false
+func (s *Store) DeleteDNSProvider(ctx context.Context, id int64) error {
+	query := `UPDATE dns_providers SET active = 0, updated_at = ? WHERE id = ?`
+
+	result, err := s.db.ExecContext(ctx, query, time.Now(), id)
+	if err != nil {
+		return fmt.Errorf("failed to delete DNS provider: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get affected rows: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return ErrNotFound
+	}
+
+	return nil
 }
 
 // Domain Methods
@@ -1387,34 +1471,34 @@ func (s *Store) CreateDomain(ctx context.Context, domain *Domain) (int64, error)
 	if domain.Name == "" {
 		return 0, fmt.Errorf("domain name cannot be empty")
 	}
-	
+
 	// Generate verification token if not provided
 	if domain.VerificationToken == "" {
 		domain.VerificationToken = generateRandomToken(32)
 	}
-	
+
 	// Set default status if not provided
 	if domain.Status == "" {
 		domain.Status = DomainStatusPending
 	}
-	
+
 	result, err := s.db.ExecContext(ctx,
 		`INSERT INTO domains (name, status, provider, zone_id, verification_token, verification_checked_at, certificate_id, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
 		domain.Name, domain.Status, domain.Provider, domain.ZoneID, domain.VerificationToken, domain.VerificationCheckedAt, domain.CertificateID)
-	
+
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			return 0, fmt.Errorf("domain %s already exists", domain.Name)
 		}
 		return 0, fmt.Errorf("failed to create domain: %w", err)
 	}
-	
+
 	id, err := result.LastInsertId()
 	if err != nil {
 		return 0, fmt.Errorf("failed to get domain ID: %w", err)
 	}
-	
+
 	return id, nil
 }
 
@@ -1424,20 +1508,20 @@ func (s *Store) GetDomainByName(ctx context.Context, name string) (*Domain, erro
 	var provider, zoneID sql.NullString
 	var verificationCheckedAt sql.NullTime
 	var certificateID sql.NullInt64
-	
+
 	err := s.db.QueryRowContext(ctx,
 		`SELECT id, name, status, provider, zone_id, verification_token, verification_checked_at, certificate_id, created_at, updated_at
 		 FROM domains WHERE name = ?`, name).
-		Scan(&domain.ID, &domain.Name, &domain.Status, &provider, &zoneID, &domain.VerificationToken, 
+		Scan(&domain.ID, &domain.Name, &domain.Status, &provider, &zoneID, &domain.VerificationToken,
 			&verificationCheckedAt, &certificateID, &domain.CreatedAt, &domain.UpdatedAt)
-	
+
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("domain not found: %s", name)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get domain: %w", err)
 	}
-	
+
 	// Handle nullable fields
 	if provider.Valid {
 		domain.Provider = &provider.String
@@ -1451,15 +1535,78 @@ func (s *Store) GetDomainByName(ctx context.Context, name string) (*Domain, erro
 	if certificateID.Valid {
 		domain.CertificateID = &certificateID.Int64
 	}
-	
+
 	return &domain, nil
+}
+
+// GetDomainByID retrieves a domain by its ID
+func (s *Store) GetDomainByID(ctx context.Context, id int64) (*Domain, error) {
+	var domain Domain
+	var provider, zoneID sql.NullString
+	var verificationCheckedAt sql.NullTime
+	var certificateID sql.NullInt64
+
+	err := s.db.QueryRowContext(ctx,
+		`SELECT id, name, status, provider, zone_id, verification_token, verification_checked_at, certificate_id, created_at, updated_at
+		 FROM domains WHERE id = ?`, id).
+		Scan(&domain.ID, &domain.Name, &domain.Status, &provider, &zoneID, &domain.VerificationToken,
+			&verificationCheckedAt, &certificateID, &domain.CreatedAt, &domain.UpdatedAt)
+
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("domain not found with ID: %d", id)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get domain: %w", err)
+	}
+
+	// Handle nullable fields
+	if provider.Valid {
+		domain.Provider = &provider.String
+	}
+	if zoneID.Valid {
+		domain.ZoneID = &zoneID.String
+	}
+	if verificationCheckedAt.Valid {
+		domain.VerificationCheckedAt = &verificationCheckedAt.Time
+	}
+	if certificateID.Valid {
+		domain.CertificateID = &certificateID.Int64
+	}
+
+	return &domain, nil
+}
+
+// GetDomain is an alias for GetDomainByID to match RouteStore interface
+func (s *Store) GetDomain(ctx context.Context, id int64) (Domain, error) {
+	domain, err := s.GetDomainByID(ctx, id)
+	if err != nil {
+		return Domain{}, err
+	}
+	return *domain, nil
+}
+
+// UpdateDomainVerificationChecked updates the verification timestamp for a domain
+func (s *Store) UpdateDomainVerificationChecked(ctx context.Context, id int64, checkedAt *time.Time) error {
+	query := `UPDATE domains SET verification_checked_at = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+
+	var checkedAtVal interface{}
+	if checkedAt != nil {
+		checkedAtVal = *checkedAt
+	}
+
+	_, err := s.db.ExecContext(ctx, query, checkedAtVal, id)
+	if err != nil {
+		return fmt.Errorf("failed to update domain verification timestamp: %w", err)
+	}
+
+	return nil
 }
 
 // ListDomains returns domains filtered by status (empty slice returns all domains)
 func (s *Store) ListDomains(ctx context.Context, statuses []string) ([]Domain, error) {
 	var query string
 	var args []interface{}
-	
+
 	if len(statuses) == 0 {
 		// Return all domains
 		query = `SELECT id, name, status, provider, zone_id, verification_token, verification_checked_at, certificate_id, created_at, updated_at
@@ -1470,32 +1617,32 @@ func (s *Store) ListDomains(ctx context.Context, statuses []string) ([]Domain, e
 		placeholders = placeholders[:len(placeholders)-1] // Remove trailing comma
 		query = fmt.Sprintf(`SELECT id, name, status, provider, zone_id, verification_token, verification_checked_at, certificate_id, created_at, updated_at
 							 FROM domains WHERE status IN (%s) ORDER BY created_at DESC`, placeholders)
-		
+
 		for _, status := range statuses {
 			args = append(args, status)
 		}
 	}
-	
+
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list domains: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var domains []Domain
 	for rows.Next() {
 		var domain Domain
 		var provider, zoneID sql.NullString
 		var verificationCheckedAt sql.NullTime
 		var certificateID sql.NullInt64
-		
-		err := rows.Scan(&domain.ID, &domain.Name, &domain.Status, &provider, &zoneID, 
-			&domain.VerificationToken, &verificationCheckedAt, &certificateID, 
+
+		err := rows.Scan(&domain.ID, &domain.Name, &domain.Status, &provider, &zoneID,
+			&domain.VerificationToken, &verificationCheckedAt, &certificateID,
 			&domain.CreatedAt, &domain.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan domain: %w", err)
 		}
-		
+
 		// Handle nullable fields
 		if provider.Valid {
 			domain.Provider = &provider.String
@@ -1509,10 +1656,10 @@ func (s *Store) ListDomains(ctx context.Context, statuses []string) ([]Domain, e
 		if certificateID.Valid {
 			domain.CertificateID = &certificateID.Int64
 		}
-		
+
 		domains = append(domains, domain)
 	}
-	
+
 	return domains, rows.Err()
 }
 
@@ -1526,28 +1673,28 @@ func (s *Store) UpdateDomainStatus(ctx context.Context, id int64, status string,
 		DomainStatusActive:    true,
 		DomainStatusError:     true,
 	}
-	
+
 	if !validStatuses[status] {
 		return fmt.Errorf("invalid domain status: %s", status)
 	}
-	
+
 	result, err := s.db.ExecContext(ctx,
 		`UPDATE domains SET status = ?, certificate_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
 		status, certID, id)
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to update domain status: %w", err)
 	}
-	
+
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("failed to get rows affected: %w", err)
 	}
-	
+
 	if rowsAffected == 0 {
 		return fmt.Errorf("domain not found: %d", id)
 	}
-	
+
 	return nil
 }
 
@@ -1559,7 +1706,7 @@ func (s *Store) GetDB() *sql.DB {
 // GetEnhancedCertificate retrieves an enhanced certificate by ID
 func (s *Store) GetEnhancedCertificate(ctx context.Context, id int64) (EnhancedCertificate, error) {
 	var cert EnhancedCertificate
-	
+
 	query := `
 		SELECT id, domain, type, issuer, not_before, not_after, status, 
 			   pem_cert, pem_chain, pem_key_enc, pem_key_nonce, 
@@ -1567,9 +1714,9 @@ func (s *Store) GetEnhancedCertificate(ctx context.Context, id int64) (EnhancedC
 		FROM certificates_enhanced 
 		WHERE id = ?
 	`
-	
+
 	err := s.db.QueryRowContext(ctx, query, id).Scan(
-		&cert.ID, &cert.Domain, &cert.Type, &cert.Issuer, 
+		&cert.ID, &cert.Domain, &cert.Type, &cert.Issuer,
 		&cert.NotBefore, &cert.NotAfter, &cert.Status,
 		&cert.PEMCert, &cert.PEMChain, &cert.PEMKeyEnc, &cert.PEMKeyNonce,
 		&cert.CreatedAt, &cert.UpdatedAt,
@@ -1577,7 +1724,7 @@ func (s *Store) GetEnhancedCertificate(ctx context.Context, id int64) (EnhancedC
 	if err != nil {
 		return cert, fmt.Errorf("failed to get enhanced certificate: %w", err)
 	}
-	
+
 	// Decrypt key data if present and master key is available
 	masterKey, keyErr := s.getMasterKey()
 	if keyErr == nil && cert.PEMKeyEnc != nil && cert.PEMKeyNonce != nil && *cert.PEMKeyEnc != "" && *cert.PEMKeyNonce != "" {
@@ -1585,7 +1732,7 @@ func (s *Store) GetEnhancedCertificate(ctx context.Context, id int64) (EnhancedC
 			log.Warn().Err(err).Str("domain", cert.Domain).Msg("failed to decrypt certificate private key")
 		}
 	}
-	
+
 	return cert, nil
 }
 
@@ -1594,7 +1741,7 @@ func (s *Store) UpdateCertificate(ctx context.Context, id int64, spec Certificat
 	if spec.Domain == "" {
 		return Certificate{}, fmt.Errorf("domain cannot be empty")
 	}
-	
+
 	if len(spec.Domain) > 253 {
 		return Certificate{}, fmt.Errorf("domain too long: max 253 characters")
 	}
@@ -1620,7 +1767,7 @@ func (s *Store) UpdateCertificate(ctx context.Context, id int64, spec Certificat
 		if err != nil {
 			return Certificate{}, fmt.Errorf("failed to get master key for encryption: %w", err)
 		}
-		
+
 		if err := cert.EncryptKeyData(masterKey); err != nil {
 			return Certificate{}, fmt.Errorf("failed to encrypt key data: %w", err)
 		}
@@ -1777,7 +1924,7 @@ func (s *Store) SetActiveNginxConfig(ctx context.Context, configID int64) error 
 // GetLastUpdatedTimestamp returns the maximum updated_at timestamp from routes and certificates
 func (s *Store) GetLastUpdatedTimestamp(ctx context.Context) (time.Time, error) {
 	var maxTimestamp time.Time
-	
+
 	// Query for the maximum updated_at from both routes and certificates
 	err := s.db.QueryRowContext(ctx, `
 		SELECT MAX(datetime) as max_time FROM (
@@ -1785,7 +1932,7 @@ func (s *Store) GetLastUpdatedTimestamp(ctx context.Context) (time.Time, error) 
 			UNION ALL
 			SELECT MAX(updated_at) as datetime FROM certificates WHERE updated_at IS NOT NULL
 		)`).Scan(&maxTimestamp)
-	
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return time.Time{}, nil // No updates found
@@ -1815,11 +1962,11 @@ func (s *Store) UpsertCert(ctx context.Context, domain, email, status string, ex
 			last_issued_at = excluded.last_issued_at,
 			expires_at = excluded.expires_at
 	`, domain, email, status, lastIssuedAt, expiresAt)
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to upsert cert for domain %s: %w", domain, err)
 	}
-	
+
 	return nil
 }
 
@@ -1829,14 +1976,14 @@ func (s *Store) GetCert(ctx context.Context, domain string) (Cert, error) {
 	err := s.db.QueryRowContext(ctx,
 		"SELECT id, domain, email, status, last_issued_at, expires_at, created_at FROM certs WHERE domain = ?",
 		domain).Scan(&cert.ID, &cert.Domain, &cert.Email, &cert.Status, &cert.LastIssuedAt, &cert.ExpiresAt, &cert.CreatedAt)
-	
+
 	if err == sql.ErrNoRows {
 		return cert, ErrNotFound
 	}
 	if err != nil {
 		return cert, fmt.Errorf("failed to get cert for domain %s: %w", domain, err)
 	}
-	
+
 	return cert, nil
 }
 
@@ -1865,7 +2012,7 @@ func (s *Store) ListCerts(ctx context.Context) ([]Cert, error) {
 // ListCertsExpiringSoon retrieves certificates that expire within the given duration
 func (s *Store) ListCertsExpiringSoon(ctx context.Context, within time.Duration) ([]Cert, error) {
 	threshold := time.Now().Add(within)
-	
+
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT id, domain, email, status, last_issued_at, expires_at, created_at 
 		FROM certs 
@@ -1901,12 +2048,12 @@ func (s *Store) CreateClient(ctx context.Context, spec ClientSpec) (Client, erro
 	if err != nil {
 		return Client{}, fmt.Errorf("failed to create client: %w", err)
 	}
-	
+
 	id, err := result.LastInsertId()
 	if err != nil {
 		return Client{}, fmt.Errorf("failed to get client id: %w", err)
 	}
-	
+
 	return s.GetClient(ctx, id)
 }
 
@@ -1918,14 +2065,14 @@ func (s *Store) GetClient(ctx context.Context, id int64) (Client, error) {
 		FROM clients WHERE id = ?`, id).Scan(
 		&client.ID, &client.Name, &client.TokenID, &client.Status,
 		&client.LastIP, &client.LastSeenAt, &client.CreatedAt, &client.UpdatedAt)
-	
+
 	if err == sql.ErrNoRows {
 		return Client{}, ErrNotFound
 	}
 	if err != nil {
 		return Client{}, fmt.Errorf("failed to get client: %w", err)
 	}
-	
+
 	return client, nil
 }
 
@@ -1937,14 +2084,14 @@ func (s *Store) GetClientByName(ctx context.Context, name string) (Client, error
 		FROM clients WHERE name = ?`, name).Scan(
 		&client.ID, &client.Name, &client.TokenID, &client.Status,
 		&client.LastIP, &client.LastSeenAt, &client.CreatedAt, &client.UpdatedAt)
-	
+
 	if err == sql.ErrNoRows {
 		return Client{}, ErrNotFound
 	}
 	if err != nil {
 		return Client{}, fmt.Errorf("failed to get client by name: %w", err)
 	}
-	
+
 	return client, nil
 }
 
@@ -1957,7 +2104,7 @@ func (s *Store) ListClients(ctx context.Context) ([]Client, error) {
 		return nil, fmt.Errorf("failed to query clients: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var clients []Client
 	for rows.Next() {
 		var client Client
@@ -1968,7 +2115,7 @@ func (s *Store) ListClients(ctx context.Context) ([]Client, error) {
 		}
 		clients = append(clients, client)
 	}
-	
+
 	return clients, rows.Err()
 }
 
@@ -1996,7 +2143,7 @@ func (s *Store) TouchClient(ctx context.Context, name, ip string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	// Update existing client
 	_, err = s.db.ExecContext(ctx, `
 		UPDATE clients 
@@ -2006,7 +2153,7 @@ func (s *Store) TouchClient(ctx context.Context, name, ip string) error {
 	if err != nil {
 		return fmt.Errorf("failed to touch client: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -2016,16 +2163,16 @@ func (s *Store) DeleteClient(ctx context.Context, id int64) error {
 	if err != nil {
 		return fmt.Errorf("failed to delete client: %w", err)
 	}
-	
+
 	rows, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("failed to get affected rows: %w", err)
 	}
-	
+
 	if rows == 0 {
 		return ErrNotFound
 	}
-	
+
 	return nil
 }
 
@@ -2038,8 +2185,8 @@ func (s *Store) UpsertUser(ctx context.Context, user User) (User, error) {
 	err := s.db.QueryRowContext(ctx, `
 		SELECT id, github_id, login, name, avatar_url, role, created_at, updated_at, last_login_at
 		FROM users WHERE github_id = ?`, user.GitHubID).Scan(
-		&existingUser.ID, &existingUser.GitHubID, &existingUser.Login, 
-		&existingUser.Name, &existingUser.AvatarURL, &existingUser.Role, 
+		&existingUser.ID, &existingUser.GitHubID, &existingUser.Login,
+		&existingUser.Name, &existingUser.AvatarURL, &existingUser.Role,
 		&existingUser.CreatedAt, &existingUser.UpdatedAt, &existingUser.LastLoginAt)
 
 	if err == sql.ErrNoRows {
@@ -2080,11 +2227,11 @@ func (s *Store) UpsertUser(ctx context.Context, user User) (User, error) {
 func (s *Store) GetUserByGitHubID(ctx context.Context, githubID int64) (User, error) {
 	var user User
 	var lastLoginAt sql.NullTime
-	
+
 	err := s.db.QueryRowContext(ctx, `
 		SELECT id, github_id, login, name, avatar_url, role, created_at, updated_at, last_login_at
 		FROM users WHERE github_id = ?`, githubID).Scan(
-		&user.ID, &user.GitHubID, &user.Login, &user.Name, 
+		&user.ID, &user.GitHubID, &user.Login, &user.Name,
 		&user.AvatarURL, &user.Role, &user.CreatedAt, &user.UpdatedAt, &lastLoginAt)
 
 	if err == sql.ErrNoRows {
@@ -2105,11 +2252,11 @@ func (s *Store) GetUserByGitHubID(ctx context.Context, githubID int64) (User, er
 func (s *Store) GetUserByID(ctx context.Context, id int64) (User, error) {
 	var user User
 	var lastLoginAt sql.NullTime
-	
+
 	err := s.db.QueryRowContext(ctx, `
 		SELECT id, github_id, login, name, avatar_url, role, created_at, updated_at, last_login_at
 		FROM users WHERE id = ?`, id).Scan(
-		&user.ID, &user.GitHubID, &user.Login, &user.Name, 
+		&user.ID, &user.GitHubID, &user.Login, &user.Name,
 		&user.AvatarURL, &user.Role, &user.CreatedAt, &user.UpdatedAt, &lastLoginAt)
 
 	if err == sql.ErrNoRows {
@@ -2160,8 +2307,8 @@ func (s *Store) ListUsers(ctx context.Context) ([]User, error) {
 	for rows.Next() {
 		var user User
 		var lastLoginAt sql.NullTime
-		
-		err := rows.Scan(&user.ID, &user.GitHubID, &user.Login, &user.Name, 
+
+		err := rows.Scan(&user.ID, &user.GitHubID, &user.Login, &user.Name,
 			&user.AvatarURL, &user.Role, &user.CreatedAt, &user.UpdatedAt, &lastLoginAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan user: %w", err)
@@ -2240,11 +2387,11 @@ func (s *Store) CreateAuditEntry(ctx context.Context, entry *audit.Entry) error 
 		INSERT INTO audit_entries (timestamp, actor, action, target_type, target_id, meta)
 		VALUES (?, ?, ?, ?, ?, ?)`,
 		entry.Timestamp, entry.Actor, string(entry.Action), entry.TargetType, entry.TargetID, metaJSON)
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to create audit entry: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -2268,8 +2415,8 @@ func (s *Store) GetAuditEntries(ctx context.Context, limit int) ([]audit.Entry, 
 	for rows.Next() {
 		var entry audit.Entry
 		var metaJSON string
-		
-		err := rows.Scan(&entry.ID, &entry.Timestamp, &entry.Actor, 
+
+		err := rows.Scan(&entry.ID, &entry.Timestamp, &entry.Actor,
 			&entry.Action, &entry.TargetType, &entry.TargetID, &metaJSON)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan audit entry: %w", err)
@@ -2385,11 +2532,11 @@ func (s *Store) CreateHistoricalMetric(ctx context.Context, metric HistoricalMet
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		metric.Timestamp, metric.CPUPercent, metric.MemoryUsed, metric.MemoryTotal,
 		metric.DiskUsed, metric.DiskTotal, metric.NetworkRX, metric.NetworkTX)
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to create historical metric: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -2400,7 +2547,7 @@ func (s *Store) GetHistoricalMetrics(ctx context.Context, since time.Time, limit
 	} else if limit > 50000 {
 		limit = 50000 // Cap at 50k for safety
 	}
-	
+
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT id, timestamp, cpu_percent, memory_used, memory_total, 
 			disk_used, disk_total, network_rx, network_tx
@@ -2408,12 +2555,12 @@ func (s *Store) GetHistoricalMetrics(ctx context.Context, since time.Time, limit
 		WHERE timestamp >= ?
 		ORDER BY timestamp ASC
 		LIMIT ?`, since, limit)
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to query historical metrics: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var metrics []HistoricalMetric
 	for rows.Next() {
 		var metric HistoricalMetric
@@ -2424,11 +2571,11 @@ func (s *Store) GetHistoricalMetrics(ctx context.Context, since time.Time, limit
 		}
 		metrics = append(metrics, metric)
 	}
-	
+
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to iterate historical metrics: %w", err)
 	}
-	
+
 	return metrics, nil
 }
 
@@ -2437,19 +2584,19 @@ func (s *Store) GetLatestHistoricalMetrics(ctx context.Context, limit int) ([]Hi
 	if limit <= 0 || limit > 1000 {
 		limit = 50 // Default to 50 data points
 	}
-	
+
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT id, timestamp, cpu_percent, memory_used, memory_total, 
 			disk_used, disk_total, network_rx, network_tx
 		FROM historical_metrics 
 		ORDER BY timestamp DESC
 		LIMIT ?`, limit)
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to query latest historical metrics: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var metrics []HistoricalMetric
 	for rows.Next() {
 		var metric HistoricalMetric
@@ -2460,38 +2607,38 @@ func (s *Store) GetLatestHistoricalMetrics(ctx context.Context, limit int) ([]Hi
 		}
 		metrics = append(metrics, metric)
 	}
-	
+
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to iterate historical metrics: %w", err)
 	}
-	
+
 	// Reverse to get chronological order (oldest first)
 	for i := 0; i < len(metrics)/2; i++ {
 		j := len(metrics) - 1 - i
 		metrics[i], metrics[j] = metrics[j], metrics[i]
 	}
-	
+
 	return metrics, nil
 }
 
 // CleanupOldMetrics removes historical metrics older than the specified duration
 func (s *Store) CleanupOldMetrics(ctx context.Context, olderThan time.Duration) error {
 	cutoff := time.Now().Add(-olderThan)
-	
+
 	result, err := s.db.ExecContext(ctx, `
 		DELETE FROM historical_metrics 
 		WHERE timestamp < ?`, cutoff)
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to cleanup old metrics: %w", err)
 	}
-	
+
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected > 0 {
 		// Log cleanup activity (could be enhanced with proper logging)
 		fmt.Printf("Cleaned up %d old historical metrics older than %v\n", rowsAffected, olderThan)
 	}
-	
+
 	return nil
 }
 
@@ -2500,16 +2647,16 @@ func (s *Store) CleanupHistoricalMetrics(ctx context.Context, cutoff time.Time) 
 	result, err := s.db.ExecContext(ctx, `
 		DELETE FROM historical_metrics 
 		WHERE timestamp < ?`, cutoff)
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to cleanup historical metrics: %w", err)
 	}
-	
+
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected > 0 {
 		fmt.Printf("Cleaned up %d historical metrics older than %v\n", rowsAffected, cutoff.Format(time.RFC3339))
 	}
-	
+
 	return nil
 }
 
@@ -2520,13 +2667,13 @@ func (s *Store) SetEnvVar(ctx context.Context, serviceID int64, key, value strin
 	if key == "" {
 		return fmt.Errorf("environment variable key cannot be empty")
 	}
-	
+
 	// Verify service exists
 	_, err := s.GetService(ctx, serviceID)
 	if err != nil {
 		return fmt.Errorf("service not found: %w", err)
 	}
-	
+
 	// For secret values, nonce and ciphertext are required; value must be empty
 	// For non-secret values, value is required; nonce and ciphertext must be empty
 	if isSecret {
@@ -2538,20 +2685,20 @@ func (s *Store) SetEnvVar(ctx context.Context, serviceID int64, key, value strin
 			return fmt.Errorf("non-secret variables require value; nonce and ciphertext must be empty")
 		}
 	}
-	
+
 	// Check if the env var already exists
 	var existingID int64
 	err = s.db.QueryRowContext(ctx, `
 		SELECT id FROM env_vars WHERE service_id = ? AND key = ?`,
 		serviceID, key).Scan(&existingID)
-	
+
 	if err == sql.ErrNoRows {
 		// Insert new env var
 		_, err = s.db.ExecContext(ctx, `
 			INSERT INTO env_vars (service_id, key, is_secret, value, nonce, ciphertext, created_at, updated_at)
 			VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
 			serviceID, key, isSecret, nullableString(value), nonce, ciphertext)
-		
+
 		if err != nil {
 			return fmt.Errorf("failed to insert environment variable: %w", err)
 		}
@@ -2564,12 +2711,12 @@ func (s *Store) SetEnvVar(ctx context.Context, serviceID int64, key, value strin
 			SET is_secret = ?, value = ?, nonce = ?, ciphertext = ?, updated_at = CURRENT_TIMESTAMP
 			WHERE id = ?`,
 			isSecret, nullableString(value), nonce, ciphertext, existingID)
-		
+
 		if err != nil {
 			return fmt.Errorf("failed to update environment variable: %w", err)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -2578,7 +2725,7 @@ func (s *Store) GetEnvVar(ctx context.Context, serviceID int64, key string) (Env
 	var envVar EnvVar
 	var value sql.NullString
 	var nonce, ciphertext []byte
-	
+
 	err := s.db.QueryRowContext(ctx, `
 		SELECT id, service_id, key, is_secret, value, nonce, ciphertext, created_at, updated_at
 		FROM env_vars 
@@ -2586,20 +2733,20 @@ func (s *Store) GetEnvVar(ctx context.Context, serviceID int64, key string) (Env
 		serviceID, key).Scan(
 		&envVar.ID, &envVar.ServiceID, &envVar.Key, &envVar.IsSecret,
 		&value, &nonce, &ciphertext, &envVar.CreatedAt, &envVar.UpdatedAt)
-	
+
 	if err == sql.ErrNoRows {
 		return EnvVar{}, fmt.Errorf("environment variable not found: %s", key)
 	}
 	if err != nil {
 		return EnvVar{}, fmt.Errorf("failed to get environment variable: %w", err)
 	}
-	
+
 	if value.Valid {
 		envVar.Value = value.String
 	}
 	envVar.Nonce = nonce
 	envVar.Ciphertext = ciphertext
-	
+
 	return envVar, nil
 }
 
@@ -2615,32 +2762,32 @@ func (s *Store) ListEnvVars(ctx context.Context, serviceID int64) ([]EnvVar, err
 		return nil, fmt.Errorf("failed to query environment variables: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var envVars []EnvVar
 	for rows.Next() {
 		var envVar EnvVar
 		var value sql.NullString
 		var nonce, ciphertext []byte
-		
+
 		err := rows.Scan(&envVar.ID, &envVar.ServiceID, &envVar.Key, &envVar.IsSecret,
 			&value, &nonce, &ciphertext, &envVar.CreatedAt, &envVar.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan environment variable: %w", err)
 		}
-		
+
 		if value.Valid {
 			envVar.Value = value.String
 		}
 		envVar.Nonce = nonce
 		envVar.Ciphertext = ciphertext
-		
+
 		envVars = append(envVars, envVar)
 	}
-	
+
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to iterate environment variables: %w", err)
 	}
-	
+
 	return envVars, nil
 }
 
@@ -2653,16 +2800,16 @@ func (s *Store) DeleteEnvVar(ctx context.Context, serviceID int64, key string) e
 	if err != nil {
 		return fmt.Errorf("failed to delete environment variable: %w", err)
 	}
-	
+
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("failed to get rows affected: %w", err)
 	}
-	
+
 	if rowsAffected == 0 {
 		return fmt.Errorf("environment variable not found: %s", key)
 	}
-	
+
 	return nil
 }
 
@@ -2671,24 +2818,24 @@ func (s *Store) BulkSetEnvVars(ctx context.Context, serviceID int64, envVars []E
 	if len(envVars) == 0 {
 		return nil // Nothing to do
 	}
-	
+
 	// Verify service exists
 	_, err := s.GetService(ctx, serviceID)
 	if err != nil {
 		return fmt.Errorf("service not found: %w", err)
 	}
-	
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
-	
+
 	for _, envVar := range envVars {
 		if envVar.Key == "" {
 			return fmt.Errorf("environment variable key cannot be empty")
 		}
-		
+
 		// Validate consistency for secrets vs non-secrets
 		if envVar.IsSecret {
 			if len(envVar.Nonce) == 0 || len(envVar.Ciphertext) == 0 || envVar.Value != "" {
@@ -2699,13 +2846,13 @@ func (s *Store) BulkSetEnvVars(ctx context.Context, serviceID int64, envVars []E
 				return fmt.Errorf("non-secret variable %s requires value; nonce and ciphertext must be empty", envVar.Key)
 			}
 		}
-		
+
 		// Check if the env var already exists
 		var existingID int64
 		err = tx.QueryRowContext(ctx, `
 			SELECT id FROM env_vars WHERE service_id = ? AND key = ?`,
 			serviceID, envVar.Key).Scan(&existingID)
-		
+
 		if err == sql.ErrNoRows {
 			// Insert new env var
 			_, err = tx.ExecContext(ctx, `
@@ -2722,12 +2869,12 @@ func (s *Store) BulkSetEnvVars(ctx context.Context, serviceID int64, envVars []E
 				WHERE id = ?`,
 				envVar.IsSecret, nullableString(envVar.Value), envVar.Nonce, envVar.Ciphertext, existingID)
 		}
-		
+
 		if err != nil {
 			return fmt.Errorf("failed to set environment variable %s: %w", envVar.Key, err)
 		}
 	}
-	
+
 	return tx.Commit()
 }
 
@@ -2736,13 +2883,13 @@ func (s *Store) BulkDeleteEnvVars(ctx context.Context, serviceID int64, keys []s
 	if len(keys) == 0 {
 		return nil // Nothing to do
 	}
-	
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
-	
+
 	for _, key := range keys {
 		_, err = tx.ExecContext(ctx, `
 			DELETE FROM env_vars 
@@ -2752,7 +2899,7 @@ func (s *Store) BulkDeleteEnvVars(ctx context.Context, serviceID int64, keys []s
 			return fmt.Errorf("failed to delete environment variable %s: %w", key, err)
 		}
 	}
-	
+
 	return tx.Commit()
 }
 
@@ -2764,11 +2911,11 @@ func (s *Store) CreateGitHubInstallation(ctx context.Context, installation *gith
 		INSERT OR REPLACE INTO github_installations (id, account_login, account_type, created_at, updated_at)
 		VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
 		installation.ID, installation.AccountLogin, installation.AccountType)
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to create GitHub installation: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -2780,11 +2927,11 @@ func (s *Store) CreateGitHubRepo(ctx context.Context, repo *github.GitHubRepo) e
 		INSERT OR REPLACE INTO github_repos (id, full_name, installation_id, active, created_at, updated_at)
 		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
 		repo.ID, repo.FullName, repo.InstallationID, repo.Active)
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to create GitHub repository: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -2794,7 +2941,7 @@ func (s *Store) DeleteGitHubRepo(ctx context.Context, id int64) error {
 	if err != nil {
 		return fmt.Errorf("failed to delete GitHub repository: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -2805,12 +2952,12 @@ func (s *Store) GetActiveReposByInstallation(ctx context.Context, installationID
 		FROM github_repos
 		WHERE installation_id = ? AND active = 1`,
 		installationID)
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to query active repositories: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var repos []github.GitHubRepo
 	for rows.Next() {
 		var repo github.GitHubRepo
@@ -2820,11 +2967,11 @@ func (s *Store) GetActiveReposByInstallation(ctx context.Context, installationID
 		}
 		repos = append(repos, repo)
 	}
-	
+
 	if err = rows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to iterate repositories: %w", err)
 	}
-	
+
 	return repos, nil
 }
 
@@ -2837,14 +2984,14 @@ func (s *Store) GetSetting(ctx context.Context, key string) (*Setting, error) {
 		SELECT key, value, is_secret, created_at, updated_at
 		FROM settings WHERE key = ?`, key).Scan(
 		&setting.Key, &setting.Value, &setting.IsSecret, &setting.CreatedAt, &setting.UpdatedAt)
-	
+
 	if err == sql.ErrNoRows {
 		return nil, ErrNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get setting: %w", err)
 	}
-	
+
 	return &setting, nil
 }
 
@@ -2856,11 +3003,11 @@ func (s *Store) SetSetting(ctx context.Context, key string, value []byte, isSecr
 			COALESCE((SELECT created_at FROM settings WHERE key = ?), CURRENT_TIMESTAMP), 
 			CURRENT_TIMESTAMP)`,
 		key, value, isSecret, key)
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to set setting: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -2870,16 +3017,16 @@ func (s *Store) DeleteSetting(ctx context.Context, key string) error {
 	if err != nil {
 		return fmt.Errorf("failed to delete setting: %w", err)
 	}
-	
+
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("failed to get rows affected: %w", err)
 	}
-	
+
 	if rowsAffected == 0 {
 		return ErrNotFound
 	}
-	
+
 	return nil
 }
 
@@ -2889,12 +3036,12 @@ func (s *Store) ListSettings(ctx context.Context) ([]Setting, error) {
 		SELECT key, value, is_secret, created_at, updated_at
 		FROM settings
 		ORDER BY key`)
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to list settings: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var settings []Setting
 	for rows.Next() {
 		var setting Setting
@@ -2902,19 +3049,19 @@ func (s *Store) ListSettings(ctx context.Context) ([]Setting, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan setting: %w", err)
 		}
-		
+
 		// Don't expose secret values
 		if setting.IsSecret {
 			setting.Value = nil
 		}
-		
+
 		settings = append(settings, setting)
 	}
-	
+
 	if err = rows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to iterate settings: %w", err)
 	}
-	
+
 	return settings, nil
 }
 
@@ -2924,30 +3071,30 @@ func (s *Store) StoreOAuthState(ctx context.Context, state string, encryptedVeri
 		INSERT INTO oauth_state (state, verifier_hash, expires_at)
 		VALUES (?, ?, ?)`,
 		state, encryptedVerifier, expiresAt)
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to store OAuth state: %w", err)
 	}
-	
+
 	return nil
 }
 
 // GetOAuthState retrieves OAuth state and encrypted PKCE verifier
 func (s *Store) GetOAuthState(ctx context.Context, state string) ([]byte, error) {
 	var encryptedVerifier []byte
-	
+
 	err := s.db.QueryRowContext(ctx, `
 		SELECT verifier_hash FROM oauth_state 
 		WHERE state = ? AND expires_at > datetime('now')`,
 		state).Scan(&encryptedVerifier)
-	
+
 	if err == sql.ErrNoRows {
 		return nil, ErrNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get OAuth state: %w", err)
 	}
-	
+
 	return encryptedVerifier, nil
 }
 
@@ -2957,16 +3104,16 @@ func (s *Store) DeleteOAuthState(ctx context.Context, state string) error {
 	if err != nil {
 		return fmt.Errorf("failed to delete OAuth state: %w", err)
 	}
-	
+
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("failed to get rows affected: %w", err)
 	}
-	
+
 	if rowsAffected == 0 {
 		return ErrNotFound
 	}
-	
+
 	return nil
 }
 
@@ -2976,6 +3123,6 @@ func (s *Store) CleanupExpiredOAuthStates(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to cleanup expired OAuth states: %w", err)
 	}
-	
+
 	return nil
 }

@@ -38,7 +38,7 @@ func (h *Handlers) LoginHandler(c *gin.Context) {
 	// For now, return a success response for any non-empty token
 	if req.Token == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "invalid token",
+			"error":   "invalid token",
 			"message": "The provided token is invalid or has expired",
 		})
 		return
@@ -53,7 +53,7 @@ func (h *Handlers) LoginHandler(c *gin.Context) {
 
 	// Store session (in a real implementation, you'd store this in a session store)
 	expiresAt := time.Now().Add(24 * time.Hour) // 24 hour sessions
-	
+
 	// Set secure session cookie
 	c.SetCookie(
 		"glinrdock_session",
@@ -82,7 +82,7 @@ func (h *Handlers) LoginHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, LoginResponse{
 		SessionID: sessionID,
 		TokenName: "validated_token", // Simplified
-		Role:      "user",           // Simplified
+		Role:      "user",            // Simplified
 		ExpiresAt: expiresAt.Format(time.RFC3339),
 	})
 }
@@ -120,15 +120,15 @@ func (h *Handlers) LogoutHandler(c *gin.Context) {
 func (h *Handlers) AuthInfoHandler(c *gin.Context) {
 	// This handler assumes it's called after authentication middleware
 	// which sets token_name and token_role in context
-	
+
 	// Get token info from context (set by auth middleware)
 	tokenName, tokenExists := c.Get("token_name")
 	tokenRole, roleExists := c.Get("token_role")
-	
+
 	authMethod := "none"
 	name := ""
 	role := ""
-	
+
 	if tokenExists && roleExists {
 		authMethod = "bearer"
 		name = tokenName.(string)
@@ -156,4 +156,3 @@ func generateSessionID() (string, error) {
 func getClientIPFromHeader(c *gin.Context) string {
 	return c.ClientIP()
 }
-

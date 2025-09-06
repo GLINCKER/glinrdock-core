@@ -39,7 +39,7 @@ type Engine interface {
 	Logs(ctx context.Context, id string, follow bool) (io.ReadCloser, error)
 	Stats(ctx context.Context, id string) (<-chan ContainerStats, <-chan error)
 	Inspect(ctx context.Context, containerID string) (ContainerStatus, error)
-	
+
 	// Network operations
 	EnsureNetwork(ctx context.Context, networkName string, labels map[string]string) error
 	ConnectNetwork(ctx context.Context, networkName, containerID string, aliases []string) error
@@ -58,21 +58,21 @@ type ContainerStatus struct {
 
 // MockEngine implements Engine for testing without Docker
 type MockEngine struct {
-	pullError           error
-	createError         error
-	removeError         error
-	startError          error
-	stopError           error
-	restartError        error
-	logsError           error
-	statsError          error
-	inspectError        error
-	ensureNetworkError  error
-	connectNetworkError error
+	pullError              error
+	createError            error
+	removeError            error
+	startError             error
+	stopError              error
+	restartError           error
+	logsError              error
+	statsError             error
+	inspectError           error
+	ensureNetworkError     error
+	connectNetworkError    error
 	disconnectNetworkError error
-	createID            string
-	mockLogs            string
-	mockStats           []ContainerStats
+	createID               string
+	mockLogs               string
+	mockStats              []ContainerStats
 }
 
 // NewMockEngine creates a new mock Docker engine
@@ -127,16 +127,16 @@ func (m *MockEngine) Logs(ctx context.Context, id string, follow bool) (io.ReadC
 func (m *MockEngine) Stats(ctx context.Context, id string) (<-chan ContainerStats, <-chan error) {
 	statsCh := make(chan ContainerStats, len(m.mockStats))
 	errCh := make(chan error, 1)
-	
+
 	go func() {
 		defer close(statsCh)
 		defer close(errCh)
-		
+
 		if m.statsError != nil {
 			errCh <- m.statsError
 			return
 		}
-		
+
 		for _, stat := range m.mockStats {
 			select {
 			case statsCh <- stat:
@@ -145,7 +145,7 @@ func (m *MockEngine) Stats(ctx context.Context, id string) (<-chan ContainerStat
 			}
 		}
 	}()
-	
+
 	return statsCh, errCh
 }
 
@@ -209,10 +209,10 @@ func (m *MockEngine) Inspect(ctx context.Context, containerID string) (Container
 	if m.inspectError != nil {
 		return ContainerStatus{}, m.inspectError
 	}
-	
+
 	// Mock container started 5 minutes ago
 	startedAt := time.Now().Add(-5 * time.Minute)
-	
+
 	return ContainerStatus{
 		ID:        containerID,
 		Name:      "mock-container",

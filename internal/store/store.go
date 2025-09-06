@@ -35,18 +35,7 @@ func Open(dataDir string) (*Store, error) {
 		return nil, err
 	}
 
-	// Test if FTS5 is available and create virtual table if needed
-	var ftsAvailable int
-	err = db.QueryRow("SELECT sqlite_compileoption_used('ENABLE_FTS5')").Scan(&ftsAvailable)
-	if err == nil && ftsAvailable == 1 {
-		// Create FTS5 virtual table for search
-		if err := createSearchFTSTable(db); err != nil {
-			// Log error but don't fail - will fall back to basic search
-			println("Warning: Failed to create FTS5 virtual table:", err.Error())
-		}
-	} else {
-		// FTS5 not available, application will fall back to basic search
-	}
+	// Note: FTS5 table creation is now done after migrations in main.go
 
 	return &Store{
 		db:               db,
@@ -58,6 +47,24 @@ func Open(dataDir string) (*Store, error) {
 // Close closes the database connection
 func (s *Store) Close() error {
 	return s.db.Close()
+}
+
+// InitializeFTS5 creates FTS5 virtual tables and triggers after migrations complete
+func (s *Store) InitializeFTS5() error {
+	// Test if FTS5 is available and create virtual table if needed
+	var ftsAvailable int
+	err := s.db.QueryRow("SELECT sqlite_compileoption_used('ENABLE_FTS5')").Scan(&ftsAvailable)
+	if err == nil && ftsAvailable == 1 {
+		// Create FTS5 virtual table for search
+		if err := createSearchFTSTable(s.db); err != nil {
+			// Log error but don't fail - will fall back to basic search
+			println("Warning: Failed to create FTS5 virtual table:", err.Error())
+			return err
+		}
+	} else {
+		// FTS5 not available, application will fall back to basic search
+	}
+	return nil
 }
 
 // getMasterKey returns the cached master key, loading it from environment if needed
@@ -73,7 +80,7 @@ func (s *Store) getMasterKey() ([]byte, error) {
 
 	s.keyMutex.Lock()
 	defer s.keyMutex.Unlock()
-	
+
 	// Double-check after acquiring write lock
 	if s.masterKey != nil {
 		key := make([]byte, len(s.masterKey))
@@ -109,11 +116,11 @@ func createSearchFTSTable(db *sql.DB) error {
 			content_rowid=id,
 			content='search_docs'
 		)`
-	
+
 	if _, err := db.Exec(createFTSQuery); err != nil {
 		return fmt.Errorf("failed to create search_fts table: %w", err)
 	}
-	
+
 	// Create triggers to keep FTS5 in sync with search_docs
 	triggers := []string{
 		// INSERT trigger
@@ -121,13 +128,13 @@ func createSearchFTSTable(db *sql.DB) error {
 			INSERT INTO search_fts(rowid, title, subtitle, body, tags) 
 			VALUES (new.id, new.title, new.subtitle, new.body, new.tags);
 		END`,
-		
+
 		// DELETE trigger
 		`CREATE TRIGGER IF NOT EXISTS search_docs_ad AFTER DELETE ON search_docs BEGIN
 			INSERT INTO search_fts(search_fts, rowid, title, subtitle, body, tags) 
 			VALUES('delete', old.id, old.title, old.subtitle, old.body, old.tags);
 		END`,
-		
+
 		// UPDATE trigger
 		`CREATE TRIGGER IF NOT EXISTS search_docs_au AFTER UPDATE ON search_docs BEGIN
 			INSERT INTO search_fts(search_fts, rowid, title, subtitle, body, tags) 
@@ -136,12 +143,12 @@ func createSearchFTSTable(db *sql.DB) error {
 			VALUES (new.id, new.title, new.subtitle, new.body, new.tags);
 		END`,
 	}
-	
+
 	for _, trigger := range triggers {
 		if _, err := db.Exec(trigger); err != nil {
 			return fmt.Errorf("failed to create FTS5 trigger: %w", err)
 		}
 	}
-	
+
 	return nil
 }

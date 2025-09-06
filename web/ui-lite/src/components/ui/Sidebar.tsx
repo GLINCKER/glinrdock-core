@@ -2,6 +2,8 @@ import { apiClient } from '../../api'
 import { RoleToggle } from '../RoleToggle'
 import { useState, useEffect } from 'preact/hooks'
 import { getCurrentRole, isDevMode } from '../../rbac'
+import { Link } from 'wouter'
+import { ConnectionStatus, useConnection } from '../ConnectionStatus'
 import { 
   ChevronDown, 
   ChevronRight, 
@@ -22,7 +24,14 @@ import {
   Code,
   LogOut,
   User,
-  HelpCircle
+  HelpCircle,
+  Lock,
+  UserCheck,
+  CreditCard,
+  ScrollText,
+  Globe,
+  Plug,
+  Rocket
 } from 'lucide-preact'
 
 interface MenuItem {
@@ -59,6 +68,7 @@ const getIcon = (iconType: string) => {
     'quickstart': <Zap class="w-5 h-5" />,
     'spring': <Leaf class="w-5 h-5" />,
     'templates': <FileText class="w-5 h-5" />,
+    'deploy': <Rocket class="w-5 h-5" />,
     'administration': <Shield class="w-5 h-5" />,
     'registries': <Database class="w-5 h-5" />,
     'logs': <FileSearch class="w-5 h-5" />,
@@ -66,7 +76,13 @@ const getIcon = (iconType: string) => {
     'integrations': <Code class="w-5 h-5" />,
     'settings': <Settings class="w-5 h-5" />,
     'help': <HelpCircle class="w-5 h-5" />,
-    'signout': <LogOut class="w-5 h-5" />
+    'signout': <LogOut class="w-5 h-5" />,
+    'certificates': <Lock class="w-5 h-5" />,
+    'auth': <UserCheck class="w-5 h-5" />,
+    'license': <ScrollText class="w-5 h-5" />,
+    'plan-limits': <CreditCard class="w-5 h-5" />,
+    'dns': <Globe class="w-5 h-5" />,
+    'integrations-setup': <Plug class="w-5 h-5" />
   }
   return iconMap[iconType] || <Settings class="w-5 h-5" />
 }
@@ -75,6 +91,7 @@ export function Sidebar({ currentPage, onPageChange, counts, isOpen = true, onTo
   const [currentRole, setCurrentRole] = useState<string>('admin')
   const [devMode, setDevMode] = useState<boolean>(false)
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
+  const { isOnline, isChecking } = useConnection()
 
   // Load sidebar state from localStorage on mount
   useEffect(() => {
@@ -144,14 +161,14 @@ export function Sidebar({ currentPage, onPageChange, counts, isOpen = true, onTo
             { id: 'quickstart-spring', label: 'Spring Boot', icon: 'spring', href: '/app/quickstart/spring' }
           ]
         },
-        { id: 'templates', label: 'Templates', icon: 'templates' }
+        { id: 'templates', label: 'Templates', icon: 'templates' },
+        { id: 'deploy', label: 'Deploy', icon: 'deploy' }
       ]
     },
     {
       id: 'administration',
       label: 'Administration',
       items: [
-        { id: 'administration', label: 'System Admin', icon: 'administration' },
         { id: 'registries', label: 'Registries', icon: 'registries' },
         { id: 'logs', label: 'System Logs', icon: 'logs' },
         { id: 'clients', label: 'Clients', icon: 'clients' }
@@ -166,12 +183,6 @@ export function Sidebar({ currentPage, onPageChange, counts, isOpen = true, onTo
           label: 'Settings', 
           icon: 'settings',
           href: '/app/settings'
-        },
-        { 
-          id: 'integrations', 
-          label: 'Integrations', 
-          icon: 'integrations', 
-          href: '/app/settings/integrations' 
         }
       ]
     },
@@ -197,25 +208,28 @@ export function Sidebar({ currentPage, onPageChange, counts, isOpen = true, onTo
   const isItemActive = (item: MenuItem): boolean => {
     if (currentPage === item.id) return true
     if (item.children) {
-      return item.children.some(child => currentPage === child.id)
+      return item.children.some(child => {
+        if (currentPage === child.id) return true
+        if (child.href && window.location.pathname === child.href) return true
+        return false
+      })
     }
     // Handle parent-child relationships
     if (item.id === 'services' && currentPage === 'service-detail') return true
-    if (item.id === 'settings' && currentPage.startsWith('settings')) return true
+    if (item.id === 'settings' && (currentPage.startsWith('settings') || window.location.pathname.startsWith('/app/settings'))) return true
+    if (item.id === 'integrations' && window.location.pathname.startsWith('/app/settings/integrations')) return true
+    if (item.href && window.location.pathname === item.href) return true
     return false
   }
 
-  const handleItemClick = (item: MenuItem) => {
+  const handleItemClick = (item: MenuItem, e: Event) => {
     if (item.children && item.children.length > 0) {
       // If has children, toggle expansion
+      e.preventDefault()
       const sectionId = `item-${item.id}`
       toggleSection(sectionId)
-    } else if (item.href) {
-      window.history.pushState({}, '', item.href)
-    } else {
-      const path = item.id === 'dashboard' ? '/app' : `/app/${item.id}`
-      window.history.pushState({}, '', path)
     }
+    // Let Link handle navigation for items with href or without children
   }
 
 
@@ -224,47 +238,51 @@ export function Sidebar({ currentPage, onPageChange, counts, isOpen = true, onTo
     const hasChildren = item.children && item.children.length > 0
     const isExpanded = !collapsedSections.has(`item-${item.id}`)
     const paddingLeft = level === 0 ? '' : 'pl-6'
+    
+    const href = item.href || (item.id === 'dashboard' ? '/app' : `/app/${item.id}`)
+    
+    const itemClasses = `
+      nav-item cursor-pointer group flex items-center gap-3
+      transition-all duration-200 ${paddingLeft}
+      ${!isOpen && level === 0 && 'md:justify-center md:px-2 md:mx-1 md:gap-0'}
+      ${isActive
+        ? 'nav-item-active bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-200/50 dark:border-purple-400/50 text-white shadow-lg rounded-xl'
+        : 'nav-item-inactive text-gray-300 hover:text-white hover:bg-gradient-to-r hover:from-purple-500/10 hover:to-pink-500/10 hover:border hover:border-purple-200/30 dark:hover:border-purple-400/30 rounded-xl'
+      }
+    `
 
     return (
       <div key={item.id} class="space-y-1">
-        <div
-          onClick={() => handleItemClick(item)}
-          class={`
-            nav-item cursor-pointer group flex items-center gap-3
-            transition-all duration-200 ${paddingLeft}
-            ${!isOpen && level === 0 && 'md:justify-center md:px-2 md:mx-1 md:gap-0'}
-            ${isActive
-              ? 'nav-item-active bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-200/50 dark:border-purple-400/50 text-white shadow-lg rounded-xl'
-              : 'nav-item-inactive text-gray-300 hover:text-white hover:bg-gradient-to-r hover:from-purple-500/10 hover:to-pink-500/10 hover:border hover:border-purple-200/30 dark:hover:border-purple-400/30 rounded-xl'
-            }
-          `}
-          title={!isOpen && level === 0 ? item.label : ''}
-        >
-          <div class={`flex-shrink-0 transition-colors duration-300 ${
-            isActive ? 'text-purple-400' : 'text-gray-400 group-hover:text-purple-400'
-          }`}>{getIcon(item.icon)}</div>
-          <span class={`
-            flex-1 transition-all duration-300 overflow-hidden whitespace-nowrap
-            ${!isOpen && level === 0 && 'md:w-0 md:opacity-0'}
-          `}>
-            {item.label}
-          </span>
-          
-          {item.count !== undefined && item.count > 0 && (
+        {hasChildren ? (
+          <div
+            onClick={(e) => handleItemClick(item, e)}
+            class={itemClasses}
+            title={!isOpen && level === 0 ? item.label : ''}
+          >
+            <div class={`flex-shrink-0 transition-colors duration-300 ${
+              isActive ? 'text-purple-400' : 'text-gray-400 group-hover:text-purple-400'
+            }`}>{getIcon(item.icon)}</div>
             <span class={`
-              px-2 py-1 text-xs font-medium rounded-full
-              transition-all duration-300
-              ${isActive
-                ? 'bg-purple-500/20 text-purple-300'
-                : 'bg-gray-600 text-gray-300'
-              }
-              ${!isOpen && level === 0 && 'md:hidden'}
+              flex-1 transition-all duration-300 overflow-hidden whitespace-nowrap
+              ${!isOpen && level === 0 && 'md:w-0 md:opacity-0'}
             `}>
-              {item.count}
+              {item.label}
             </span>
-          )}
-          
-          {hasChildren && (
+            
+            {item.count !== undefined && item.count > 0 && (
+              <span class={`
+                px-2 py-1 text-xs font-medium rounded-full
+                transition-all duration-300
+                ${isActive
+                  ? 'bg-purple-500/20 text-purple-300'
+                  : 'bg-gray-600 text-gray-300'
+                }
+                ${!isOpen && level === 0 && 'md:hidden'}
+              `}>
+                {item.count}
+              </span>
+            )}
+            
             <div class={`
               flex-shrink-0 transition-transform duration-200
               ${!isOpen && level === 0 && 'md:hidden'}
@@ -272,8 +290,38 @@ export function Sidebar({ currentPage, onPageChange, counts, isOpen = true, onTo
             `}>
               <ChevronRight class="w-4 h-4" />
             </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <Link
+            href={href}
+            class={itemClasses}
+            title={!isOpen && level === 0 ? item.label : ''}
+          >
+            <div class={`flex-shrink-0 transition-colors duration-300 ${
+              isActive ? 'text-purple-400' : 'text-gray-400 group-hover:text-purple-400'
+            }`}>{getIcon(item.icon)}</div>
+            <span class={`
+              flex-1 transition-all duration-300 overflow-hidden whitespace-nowrap
+              ${!isOpen && level === 0 && 'md:w-0 md:opacity-0'}
+            `}>
+              {item.label}
+            </span>
+            
+            {item.count !== undefined && item.count > 0 && (
+              <span class={`
+                px-2 py-1 text-xs font-medium rounded-full
+                transition-all duration-300
+                ${isActive
+                  ? 'bg-purple-500/20 text-purple-300'
+                  : 'bg-gray-600 text-gray-300'
+                }
+                ${!isOpen && level === 0 && 'md:hidden'}
+              `}>
+                {item.count}
+              </span>
+            )}
+          </Link>
+        )}
 
         {/* Render children */}
         {hasChildren && isExpanded && isOpen && (
@@ -432,9 +480,16 @@ export function Sidebar({ currentPage, onPageChange, counts, isOpen = true, onTo
                   <p class="text-white text-sm font-medium whitespace-nowrap">
                     {devMode ? `Dev - ${currentRole}` : 'Admin User'}
                   </p>
-                  <p class="text-gray-400 text-xs whitespace-nowrap">
-                    {devMode ? 'Testing Mode' : 'Online'}
-                  </p>
+                  <div class="flex items-center gap-2 text-xs whitespace-nowrap">
+                    <ConnectionStatus showLabel={false} />
+                    <span class={`${
+                      isChecking ? 'text-yellow-400' :
+                      isOnline ? 'text-green-400' : 'text-red-400'
+                    }`}>
+                      {isChecking ? 'Checking...' : 
+                       isOnline ? (devMode ? 'Testing Mode' : 'Online') : 'Offline'}
+                    </span>
+                  </div>
                 </div>
               </div>
               

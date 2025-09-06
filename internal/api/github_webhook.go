@@ -472,23 +472,23 @@ func (h *GitHubWebhookHandler) handleRepositoriesRemoved(ctx context.Context, re
 // Webhook payload types
 
 type InstallationPayload struct {
-	Action       string               `json:"action"`
+	Action       string              `json:"action"`
 	Installation github.Installation `json:"installation"`
 	Sender       *github.Account     `json:"sender,omitempty"`
 }
 
 type InstallationRepositoriesPayload struct {
-	Action              string                `json:"action"`
-	Installation        github.Installation  `json:"installation"`
-	RepositoriesAdded   []github.Repository  `json:"repositories_added,omitempty"`
-	RepositoriesRemoved []github.Repository  `json:"repositories_removed,omitempty"`
-	Sender              *github.Account      `json:"sender,omitempty"`
+	Action              string              `json:"action"`
+	Installation        github.Installation `json:"installation"`
+	RepositoriesAdded   []github.Repository `json:"repositories_added,omitempty"`
+	RepositoriesRemoved []github.Repository `json:"repositories_removed,omitempty"`
+	Sender              *github.Account     `json:"sender,omitempty"`
 }
 
 type PushPayload struct {
-	Ref          string               `json:"ref"`
-	Before       string               `json:"before"`
-	After        string               `json:"after"`
+	Ref          string              `json:"ref"`
+	Before       string              `json:"before"`
+	After        string              `json:"after"`
 	Repository   github.Repository   `json:"repository"`
 	Installation github.Installation `json:"installation"`
 	Pusher       PushUser            `json:"pusher"`
@@ -503,16 +503,16 @@ type PushUser struct {
 }
 
 type Commit struct {
-	ID        string      `json:"id"`
-	TreeID    string      `json:"tree_id"`
-	Message   string      `json:"message"`
-	Timestamp time.Time   `json:"timestamp"`
-	URL       string      `json:"url"`
-	Author    CommitUser  `json:"author"`
-	Committer CommitUser  `json:"committer"`
-	Added     []string    `json:"added"`
-	Removed   []string    `json:"removed"`
-	Modified  []string    `json:"modified"`
+	ID        string     `json:"id"`
+	TreeID    string     `json:"tree_id"`
+	Message   string     `json:"message"`
+	Timestamp time.Time  `json:"timestamp"`
+	URL       string     `json:"url"`
+	Author    CommitUser `json:"author"`
+	Committer CommitUser `json:"committer"`
+	Added     []string   `json:"added"`
+	Removed   []string   `json:"removed"`
+	Modified  []string   `json:"modified"`
 }
 
 type CommitUser struct {

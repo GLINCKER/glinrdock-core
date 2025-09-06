@@ -27,6 +27,7 @@ import { RoleBadge } from "./components/RoleBadge";
 import { RoleToggle } from "./components/RoleToggle";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { GlobalBanners } from "./components/AlertBanner";
+import { ConnectionProvider, OfflineBanner } from "./components/ConnectionStatus";
 import {
   DiagnosticsPanel,
   useDiagnostics,
@@ -256,96 +257,101 @@ function MainApp() {
   return (
     <ErrorBoundary>
       <ModalProvider>
-        <div class="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white fade-in">
-        {/* Global banners - offline, API health, auth expired */}
-        <GlobalBanners />
+        <ConnectionProvider>
+          <div class="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white fade-in">
+            {/* Offline connection banner */}
+            <OfflineBanner />
+            
+            {/* Global banners - API health, auth expired, etc. */}
+            <GlobalBanners />
 
-        {/* Global lockdown banner - positioned outside flex layout */}
-        <LockdownBanner />
+            {/* Global lockdown banner - positioned outside flex layout */}
+            <LockdownBanner />
 
-        {/* Main layout container with proper spacing */}
-        <div class={`flex min-h-screen ${isLockdownActive ? "pt-24" : ""}`}>
-          {/* Sidebar */}
-          <Sidebar
-            currentPage={currentPage}
-            onPageChange={handlePageChange}
-            counts={counts}
-            isOpen={isSidebarOpen}
-            onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
-          />
+            {/* Main layout container with proper spacing */}
+            <div class={`flex min-h-screen ${isLockdownActive ? "pt-24" : ""}`}>
+              {/* Sidebar */}
+              <Sidebar
+                currentPage={currentPage}
+                onPageChange={handlePageChange}
+                counts={counts}
+                isOpen={isSidebarOpen}
+                onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+              />
 
-          {/* Main Content Area - Account for fixed sidebar */}
-          <div
-            class={`
-        flex flex-col flex-1 min-h-screen
-        transition-all duration-300 ease-in-out 
-        bg-gray-50 dark:bg-gray-950
-        ${isSidebarOpen ? "ml-56" : "md:ml-16"}
-      `}
-          >
-            {/* Mobile & Tablet Top Bar */}
-            <div class="lg:hidden bg-white/90 dark:bg-gray-850/90 backdrop-blur-xl border-b border-gray-200/30 dark:border-gray-700/30 px-4 py-3 flex items-center justify-between shadow-lg">
-              <div class="flex items-center space-x-3">
-                <div class="w-9 h-9 bg-gradient-to-br from-[#ffaa40] via-[#9c40ff] to-[#8b008b] rounded-xl flex items-center justify-center shadow-lg relative overflow-hidden">
-                  <div class="relative z-10">
-                    <svg
-                      class="w-5 h-5 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2.5}
-                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-                      />
-                    </svg>
-                  </div>
-                  <div class="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent"></div>
-                </div>
-                <div>
-                  <div class="flex items-center gap-2">
-                    <h1 class="text-gray-900 dark:text-white font-bold text-base">
-                      GLINRDOCK
-                    </h1>
-                    {systemInfo?.go_version && (
-                      <span class="text-xs font-mono text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
-                        v{systemInfo.go_version.replace(/^go/, "")}
-                      </span>
-                    )}
-                  </div>
-                  <p class="text-gray-600 dark:text-gray-400 text-xs font-medium">
-                    Platform as a Service
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                class="p-2.5 rounded-lg bg-gray-200/50 dark:bg-gray-700/50 hover:bg-gray-300/50 dark:hover:bg-gray-600/50 border border-gray-300/30 dark:border-gray-600/30 hover:border-gray-400/50 dark:hover:border-gray-500/50 transition-all duration-200"
+              {/* Main Content Area - Account for fixed sidebar */}
+              <div
+                class={`
+                  flex flex-col flex-1 min-h-screen
+                  transition-all duration-300 ease-in-out 
+                  bg-gray-50 dark:bg-gray-950
+                  ${isSidebarOpen ? "ml-56" : "md:ml-16"}
+                `}
               >
-                <Menu class="w-5 h-5 text-gray-600 dark:text-gray-300" />
-              </button>
+                {/* Mobile & Tablet Top Bar */}
+                <div class="lg:hidden bg-white/90 dark:bg-gray-850/90 backdrop-blur-xl border-b border-gray-200/30 dark:border-gray-700/30 px-4 py-3 flex items-center justify-between shadow-lg">
+                  <div class="flex items-center space-x-3">
+                    <div class="w-9 h-9 bg-gradient-to-br from-[#ffaa40] via-[#9c40ff] to-[#8b008b] rounded-xl flex items-center justify-center shadow-lg relative overflow-hidden">
+                      <div class="relative z-10">
+                        <svg
+                          class="w-5 h-5 text-white"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2.5}
+                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                          />
+                        </svg>
+                      </div>
+                      <div class="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent"></div>
+                    </div>
+                    <div>
+                      <div class="flex items-center gap-2">
+                        <h1 class="text-gray-900 dark:text-white font-bold text-base">
+                          GLINRDOCK
+                        </h1>
+                        {systemInfo?.go_version && (
+                          <span class="text-xs font-mono text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
+                            v{systemInfo.go_version.replace(/^go/, "")}
+                          </span>
+                        )}
+                      </div>
+                      <p class="text-gray-600 dark:text-gray-400 text-xs font-medium">
+                        Platform as a Service
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                    class="p-2.5 rounded-lg bg-gray-200/50 dark:bg-gray-700/50 hover:bg-gray-300/50 dark:hover:bg-gray-600/50 border border-gray-300/30 dark:border-gray-600/30 hover:border-gray-400/50 dark:hover:border-gray-500/50 transition-all duration-200"
+                  >
+                    <Menu class="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                  </button>
+                </div>
+
+                {/* Desktop Top Toolbar */}
+                <div class="hidden lg:block">
+                  <TopToolbar />
+                </div>
+
+                {/* Page Content */}
+                <main class="flex-1 overflow-auto bg-gray-50 dark:bg-gray-950 p-8">
+                  <div class="w-full max-w-none">{renderCurrentPage()}</div>
+                </main>
+              </div>
             </div>
 
-            {/* Desktop Top Toolbar */}
-            <div class="hidden lg:block">
-              <TopToolbar />
-            </div>
-
-            {/* Page Content */}
-            <main class="flex-1 overflow-auto bg-gray-50 dark:bg-gray-950 p-8">
-              <div class="w-full max-w-none">{renderCurrentPage()}</div>
-            </main>
+            {/* Diagnostics Panel */}
+            <DiagnosticsPanel
+              isVisible={diagnostics.isVisible}
+              onClose={diagnostics.hide}
+            />
           </div>
-        </div>
-
-        {/* Diagnostics Panel */}
-        <DiagnosticsPanel
-          isVisible={diagnostics.isVisible}
-          onClose={diagnostics.hide}
-        />
-        </div>
+        </ConnectionProvider>
       </ModalProvider>
     </ErrorBoundary>
   );

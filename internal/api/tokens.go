@@ -2,9 +2,9 @@ package api
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"time"
-	"errors"
 
 	"github.com/GLINCKER/glinrdock/internal/audit"
 	"github.com/GLINCKER/glinrdock/internal/auth"

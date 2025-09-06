@@ -62,12 +62,12 @@ func TestProjectsList(t *testing.T) {
 
 	mockProjectStore := &MockProjectStore{}
 	mockServiceStore := &MockServiceStore{}
-	
+
 	projects := []store.Project{
 		{ID: 1, Name: "test-project"},
 		{ID: 2, Name: "another-project"},
 	}
-	
+
 	services := []store.Service{
 		{ID: 1, ProjectID: 1, Name: "api"},
 		{ID: 2, ProjectID: 1, Name: "web"},

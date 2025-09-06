@@ -45,18 +45,18 @@ func (h *Handlers) DebugServiceHealth(c *gin.Context) {
 	probeResult := prober.ProbeService(ctx, &service, routes)
 
 	debugInfo := map[string]interface{}{
-		"service_id":         serviceID,
-		"service_name":       service.Name,
-		"service_status":     service.Status,
-		"desired_state":      service.DesiredState,
-		"crash_looping":      service.CrashLooping,
-		"current_health":     service.HealthStatus,
-		"last_probe_at":      service.LastProbeAt,
-		"health_path":        service.HealthPath,
-		"health_check_type":  healthCheckType,
-		"generated_url":      healthURL,
-		"ports":              service.Ports,
-		"routes":             routes,
+		"service_id":        serviceID,
+		"service_name":      service.Name,
+		"service_status":    service.Status,
+		"desired_state":     service.DesiredState,
+		"crash_looping":     service.CrashLooping,
+		"current_health":    service.HealthStatus,
+		"last_probe_at":     service.LastProbeAt,
+		"health_path":       service.HealthPath,
+		"health_check_type": healthCheckType,
+		"generated_url":     healthURL,
+		"ports":             service.Ports,
+		"routes":            routes,
 		"probe_result": map[string]interface{}{
 			"status": probeResult.Status,
 			"error":  nil,
@@ -115,7 +115,7 @@ func generateTroubleshootingTips(service store.Service, routes []store.Route, he
 	// Provide tips based on probe result
 	if result.Error != nil {
 		tips = append(tips, "❌ Health probe failed: "+result.Error.Error())
-		
+
 		if len(service.Ports) > 0 {
 			port := service.Ports[0].Host
 			tips = append(tips, "💡 Try testing manually: curl -v http://localhost:"+strconv.Itoa(port)+"/health")

@@ -216,11 +216,11 @@ func (h *SettingsHandlers) GetGitHubInstallURL(c *gin.Context) {
 
 // Custom errors for validation
 var (
-	ErrInvalidOAuthMode     = fmt.Errorf("invalid OAuth mode: must be 'off', 'pkce', or 'confidential'")
-	ErrMissingClientID      = fmt.Errorf("client_id is required when mode is not 'off'")
-	ErrMissingClientSecret  = fmt.Errorf("client_secret is required for confidential mode")
-	ErrInvalidAppID         = fmt.Errorf("invalid app_id: must be numeric")
-	ErrInvalidPrivateKey    = fmt.Errorf("invalid private key PEM format")
+	ErrInvalidOAuthMode    = fmt.Errorf("invalid OAuth mode: must be 'off', 'pkce', or 'confidential'")
+	ErrMissingClientID     = fmt.Errorf("client_id is required when mode is not 'off'")
+	ErrMissingClientSecret = fmt.Errorf("client_secret is required for confidential mode")
+	ErrInvalidAppID        = fmt.Errorf("invalid app_id: must be numeric")
+	ErrInvalidPrivateKey   = fmt.Errorf("invalid private key PEM format")
 )
 
 func validateAppID(appID string) error {

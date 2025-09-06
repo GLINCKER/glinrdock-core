@@ -18,13 +18,13 @@ import (
 
 // NginxConfig represents the nginx configuration generator
 type NginxConfig struct {
-	ConfigPath   string
-	TempPath     string
-	BackupPath   string
-	ReloadCmd    []string
-	ValidateCmd  []string
-	DataDir      string // For cert path resolution
-	store        RouteStore
+	ConfigPath     string
+	TempPath       string
+	BackupPath     string
+	ReloadCmd      []string
+	ValidateCmd    []string
+	DataDir        string // For cert path resolution
+	store          RouteStore
 	lastConfigHash string // Hash of the last applied configuration
 }
 
@@ -32,14 +32,17 @@ type NginxConfig struct {
 type RouteStore interface {
 	GetAllRoutes(ctx context.Context) ([]store.Route, error)
 	GetService(ctx context.Context, id int64) (store.Service, error)
+	GetDomain(ctx context.Context, id int64) (store.Domain, error)
 }
 
 // RouteData represents data needed for nginx config generation
 type RouteData struct {
 	Route           store.Route
 	Service         store.Service
+	Domain          *store.Domain // nil if no domain_id
 	UpstreamName    string
 	ServiceEndpoint string
+	IsFullProxy     bool // true if should generate full proxy, false if only challenge
 }
 
 // ConfigData represents the full nginx configuration data
@@ -51,13 +54,13 @@ type ConfigData struct {
 // NewNginxConfig creates a new nginx configuration generator
 func NewNginxConfig(configPath, dataDir string, routeStore RouteStore) *NginxConfig {
 	return &NginxConfig{
-		ConfigPath:   configPath,
-		TempPath:     configPath + ".tmp",
-		BackupPath:   configPath + ".backup",
-		ReloadCmd:    []string{"nginx", "-s", "reload"},
-		ValidateCmd:  []string{"nginx", "-t"},
-		DataDir:      dataDir,
-		store:        routeStore,
+		ConfigPath:  configPath,
+		TempPath:    configPath + ".tmp",
+		BackupPath:  configPath + ".backup",
+		ReloadCmd:   []string{"nginx", "-s", "reload"},
+		ValidateCmd: []string{"nginx", "-t"},
+		DataDir:     dataDir,
+		store:       routeStore,
 	}
 }
 
@@ -97,18 +100,21 @@ http {
                application/json application/javascript application/xml+rss;
 
 {{range .Routes}}
+{{if .IsFullProxy}}
     # Upstream for {{.Route.Domain}} -> {{.Service.Name}}
     upstream {{.UpstreamName}} {
         server {{.ServiceEndpoint}};
         keepalive 32;
     }
 {{end}}
+{{end}}
 
 {{range .Routes}}
-    # Server block for {{.Route.Domain}}
+    # Server block for {{.Route.Domain}}{{if .Domain}} (Domain: {{.Domain.Name}}, Status: {{.Domain.Status}}){{end}}
     server {
         server_name {{.Route.Domain}};
         
+{{if .IsFullProxy}}
 {{if .Route.TLS}}
         listen 443 ssl http2;
         
@@ -170,6 +176,22 @@ http {
         return 301 https://$server_name$request_uri;
     }
 {{end}}
+{{else}}
+        # Challenge-only server for domain verification ({{if .Domain}}{{.Domain.Status}}{{end}})
+        listen 80;
+        
+        # ACME challenge location for Let's Encrypt HTTP-01
+        location /.well-known/acme-challenge/ {
+            root /var/www/acme-challenge;
+            try_files $uri =404;
+        }
+        
+        # Block all other requests during domain verification
+        location / {
+            return 404;
+        }
+    }
+{{end}}
 {{end}}
 
     # Default server (catch-all)
@@ -211,7 +233,33 @@ func (nc *NginxConfig) GenerateConfig(ctx context.Context) error {
 			Service:         service,
 			UpstreamName:    fmt.Sprintf("glinr_%d_%s", service.ProjectID, service.Name),
 			ServiceEndpoint: fmt.Sprintf("host.docker.internal:%d", route.Port),
+			IsFullProxy:     true, // default to full proxy
 		}
+
+		// Check if route has domain_id
+		if route.DomainID != nil {
+			domain, err := nc.store.GetDomain(ctx, *route.DomainID)
+			if err != nil {
+				log.Warn().Err(err).Int64("domain_id", *route.DomainID).Msg("skipping route for missing domain")
+				continue
+			}
+
+			rd.Domain = &domain
+
+			// Determine if we should create full proxy or just challenge
+			switch domain.Status {
+			case "active":
+				rd.IsFullProxy = true
+			case "pending", "verified":
+				// Only mount challenge location for HTTP-01
+				rd.IsFullProxy = false
+			default:
+				// Skip routes for domains with error status or other statuses
+				log.Debug().Str("domain_status", domain.Status).Str("domain", domain.Name).Msg("skipping route for non-ready domain")
+				continue
+			}
+		}
+
 		routeData = append(routeData, rd)
 	}
 
@@ -251,7 +299,7 @@ func (nc *NginxConfig) ValidateConfig() error {
 
 	cmd := exec.Command(nc.ValidateCmd[0], nc.ValidateCmd[1:]...)
 	output, err := cmd.CombinedOutput()
-	
+
 	if err != nil {
 		log.Error().
 			Err(err).
@@ -287,7 +335,7 @@ func (nc *NginxConfig) ReloadNginx() error {
 
 	cmd := exec.Command(nc.ReloadCmd[0], nc.ReloadCmd[1:]...)
 	output, err := cmd.CombinedOutput()
-	
+
 	if err != nil {
 		log.Error().
 			Err(err).
@@ -338,7 +386,7 @@ func (nc *NginxConfig) UpdateAndReload(ctx context.Context) error {
 
 	err = nc.ValidateConfig()
 	nc.ValidateCmd = originalValidateCmd // Restore original command
-	
+
 	if err != nil {
 		// Clean up temp file on validation failure
 		os.Remove(nc.TempPath)
@@ -419,7 +467,7 @@ func (nc *NginxConfig) calculateConfigHash(ctx context.Context) (string, string,
 	}
 
 	configContent := buf.String()
-	
+
 	// Calculate hash
 	hasher := sha256.New()
 	hasher.Write([]byte(configContent))
@@ -543,7 +591,7 @@ func (nc *NginxConfig) logNginxProcessInfo() error {
 
 	if len(output) > 0 {
 		pid := string(bytes.TrimSpace(output))
-		
+
 		// Get process start time (best effort)
 		psCmd := exec.Command("ps", "-p", pid, "-o", "lstart=")
 		startTime, err := psCmd.Output()
@@ -568,7 +616,7 @@ func (nc *NginxConfig) CreateChallengeDir() error {
 	if err := os.MkdirAll(challengeDir, 0755); err != nil {
 		return fmt.Errorf("failed to create challenge directory: %w", err)
 	}
-	
+
 	log.Debug().
 		Str("challenge_dir", challengeDir).
 		Msg("ACME challenge directory ensured")

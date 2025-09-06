@@ -42,7 +42,7 @@ func (h *Handlers) StartServiceHandler(c *gin.Context) {
 			return
 		}
 		containerID = discoveredID
-		
+
 		// Update the service record with discovered container ID
 		err = h.serviceStore.UpdateServiceContainerID(c.Request.Context(), serviceID, containerID)
 		if err != nil {
@@ -66,10 +66,10 @@ func (h *Handlers) StartServiceHandler(c *gin.Context) {
 			actor = "system"
 		}
 		h.auditLogger.RecordServiceAction(c.Request.Context(), actor, audit.ActionServiceStart, strconv.FormatInt(serviceID, 10), map[string]interface{}{
-			"service_name":  service.Name,
-			"project_id":    service.ProjectID,
-			"container_id":  containerID,
-			"started_by":    auth.CurrentRole(c),
+			"service_name": service.Name,
+			"project_id":   service.ProjectID,
+			"container_id": containerID,
+			"started_by":   auth.CurrentRole(c),
 		})
 	}
 
@@ -109,7 +109,7 @@ func (h *Handlers) StopServiceHandler(c *gin.Context) {
 			return
 		}
 		containerID = discoveredID
-		
+
 		// Update the service record with discovered container ID
 		err = h.serviceStore.UpdateServiceContainerID(c.Request.Context(), serviceID, containerID)
 		if err != nil {
@@ -133,10 +133,10 @@ func (h *Handlers) StopServiceHandler(c *gin.Context) {
 			actor = "system"
 		}
 		h.auditLogger.RecordServiceAction(c.Request.Context(), actor, audit.ActionServiceStop, strconv.FormatInt(serviceID, 10), map[string]interface{}{
-			"service_name":  service.Name,
-			"project_id":    service.ProjectID,
-			"container_id":  containerID,
-			"stopped_by":    auth.CurrentRole(c),
+			"service_name": service.Name,
+			"project_id":   service.ProjectID,
+			"container_id": containerID,
+			"stopped_by":   auth.CurrentRole(c),
 		})
 	}
 
@@ -176,7 +176,7 @@ func (h *Handlers) RestartServiceHandler(c *gin.Context) {
 			return
 		}
 		containerID = discoveredID
-		
+
 		// Update the service record with discovered container ID
 		err = h.serviceStore.UpdateServiceContainerID(c.Request.Context(), serviceID, containerID)
 		if err != nil {
@@ -200,10 +200,10 @@ func (h *Handlers) RestartServiceHandler(c *gin.Context) {
 			actor = "system"
 		}
 		h.auditLogger.RecordServiceAction(c.Request.Context(), actor, audit.ActionServiceRestart, strconv.FormatInt(serviceID, 10), map[string]interface{}{
-			"service_name":  service.Name,
-			"project_id":    service.ProjectID,
-			"container_id":  containerID,
-			"restarted_by":  auth.CurrentRole(c),
+			"service_name": service.Name,
+			"project_id":   service.ProjectID,
+			"container_id": containerID,
+			"restarted_by": auth.CurrentRole(c),
 		})
 	}
 

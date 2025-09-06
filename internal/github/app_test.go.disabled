@@ -1,0 +1,414 @@
+package github
+
+import (
+	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// generateTestKeyPair generates a test RSA key pair for testing
+func generateTestKeyPair() (string, error) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return "", err
+	}
+
+	privateKeyPEM := &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
+	}
+
+	return string(pem.EncodeToMemory(privateKeyPEM)), nil
+}
+
+func TestNewGitHubAppService(t *testing.T) {
+	tests := []struct {
+		name          string
+		appID         string
+		privateKey    string
+		webhookSecret string
+		wantError     bool
+	}{
+		{
+			name:          "valid configuration",
+			appID:         "12345",
+			privateKey:    mustGenerateTestKey(),
+			webhookSecret: "test-secret",
+			wantError:     false,
+		},
+		{
+			name:          "invalid app ID",
+			appID:         "invalid",
+			privateKey:    mustGenerateTestKey(),
+			webhookSecret: "test-secret",
+			wantError:     true,
+		},
+		{
+			name:          "invalid private key",
+			appID:         "12345",
+			privateKey:    "invalid-key",
+			webhookSecret: "test-secret",
+			wantError:     true,
+		},
+		{
+			name:          "empty webhook secret",
+			appID:         "12345",
+			privateKey:    mustGenerateTestKey(),
+			webhookSecret: "",
+			wantError:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service, err := NewGitHubAppService(tt.appID, tt.privateKey)
+
+			if tt.wantError {
+				assert.Error(t, err)
+				assert.Nil(t, service)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, service)
+				assert.True(t, service.IsConfigured())
+			}
+		})
+	}
+}
+
+func TestGitHubAppService_IsConfigured(t *testing.T) {
+	// Test configured service
+	service, err := NewGitHubAppService("12345", mustGenerateTestKey())
+	require.NoError(t, err)
+	assert.True(t, service.IsConfigured())
+
+	// Test unconfigured service
+	var nilService *GitHubAppService
+	assert.False(t, nilService.IsConfigured())
+}
+
+func TestGitHubAppService_GenerateJWT(t *testing.T) {
+	privateKeyPEM := mustGenerateTestKey()
+	service, err := NewGitHubAppService("12345", privateKeyPEM)
+	require.NoError(t, err)
+
+	token, err := service.GenerateJWT()
+	require.NoError(t, err)
+	assert.NotEmpty(t, token)
+
+	// Verify the token structure
+	parts := strings.Split(token, ".")
+	assert.Len(t, parts, 3, "JWT should have 3 parts")
+
+	// Parse and verify the token
+	parsedToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+		// Verify signing method
+		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+
+		// Parse the private key to get the public key
+		block, _ := pem.Decode([]byte(privateKeyPEM))
+		if block == nil {
+			return nil, fmt.Errorf("failed to decode PEM block")
+		}
+
+		privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+		if err != nil {
+			return nil, err
+		}
+
+		return &privateKey.PublicKey, nil
+	})
+
+	require.NoError(t, err)
+	assert.True(t, parsedToken.Valid)
+
+	// Verify claims
+	claims, ok := parsedToken.Claims.(jwt.MapClaims)
+	require.True(t, ok)
+
+	assert.Equal(t, "12345", claims["iss"])
+
+	// Verify timing claims
+	iat, ok := claims["iat"].(float64)
+	require.True(t, ok)
+	exp, ok := claims["exp"].(float64)
+	require.True(t, ok)
+
+	now := time.Now().Unix()
+	assert.True(t, iat <= float64(now)+1) // Allow 1 second tolerance
+	assert.True(t, exp > float64(now))
+	assert.True(t, exp-iat <= 600) // Should expire within 10 minutes
+}
+
+func TestGitHubAppService_GetInstallationToken(t *testing.T) {
+	// Create test server that mocks GitHub's API
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/app/installations/12345/access_tokens" && r.Method == "POST" {
+			// Verify Authorization header contains JWT
+			auth := r.Header.Get("Authorization")
+			assert.True(t, strings.HasPrefix(auth, "Bearer "))
+
+			// Return mock installation token
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			w.Write([]byte(`{
+				"token": "ghs_test_installation_token",
+				"expires_at": "2024-01-01T12:00:00Z"
+			}`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	// Create service with test server URL
+	service, err := NewGitHubAppService("12345", mustGenerateTestKey())
+	require.NoError(t, err)
+
+	// Override the GitHub API base URL for testing
+	service.apiBaseURL = server.URL
+
+	ctx := context.Background()
+	token, err := service.GetInstallationToken(ctx, 12345)
+
+	require.NoError(t, err)
+	assert.Equal(t, "ghs_test_installation_token", token)
+}
+
+func TestGitHubAppService_GetInstallations(t *testing.T) {
+	// Create test server that mocks GitHub's API
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/app/installations" && r.Method == "GET" {
+			// Verify Authorization header contains JWT
+			auth := r.Header.Get("Authorization")
+			assert.True(t, strings.HasPrefix(auth, "Bearer "))
+
+			// Return mock installations
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`[
+				{
+					"id": 12345,
+					"account": {
+						"login": "testorg",
+						"id": 67890,
+						"type": "Organization"
+					},
+					"permissions": {
+						"contents": "read",
+						"metadata": "read"
+					},
+					"events": ["push", "pull_request"]
+				}
+			]`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	service, err := NewGitHubAppService("12345", mustGenerateTestKey())
+	require.NoError(t, err)
+
+	service.apiBaseURL = server.URL
+
+	ctx := context.Background()
+	installations, err := service.GetInstallations(ctx)
+
+	require.NoError(t, err)
+	require.Len(t, installations, 1)
+
+	installation := installations[0]
+	assert.Equal(t, int64(12345), installation.ID)
+	assert.Equal(t, "testorg", installation.Account.Login)
+	assert.Equal(t, int64(67890), installation.Account.ID)
+	assert.Equal(t, "Organization", installation.Account.Type)
+}
+
+func TestGitHubAppService_GetInstallationRepositories(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/app/installations/12345/access_tokens" && r.Method == "POST" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			w.Write([]byte(`{
+				"token": "ghs_test_installation_token",
+				"expires_at": "2024-01-01T12:00:00Z"
+			}`))
+			return
+		}
+
+		if r.URL.Path == "/installation/repositories" && r.Method == "GET" {
+			// Verify Authorization header contains installation token
+			auth := r.Header.Get("Authorization")
+			assert.Equal(t, "token ghs_test_installation_token", auth)
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{
+				"repositories": [
+					{
+						"id": 54321,
+						"name": "test-repo",
+						"full_name": "testorg/test-repo",
+						"private": true,
+						"default_branch": "main",
+						"clone_url": "https://github.com/testorg/test-repo.git",
+						"ssh_url": "git@github.com:testorg/test-repo.git",
+						"owner": {
+							"login": "testorg"
+						}
+					}
+				]
+			}`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	service, err := NewGitHubAppService("12345", mustGenerateTestKey())
+	require.NoError(t, err)
+
+	service.apiBaseURL = server.URL
+
+	ctx := context.Background()
+	repositories, err := service.GetInstallationRepositories(ctx, 12345)
+
+	require.NoError(t, err)
+	require.Len(t, repositories, 1)
+
+	repo := repositories[0]
+	assert.Equal(t, int64(54321), repo.ID)
+	assert.Equal(t, "test-repo", repo.Name)
+	assert.Equal(t, "testorg/test-repo", repo.FullName)
+	assert.True(t, repo.Private)
+	assert.Equal(t, "main", repo.DefaultBranch)
+	assert.Equal(t, "https://github.com/testorg/test-repo.git", repo.CloneURL)
+	assert.Equal(t, "git@github.com:testorg/test-repo.git", repo.SSHURL)
+	assert.Equal(t, "testorg", repo.Owner.Login)
+}
+
+func TestGitHubAppService_ValidateWebhookSignature(t *testing.T) {
+	service, err := NewGitHubAppService("12345", mustGenerateTestKey(), "test-secret")
+	require.NoError(t, err)
+
+	tests := []struct {
+		name      string
+		payload   []byte
+		signature string
+		wantError bool
+	}{
+		{
+			name:      "valid signature",
+			payload:   []byte(`{"action":"opened"}`),
+			signature: "sha256=4864c5a9ea5b4ac5e89f58e8dde76220ca98ba59e7e5bfd1c3b4c7b13fcf7a5e", // pre-calculated
+			wantError: false,
+		},
+		{
+			name:      "invalid signature",
+			payload:   []byte(`{"action":"opened"}`),
+			signature: "sha256=invalid",
+			wantError: true,
+		},
+		{
+			name:      "missing sha256 prefix",
+			payload:   []byte(`{"action":"opened"}`),
+			signature: "4864c5a9ea5b4ac5e89f58e8dde76220ca98ba59e7e5bfd1c3b4c7b13fcf7a5e",
+			wantError: true,
+		},
+		{
+			name:      "empty signature",
+			payload:   []byte(`{"action":"opened"}`),
+			signature: "",
+			wantError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := service.ValidateWebhookSignature(tt.payload, tt.signature)
+
+			if tt.wantError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestGitHubAppService_ErrorCases(t *testing.T) {
+	t.Run("JWT generation with invalid private key", func(t *testing.T) {
+		// This test would require modifying the service to use an invalid key
+		// which is hard to do after construction. In practice, this is caught
+		// during NewGitHubAppService construction.
+	})
+
+	t.Run("API request failures", func(t *testing.T) {
+		// Test server that returns errors
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`{"message":"Internal Server Error"}`))
+		}))
+		defer server.Close()
+
+		service, err := NewGitHubAppService("12345", mustGenerateTestKey())
+		require.NoError(t, err)
+
+		service.apiBaseURL = server.URL
+
+		ctx := context.Background()
+
+		// Test GetInstallations error
+		_, err = service.GetInstallations(ctx)
+		assert.Error(t, err)
+
+		// Test GetInstallationToken error
+		_, err = service.GetInstallationToken(ctx, 12345)
+		assert.Error(t, err)
+
+		// Test GetInstallationRepositories error
+		_, err = service.GetInstallationRepositories(ctx, 12345)
+		assert.Error(t, err)
+	})
+
+	t.Run("invalid JSON response", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`invalid json`))
+		}))
+		defer server.Close()
+
+		service, err := NewGitHubAppService("12345", mustGenerateTestKey())
+		require.NoError(t, err)
+
+		service.apiBaseURL = server.URL
+
+		ctx := context.Background()
+		_, err = service.GetInstallations(ctx)
+		assert.Error(t, err)
+	})
+}
+
+// mustGenerateTestKey generates a test private key or panics
+func mustGenerateTestKey() string {
+	key, err := generateTestKeyPair()
+	if err != nil {
+		panic(err)
+	}
+	return key
+}

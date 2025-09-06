@@ -25,11 +25,11 @@ import (
 
 // CertManager handles certificate issuance and renewal
 type CertManager struct {
-	store       CertStore
-	proxy       *proxy.NginxConfig
-	dataDir     string
-	acmeURL     string  // ACME server URL (defaults to Let's Encrypt)
-	queue       *Queue  // For progress updates
+	store   CertStore
+	proxy   *proxy.NginxConfig
+	dataDir string
+	acmeURL string // ACME server URL (defaults to Let's Encrypt)
+	queue   *Queue // For progress updates
 }
 
 // CertStore interface for certificate-related database operations
@@ -228,7 +228,7 @@ func (cm *CertManager) StartDailyRenewalJob(ctx context.Context) {
 
 	// Run initial check after 5 minutes startup delay
 	initialTimer := time.NewTimer(5 * time.Minute)
-	
+
 	log.Info().Msg("starting daily certificate renewal job")
 
 	for {
@@ -238,13 +238,13 @@ func (cm *CertManager) StartDailyRenewalJob(ctx context.Context) {
 			if err := cm.RenewAllCerts(ctx); err != nil {
 				log.Error().Err(err).Msg("initial certificate renewal check failed")
 			}
-			
+
 		case <-ticker.C:
 			// Daily runs
 			if err := cm.RenewAllCerts(ctx); err != nil {
 				log.Error().Err(err).Msg("daily certificate renewal check failed")
 			}
-			
+
 		case <-ctx.Done():
 			log.Info().Msg("stopping daily certificate renewal job")
 			return
@@ -270,14 +270,14 @@ func (cm *CertManager) handleIssueJob(ctx context.Context, job *Job) error {
 	if !ok {
 		return fmt.Errorf("missing or invalid domain in job data")
 	}
-	
+
 	email, ok := job.Data["email"].(string)
 	if !ok {
 		return fmt.Errorf("missing or invalid email in job data")
 	}
 
 	cm.queue.UpdateJobProgress(job.ID, 10)
-	
+
 	if err := cm.IssueCert(ctx, domain, email); err != nil {
 		return fmt.Errorf("failed to issue certificate: %w", err)
 	}

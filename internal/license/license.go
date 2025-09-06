@@ -10,14 +10,14 @@ import (
 
 // License represents a GLINRDOCK license with plan limits and metadata
 type License struct {
-	Plan       string    `json:"plan"`         // FREE, PRO, PREMIUM
-	Name       string    `json:"name"`         // Licensee name
-	Org        string    `json:"org,omitempty"` // Organization name (optional)
-	Seats      int       `json:"seats,omitempty"` // Number of seats (optional)
-	Expiry     time.Time `json:"expiry"`       // License expiration
-	Features   []string  `json:"features"`     // Feature flags
-	IssuedAt   time.Time `json:"issued_at"`    // When license was issued
-	Nonce      string    `json:"nonce"`        // Unique identifier
+	Plan     string    `json:"plan"`            // FREE, PRO, PREMIUM
+	Name     string    `json:"name"`            // Licensee name
+	Org      string    `json:"org,omitempty"`   // Organization name (optional)
+	Seats    int       `json:"seats,omitempty"` // Number of seats (optional)
+	Expiry   time.Time `json:"expiry"`          // License expiration
+	Features []string  `json:"features"`        // Feature flags
+	IssuedAt time.Time `json:"issued_at"`       // When license was issued
+	Nonce    string    `json:"nonce"`           // Unique identifier
 }
 
 // SignedLicense represents the wire format of a signed license

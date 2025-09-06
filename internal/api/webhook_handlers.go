@@ -25,14 +25,13 @@ type WebhookHandlers struct {
 	githubHandler *github.WebhookHandler
 }
 
-
 // NewWebhookHandlers creates a new WebhookHandlers instance
 func NewWebhookHandlers(store *store.Store, auditLogger *audit.Logger, webhookSecret, githubAppWebhookSecret string) *WebhookHandlers {
 	var githubHandler *github.WebhookHandler
 	if githubAppWebhookSecret != "" {
 		githubHandler = github.NewWebhookHandler(githubAppWebhookSecret, store)
 	}
-	
+
 	return &WebhookHandlers{
 		store:         store,
 		auditLogger:   auditLogger,
@@ -47,12 +46,12 @@ func (h *WebhookHandlers) GitHubAppWebhook(c *gin.Context) {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "GitHub App webhook not configured"})
 		return
 	}
-	
+
 	// Delegate to the GitHub webhook handler
 	h.githubHandler.HandleWebhook(c.Writer, c.Request)
 }
 
-// Alias for backwards compatibility  
+// Alias for backwards compatibility
 func (h *WebhookHandlers) GitHubWebhook(c *gin.Context) {
 	h.GitHubWebhookEnhanced(c)
 }
@@ -65,7 +64,7 @@ func (h *WebhookHandlers) GitHubWebhookEnhanced(c *gin.Context) {
 	}
 
 	event := c.GetHeader("X-GitHub-Event")
-	
+
 	// Read the payload
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
@@ -107,7 +106,7 @@ func (h *WebhookHandlers) GitHubWebhookEnhanced(c *gin.Context) {
 		response := "Failed to parse JSON payload"
 		delivery.Response = &response
 		h.store.CreateWebhookDelivery(c.Request.Context(), delivery)
-		
+
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid JSON payload"})
 		return
 	}
@@ -132,7 +131,7 @@ func (h *WebhookHandlers) GitHubWebhookEnhanced(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"message": "no project configured for this repository", "delivery_id": deliveryID})
 			return
 		}
-		
+
 		response := "Failed to find project for repository"
 		h.store.UpdateWebhookDeliveryStatus(c.Request.Context(), deliveryID, "failed", &response)
 		log.Error().Err(err).Str("repo", payload.Repository.CloneURL).Msg("failed to find project for repository")
@@ -172,7 +171,7 @@ func (h *WebhookHandlers) GitHubWebhookEnhanced(c *gin.Context) {
 		for _, service := range services {
 			// Update service to use the latest image tag
 			imageTag := *project.ImageTarget + ":" + payload.After[:7] // Use short commit hash
-			
+
 			// Update service image
 			updates := service
 			updates.Image = imageTag
@@ -266,7 +265,7 @@ func (h *WebhookHandlers) ListWebhookDeliveries(c *gin.Context) {
 // GetWebhookDelivery returns a specific webhook delivery
 func (h *WebhookHandlers) GetWebhookDelivery(c *gin.Context) {
 	deliveryID := c.Param("id")
-	
+
 	delivery, err := h.store.GetWebhookDelivery(c.Request.Context(), deliveryID)
 	if err != nil {
 		if err == store.ErrNotFound {
@@ -292,7 +291,7 @@ func (h *WebhookHandlers) recordWebhookDelivery(ctx context.Context, deliveryID,
 		Response:   &response,
 		CreatedAt:  time.Now(),
 	}
-	
+
 	err := h.store.CreateWebhookDelivery(ctx, delivery)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to record webhook delivery")

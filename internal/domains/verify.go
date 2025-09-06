@@ -83,7 +83,7 @@ func (s *VerificationService) ensureDomainExists(ctx context.Context, domain str
 	if err != sql.ErrNoRows {
 		return 0, err
 	}
-	
+
 	// Domain doesn't exist, create it
 	now := time.Now()
 	result, err := s.db.ExecContext(ctx, `
@@ -93,7 +93,7 @@ func (s *VerificationService) ensureDomainExists(ctx context.Context, domain str
 	if err != nil {
 		return 0, err
 	}
-	
+
 	return result.LastInsertId()
 }
 
@@ -103,17 +103,17 @@ func (s *VerificationService) IssueVerification(ctx context.Context, domain stri
 	if !s.config.DNSVerifyEnabled {
 		return nil, NewVerificationError(501, "Domain verification is disabled", nil)
 	}
-	
+
 	// Generate verification token
 	token, err := generateVerificationToken()
 	if err != nil {
 		return nil, NewVerificationError(500, "Failed to generate verification token", err)
 	}
-	
+
 	// Determine verification method based on configuration
 	method := "TXT" // Always include TXT challenge
 	var targetHint *string
-	
+
 	if s.config.PublicEdgeHost != "" {
 		// CNAME challenge if we have a hostname
 		method = "CNAME"
@@ -123,13 +123,13 @@ func (s *VerificationService) IssueVerification(ctx context.Context, domain stri
 		method = "A"
 		targetHint = &s.config.PublicEdgeIPv4
 	}
-	
+
 	// First, ensure domain exists in domains table
 	domainID, err := s.ensureDomainExists(ctx, domain)
 	if err != nil {
 		return nil, NewVerificationError(500, "Failed to ensure domain exists", err)
 	}
-	
+
 	// Create verification record
 	verification := &store.DomainVerification{
 		DomainID:      domainID,
@@ -139,7 +139,7 @@ func (s *VerificationService) IssueVerification(ctx context.Context, domain stri
 		CreatedAt:     time.Now(),
 		LastCheckedAt: nil,
 	}
-	
+
 	// Store in database
 	query := `
 		INSERT INTO domain_verifications (domain_id, method, challenge, status, created_at, updated_at)
@@ -147,7 +147,7 @@ func (s *VerificationService) IssueVerification(ctx context.Context, domain stri
 	`
 	result, err := s.db.ExecContext(ctx, query,
 		verification.DomainID,
-		verification.Method, 
+		verification.Method,
 		verification.Challenge,
 		verification.Status,
 		verification.CreatedAt,
@@ -156,14 +156,14 @@ func (s *VerificationService) IssueVerification(ctx context.Context, domain stri
 	if err != nil {
 		return nil, NewVerificationError(500, "Failed to store verification", err)
 	}
-	
+
 	id, err := result.LastInsertId()
 	if err != nil {
 		return nil, NewVerificationError(500, "Failed to get verification ID", err)
 	}
 	verification.ID = id
 	verification.UpdatedAt = verification.CreatedAt
-	
+
 	// Return result with additional metadata
 	return &VerificationResult{
 		DomainVerification: verification,
@@ -179,23 +179,23 @@ func (s *VerificationService) CheckVerification(ctx context.Context, domain stri
 	if !s.config.DNSVerifyEnabled {
 		return nil, NewVerificationError(501, "Domain verification is disabled", nil)
 	}
-	
+
 	// Get existing verification record
 	verification, err := s.getVerification(ctx, domain)
 	if err != nil {
 		return nil, NewVerificationError(404, "Verification not found", err)
 	}
-	
+
 	// Update last_checked_at timestamp
 	now := time.Now()
 	verification.LastCheckedAt = &now
-	
+
 	// Check if domain has auto-managed provider
 	autoManagedProvider, err := s.getAutoManagedProvider(ctx, domain)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, NewVerificationError(500, "Failed to check auto-managed provider", err)
 	}
-	
+
 	// If auto-managed provider exists, ensure records are created
 	if autoManagedProvider != nil {
 		if err := s.ensureVerificationRecords(ctx, verification, autoManagedProvider, domain); err != nil {
@@ -203,11 +203,11 @@ func (s *VerificationService) CheckVerification(ctx context.Context, domain stri
 			// In production, you might want to log this properly
 		}
 	}
-	
+
 	// Perform verification checks
 	verified := true
 	var verificationErrors []string
-	
+
 	// Always check TXT record
 	txtValid, txtErr := s.checkTXTRecord(ctx, domain, verification.Challenge)
 	if !txtValid {
@@ -218,7 +218,7 @@ func (s *VerificationService) CheckVerification(ctx context.Context, domain stri
 			verificationErrors = append(verificationErrors, "TXT record not found or invalid")
 		}
 	}
-	
+
 	// Check A/AAAA/CNAME if PUBLIC_EDGE_* is configured
 	if s.config.PublicEdgeHost != "" || s.config.PublicEdgeIPv4 != "" || s.config.PublicEdgeIPv6 != "" {
 		recordValid, recordErr := s.checkDNSRecord(ctx, domain)
@@ -231,7 +231,7 @@ func (s *VerificationService) CheckVerification(ctx context.Context, domain stri
 			}
 		}
 	}
-	
+
 	// Update verification status
 	if verified {
 		verification.Status = "verified"
@@ -240,12 +240,12 @@ func (s *VerificationService) CheckVerification(ctx context.Context, domain stri
 		// Note: The current schema doesn't have error_message field
 		// In a real implementation, you might want to add this field to the migration
 	}
-	
+
 	// Update database
 	if err := s.updateVerification(ctx, verification); err != nil {
 		return nil, NewVerificationError(500, "Failed to update verification", err)
 	}
-	
+
 	// Determine target hint for response
 	var targetHint *string
 	switch verification.Method {
@@ -254,7 +254,7 @@ func (s *VerificationService) CheckVerification(ctx context.Context, domain stri
 	case "A":
 		targetHint = &s.config.PublicEdgeIPv4
 	}
-	
+
 	return &VerificationResult{
 		DomainVerification: verification,
 		Domain:             domain,
@@ -273,10 +273,10 @@ func (s *VerificationService) getVerification(ctx context.Context, domain string
 		ORDER BY dv.created_at DESC
 		LIMIT 1
 	`
-	
+
 	verification := &store.DomainVerification{}
 	var lastCheckedAt sql.NullTime
-	
+
 	err := s.db.QueryRowContext(ctx, query, domain).Scan(
 		&verification.ID,
 		&verification.DomainID,
@@ -290,11 +290,11 @@ func (s *VerificationService) getVerification(ctx context.Context, domain string
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if lastCheckedAt.Valid {
 		verification.LastCheckedAt = &lastCheckedAt.Time
 	}
-	
+
 	return verification, nil
 }
 
@@ -305,10 +305,10 @@ func (s *VerificationService) updateVerification(ctx context.Context, verificati
 		SET status = ?, last_checked_at = ?, updated_at = ?
 		WHERE id = ?
 	`
-	
+
 	now := time.Now()
 	verification.UpdatedAt = now
-	
+
 	_, err := s.db.ExecContext(ctx, query,
 		verification.Status,
 		verification.LastCheckedAt,
@@ -327,18 +327,18 @@ func (s *VerificationService) getAutoManagedProvider(ctx context.Context, domain
 	if err != nil {
 		return nil, err // This will be sql.ErrNoRows if not found
 	}
-	
+
 	if !providerID.Valid {
 		return nil, sql.ErrNoRows
 	}
-	
+
 	// Get the provider details
 	providerQuery := `
 		SELECT id, name, type, config_json, created_at, updated_at
 		FROM dns_providers 
 		WHERE id = ?
 	`
-	
+
 	provider := &store.DNSProvider{}
 	err = s.db.QueryRowContext(ctx, providerQuery, providerID.Int64).Scan(
 		&provider.ID,
@@ -351,7 +351,7 @@ func (s *VerificationService) getAutoManagedProvider(ctx context.Context, domain
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return provider, nil
 }
 
@@ -359,7 +359,7 @@ func (s *VerificationService) getAutoManagedProvider(ctx context.Context, domain
 func (s *VerificationService) ensureVerificationRecords(ctx context.Context, verification *store.DomainVerification, dnsProvider *store.DNSProvider, domain string) error {
 	// Create provider instance based on type
 	var p provider.DNSProvider
-	
+
 	switch dnsProvider.Type {
 	case "cloudflare":
 		// Parse Cloudflare configuration
@@ -371,13 +371,13 @@ func (s *VerificationService) ensureVerificationRecords(ctx context.Context, ver
 	default:
 		return fmt.Errorf("unsupported DNS provider type: %s", dnsProvider.Type)
 	}
-	
+
 	// Always ensure TXT record for verification token
 	txtRecord := fmt.Sprintf("_glinr-verify.%s", domain)
 	if err := p.EnsureTXT(ctx, txtRecord, verification.Challenge, 300); err != nil {
 		return fmt.Errorf("failed to create TXT verification record: %w", err)
 	}
-	
+
 	// Create A/CNAME record based on configuration
 	switch verification.Method {
 	case "A":
@@ -393,7 +393,7 @@ func (s *VerificationService) ensureVerificationRecords(ctx context.Context, ver
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -402,32 +402,32 @@ func parseProviderConfig(configJSON string, config interface{}) error {
 	// In a real implementation, you would use json.Unmarshal here
 	// For now, we'll assume the config is properly formatted
 	// This would need to be implemented with proper JSON parsing and potentially decryption
-	
+
 	// For testing purposes, set a basic Cloudflare config
 	if cfg, ok := config.(*provider.CloudflareConfig); ok {
 		cfg.APIToken = "test-token"
 		cfg.ProxiedDefault = false
 	}
-	
+
 	return nil
 }
 
 // checkTXTRecord verifies the TXT record contains the verification token
 func (s *VerificationService) checkTXTRecord(ctx context.Context, domain, token string) (bool, error) {
 	txtRecord := fmt.Sprintf("_glinr-verify.%s", domain)
-	
+
 	txtRecords, err := s.resolver.LookupTXT(ctx, txtRecord)
 	if err != nil {
 		return false, err
 	}
-	
+
 	// Check if any TXT record contains our token
 	for _, record := range txtRecords {
 		if strings.Contains(record, token) {
 			return true, nil
 		}
 	}
-	
+
 	return false, nil
 }
 
@@ -445,7 +445,7 @@ func (s *VerificationService) checkDNSRecord(ctx context.Context, domain string)
 			}
 		}
 	}
-	
+
 	// Check AAAA records against PUBLIC_EDGE_IPV6
 	if s.config.PublicEdgeIPv6 != "" {
 		aaaaRecords, err := s.resolver.LookupAAAA(ctx, domain)
@@ -458,7 +458,7 @@ func (s *VerificationService) checkDNSRecord(ctx context.Context, domain string)
 			}
 		}
 	}
-	
+
 	// Check CNAME record against PUBLIC_EDGE_HOST
 	if s.config.PublicEdgeHost != "" {
 		cname, err := s.resolver.LookupCNAME(ctx, domain)
@@ -466,6 +466,6 @@ func (s *VerificationService) checkDNSRecord(ctx context.Context, domain string)
 			return true, nil
 		}
 	}
-	
+
 	return false, nil
 }

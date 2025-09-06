@@ -31,67 +31,79 @@ import (
 
 // Handlers contains API handlers with dependencies
 type Handlers struct {
-	dockerClient dockerx.Client
-	store        *store.Store // Add main store for search indexing
-	tokenStore   TokenStore
-	projectStore ProjectStore
-	serviceStore ServiceStore
-	routeStore   RouteStore
-	envVarStore  EnvVarStore
-	dockerEngine DockerEngine
-	nginxConfig     *proxy.NginxConfig
-	cicdHandlers    *CICDHandlers
-	certHandlers    *CertHandlers
-	metricsHandlers *MetricsHandlers
-	webhookHandlers *WebhookHandlers
-	planEnforcer    *plan.Enforcer
-	licenseManager  *license.Manager
-	auditLogger     *audit.Logger
-	config          *config.PlanConfig
-	systemConfig    *util.Config   // Add system configuration
-	eventCache      *events.EventCache
-	environmentStore *store.EnvironmentStore
-	registryStore    *store.RegistryStore
-	networkManager     *docker.NetworkManager
-	oauthService       *auth.OAuthService
-	githubHandlers     *GitHubHandlers
-	settingsHandlers   *SettingsHandlers
-	githubAppHandlers  *GitHubAppHandlers
-	searchHandlers     *SearchHandlers
-	helpHandlers       *HelpHandlers
+	dockerClient        dockerx.Client
+	store               *store.Store // Add main store for search indexing
+	tokenStore          TokenStore
+	projectStore        ProjectStore
+	serviceStore        ServiceStore
+	routeStore          RouteStore
+	envVarStore         EnvVarStore
+	dockerEngine        DockerEngine
+	nginxConfig         *proxy.NginxConfig
+	cicdHandlers        *CICDHandlers
+	certHandlers        *CertHandlers
+	metricsHandlers     *MetricsHandlers
+	webhookHandlers     *WebhookHandlers
+	planEnforcer        *plan.Enforcer
+	licenseManager      *license.Manager
+	auditLogger         *audit.Logger
+	config              *config.PlanConfig
+	systemConfig        *util.Config // Add system configuration
+	eventCache          *events.EventCache
+	environmentStore    *store.EnvironmentStore
+	registryStore       *store.RegistryStore
+	networkManager      *docker.NetworkManager
+	oauthService        *auth.OAuthService
+	githubHandlers      *GitHubHandlers
+	settingsHandlers    *SettingsHandlers
+	githubAppHandlers   *GitHubAppHandlers
+	searchHandlers      *SearchHandlers
+	helpHandlers        *HelpHandlers
+	domainHandlers      *DomainHandlers
+	dnsProviderHandlers *DNSProviderHandlers
+	deploymentHandlers  *DeploymentHandlers
 }
 
 // NewHandlers creates new handlers with dependencies
 func NewHandlers(dockerClient dockerx.Client, mainStore *store.Store, tokenStore TokenStore, projectStore ProjectStore, serviceStore ServiceStore, routeStore RouteStore, envVarStore EnvVarStore, dockerEngine DockerEngine, nginxConfig *proxy.NginxConfig, cicdHandlers *CICDHandlers, certHandlers *CertHandlers, metricsHandlers *MetricsHandlers, webhookHandlers *WebhookHandlers, planEnforcer *plan.Enforcer, licenseManager *license.Manager, auditLogger *audit.Logger, config *config.PlanConfig, systemConfig *util.Config, eventCache *events.EventCache, environmentStore *store.EnvironmentStore, registryStore *store.RegistryStore, networkManager *docker.NetworkManager, oauthService *auth.OAuthService, githubHandlers *GitHubHandlers, settingsHandlers *SettingsHandlers, githubAppHandlers *GitHubAppHandlers, searchHandlers *SearchHandlers, helpHandlers *HelpHandlers) *Handlers {
+
+	// Create domain, DNS provider, and deployment handlers
+	domainHandlers := NewDomainHandlers(mainStore, systemConfig, auditLogger)
+	dnsProviderHandlers := NewDNSProviderHandlers(mainStore, auditLogger)
+	deploymentHandlers := NewDeploymentHandlers(mainStore, auditLogger)
+
 	return &Handlers{
-		dockerClient:     dockerClient,
-		store:            mainStore,
-		tokenStore:       tokenStore,
-		projectStore:     projectStore,
-		serviceStore:     serviceStore,
-		routeStore:       routeStore,
-		envVarStore:      envVarStore,
-		dockerEngine:     dockerEngine,
-		nginxConfig:      nginxConfig,
-		cicdHandlers:     cicdHandlers,
-		certHandlers:     certHandlers,
-		metricsHandlers:  metricsHandlers,
-		webhookHandlers:  webhookHandlers,
-		planEnforcer:     planEnforcer,
-		licenseManager:   licenseManager,
-		auditLogger:      auditLogger,
-		config:           config,
-		systemConfig:     systemConfig,
-		eventCache:       eventCache,
-		environmentStore: environmentStore,
-		registryStore:    registryStore,
-		networkManager:     networkManager,
-		oauthService:       oauthService,
-		githubHandlers:     githubHandlers,
-		settingsHandlers:   settingsHandlers,
-		githubAppHandlers:  githubAppHandlers,
-		searchHandlers:     searchHandlers,
-		helpHandlers:       helpHandlers,
+		dockerClient:        dockerClient,
+		store:               mainStore,
+		tokenStore:          tokenStore,
+		projectStore:        projectStore,
+		serviceStore:        serviceStore,
+		routeStore:          routeStore,
+		envVarStore:         envVarStore,
+		dockerEngine:        dockerEngine,
+		nginxConfig:         nginxConfig,
+		cicdHandlers:        cicdHandlers,
+		certHandlers:        certHandlers,
+		metricsHandlers:     metricsHandlers,
+		webhookHandlers:     webhookHandlers,
+		planEnforcer:        planEnforcer,
+		licenseManager:      licenseManager,
+		auditLogger:         auditLogger,
+		config:              config,
+		systemConfig:        systemConfig,
+		eventCache:          eventCache,
+		environmentStore:    environmentStore,
+		registryStore:       registryStore,
+		networkManager:      networkManager,
+		oauthService:        oauthService,
+		githubHandlers:      githubHandlers,
+		settingsHandlers:    settingsHandlers,
+		githubAppHandlers:   githubAppHandlers,
+		searchHandlers:      searchHandlers,
+		helpHandlers:        helpHandlers,
+		domainHandlers:      domainHandlers,
+		dnsProviderHandlers: dnsProviderHandlers,
+		deploymentHandlers:  deploymentHandlers,
 	}
 }
 
@@ -117,7 +129,7 @@ func (h *Handlers) GitHubAppWebhook(c *gin.Context) {
 // System returns system information
 func (h *Handlers) System(c *gin.Context) {
 	info := version.Get()
-	
+
 	dockerStatus := "unknown"
 	if h.dockerClient != nil {
 		if err := h.dockerClient.Ping(); err == nil {
@@ -128,11 +140,11 @@ func (h *Handlers) System(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"go_version":    info.GoVersion,
-		"os":           info.OS,
-		"arch":         info.Arch,
-		"docker_status": dockerStatus,
-		"uptime":       version.GetUptime().String(),
+		"go_version":          info.GoVersion,
+		"os":                  info.OS,
+		"arch":                info.Arch,
+		"docker_status":       dockerStatus,
+		"uptime":              version.GetUptime().String(),
 		"nginx_proxy_enabled": h.nginxConfig != nil,
 	})
 }
@@ -150,17 +162,17 @@ func (h *Handlers) SystemConfig(c *gin.Context) {
 	// Sensitive values like secrets are redacted
 	config := gin.H{
 		"dns": gin.H{
-			"verify_enabled":     h.systemConfig.DNSVerifyEnabled,
-			"public_edge_host":   h.systemConfig.PublicEdgeHost,
-			"public_edge_ipv4":   h.systemConfig.PublicEdgeIPv4,
-			"public_edge_ipv6":   h.systemConfig.PublicEdgeIPv6,
-			"resolvers":          h.systemConfig.DNSResolvers,
+			"verify_enabled":   h.systemConfig.DNSVerifyEnabled,
+			"public_edge_host": h.systemConfig.PublicEdgeHost,
+			"public_edge_ipv4": h.systemConfig.PublicEdgeIPv4,
+			"public_edge_ipv6": h.systemConfig.PublicEdgeIPv6,
+			"resolvers":        h.systemConfig.DNSResolvers,
 		},
 		"acme": gin.H{
-			"directory_url":      h.systemConfig.ACMEDirectoryURL,
-			"email":              h.systemConfig.ACMEEmail,
-			"http01_enabled":     h.systemConfig.ACMEHTTP01Enabled,
-			"dns01_enabled":      h.systemConfig.ACMEDNS01Enabled,
+			"directory_url":  h.systemConfig.ACMEDirectoryURL,
+			"email":          h.systemConfig.ACMEEmail,
+			"http01_enabled": h.systemConfig.ACMEHTTP01Enabled,
+			"dns01_enabled":  h.systemConfig.ACMEDNS01Enabled,
 		},
 		"cloudflare": gin.H{
 			"api_token_configured": h.systemConfig.CFAPIToken != "",
@@ -182,44 +194,44 @@ func (h *Handlers) GetSystemPlan(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "plan enforcement not configured"})
 		return
 	}
-	
+
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
-	
+
 	usage, err := h.planEnforcer.GetUsage(ctx, h.tokenStore)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get usage"})
 		return
 	}
-	
+
 	limits := h.planEnforcer.GetLimits()
 	plan := h.planEnforcer.GetPlan()
-	
+
 	// Get feature flags
 	features := map[string]bool{
-		"projects":             h.planEnforcer.FeatureEnabled("projects"),
-		"services":             h.planEnforcer.FeatureEnabled("services"),
-		"routes":               h.planEnforcer.FeatureEnabled("routes"),
-		"logs":                 h.planEnforcer.FeatureEnabled("logs"),
-		"basic_metrics":        h.planEnforcer.FeatureEnabled("basic_metrics"),
-		"lockdown":             h.planEnforcer.FeatureEnabled("lockdown"),
-		"emergency_restart":    h.planEnforcer.FeatureEnabled("emergency_restart"),
-		"smtp_alerts":          h.planEnforcer.FeatureEnabled("smtp_alerts"),
-		"oauth":                h.planEnforcer.FeatureEnabled("oauth"),
-		"multi_env":            h.planEnforcer.FeatureEnabled("multi_env"),
-		"sso":                  h.planEnforcer.FeatureEnabled("sso"),
-		"audit_logs":           h.planEnforcer.FeatureEnabled("audit_logs"),
-		"ci_integrations":      h.planEnforcer.FeatureEnabled("ci_integrations"),
-		"advanced_dashboards":  h.planEnforcer.FeatureEnabled("advanced_dashboards"),
+		"projects":            h.planEnforcer.FeatureEnabled("projects"),
+		"services":            h.planEnforcer.FeatureEnabled("services"),
+		"routes":              h.planEnforcer.FeatureEnabled("routes"),
+		"logs":                h.planEnforcer.FeatureEnabled("logs"),
+		"basic_metrics":       h.planEnforcer.FeatureEnabled("basic_metrics"),
+		"lockdown":            h.planEnforcer.FeatureEnabled("lockdown"),
+		"emergency_restart":   h.planEnforcer.FeatureEnabled("emergency_restart"),
+		"smtp_alerts":         h.planEnforcer.FeatureEnabled("smtp_alerts"),
+		"oauth":               h.planEnforcer.FeatureEnabled("oauth"),
+		"multi_env":           h.planEnforcer.FeatureEnabled("multi_env"),
+		"sso":                 h.planEnforcer.FeatureEnabled("sso"),
+		"audit_logs":          h.planEnforcer.FeatureEnabled("audit_logs"),
+		"ci_integrations":     h.planEnforcer.FeatureEnabled("ci_integrations"),
+		"advanced_dashboards": h.planEnforcer.FeatureEnabled("advanced_dashboards"),
 	}
-	
+
 	response := SystemPlanResponse{
 		Plan:     plan.String(),
 		Limits:   limits,
 		Usage:    usage,
 		Features: features,
 	}
-	
+
 	c.JSON(http.StatusOK, response)
 }
 
@@ -241,7 +253,7 @@ func (h *Handlers) ListWebhookDeliveries(c *gin.Context) {
 	}
 }
 
-// GetWebhookDelivery delegates to webhook handlers  
+// GetWebhookDelivery delegates to webhook handlers
 func (h *Handlers) GetWebhookDelivery(c *gin.Context) {
 	if h.webhookHandlers != nil {
 		h.webhookHandlers.GetWebhookDelivery(c)
@@ -402,11 +414,11 @@ func (h *Handlers) CreateBackup(c *gin.Context) {
 	// Set headers for file download
 	timestamp := time.Now().Format("2006-01-02T15-04-05")
 	filename := "glinrdock-backup-" + timestamp + ".tar.gz"
-	
+
 	c.Header("Content-Type", "application/octet-stream")
 	c.Header("Content-Disposition", "attachment; filename=\""+filename+"\"")
 	c.Header("Content-Length", fmt.Sprintf("%d", len(backupData)))
-	
+
 	c.Data(http.StatusOK, "application/octet-stream", backupData)
 }
 
@@ -482,19 +494,19 @@ func (h *Handlers) RestoreBackup(c *gin.Context) {
 
 // BackupManifest contains metadata about the backup
 type BackupManifest struct {
-	Version     string    `json:"version"`
-	CreatedAt   time.Time `json:"created_at"`
-	CreatedBy   string    `json:"created_by"`
-	SystemInfo  SystemBackupInfo `json:"system_info"`
-	Contents    []string  `json:"contents"`
-	Checksum    string    `json:"checksum,omitempty"`
+	Version    string           `json:"version"`
+	CreatedAt  time.Time        `json:"created_at"`
+	CreatedBy  string           `json:"created_by"`
+	SystemInfo SystemBackupInfo `json:"system_info"`
+	Contents   []string         `json:"contents"`
+	Checksum   string           `json:"checksum,omitempty"`
 }
 
 // SystemBackupInfo contains system information at backup time
 type SystemBackupInfo struct {
-	Hostname    string `json:"hostname"`
-	Platform    string `json:"platform"`
-	GoVersion   string `json:"go_version"`
+	Hostname     string `json:"hostname"`
+	Platform     string `json:"platform"`
+	GoVersion    string `json:"go_version"`
 	DockerStatus string `json:"docker_status"`
 }
 
@@ -502,15 +514,15 @@ type SystemBackupInfo struct {
 func createSystemBackup() ([]byte, error) {
 	// Create a buffer to write our archive to
 	var buf bytes.Buffer
-	
+
 	// Create gzip writer
 	gzw := gzip.NewWriter(&buf)
 	defer gzw.Close()
-	
+
 	// Create tar writer
 	tw := tar.NewWriter(gzw)
 	defer tw.Close()
-	
+
 	// Create backup manifest
 	manifest := BackupManifest{
 		Version:   "1.0",
@@ -524,14 +536,14 @@ func createSystemBackup() ([]byte, error) {
 		},
 		Contents: []string{},
 	}
-	
+
 	// Add database file if it exists
 	dbPaths := []string{
 		"./glinrdock.db",
-		"./data/glinrdock.db", 
+		"./data/glinrdock.db",
 		"./db/glinrdock.db",
 	}
-	
+
 	dbAdded := false
 	for _, dbPath := range dbPaths {
 		if err := addFileToTar(tw, dbPath, "db.sqlite", &manifest); err == nil {
@@ -539,7 +551,7 @@ func createSystemBackup() ([]byte, error) {
 			break
 		}
 	}
-	
+
 	if !dbAdded {
 		// Create a minimal database placeholder
 		dbContent := fmt.Sprintf(`-- GLINRDOCK Database Backup
@@ -562,12 +574,12 @@ INSERT OR REPLACE INTO system_info (key, value) VALUES
 ('backup_version', '1.0'),
 ('system_hostname', '%s');
 `, time.Now().Format(time.RFC3339), getHostname(), getPlatformInfo(), time.Now().Format(time.RFC3339), getHostname())
-		
+
 		if err := addStringToTar(tw, dbContent, "db.sqlite", &manifest); err != nil {
 			return nil, fmt.Errorf("failed to add database to backup: %v", err)
 		}
 	}
-	
+
 	// Add certificates directory if it exists
 	certsPath := "./certs"
 	if err := addDirectoryToTar(tw, certsPath, "certs/", &manifest); err != nil {
@@ -576,7 +588,7 @@ INSERT OR REPLACE INTO system_info (key, value) VALUES
 			return nil, fmt.Errorf("failed to add certs directory: %v", err)
 		}
 	}
-	
+
 	// Add nginx configuration if it exists
 	nginxPath := "./nginx"
 	if err := addDirectoryToTar(tw, nginxPath, "nginx/", &manifest); err != nil {
@@ -598,14 +610,14 @@ http {
 			return nil, fmt.Errorf("failed to add nginx config: %v", err)
 		}
 	}
-	
+
 	// Add configuration files
 	configFiles := []string{
 		"./configs/app.yml",
 		"./configs/.env.example",
 		"./docker-compose.yml",
 	}
-	
+
 	for _, configFile := range configFiles {
 		fileName := filepath.Base(configFile)
 		if err := addFileToTar(tw, configFile, "config/"+fileName, &manifest); err != nil {
@@ -613,38 +625,38 @@ http {
 			continue
 		}
 	}
-	
+
 	// Create manifest.json
 	manifestData, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal manifest: %v", err)
 	}
-	
+
 	// Add manifest to tar
 	manifestHeader := &tar.Header{
-		Name: "manifest.json",
-		Mode: 0644,
-		Size: int64(len(manifestData)),
+		Name:    "manifest.json",
+		Mode:    0644,
+		Size:    int64(len(manifestData)),
 		ModTime: time.Now(),
 	}
-	
+
 	if err := tw.WriteHeader(manifestHeader); err != nil {
 		return nil, fmt.Errorf("failed to write manifest header: %v", err)
 	}
-	
+
 	if _, err := tw.Write(manifestData); err != nil {
 		return nil, fmt.Errorf("failed to write manifest: %v", err)
 	}
-	
+
 	// Close writers to flush data
 	if err := tw.Close(); err != nil {
 		return nil, fmt.Errorf("failed to close tar writer: %v", err)
 	}
-	
+
 	if err := gzw.Close(); err != nil {
 		return nil, fmt.Errorf("failed to close gzip writer: %v", err)
 	}
-	
+
 	return buf.Bytes(), nil
 }
 
@@ -657,27 +669,27 @@ func addFileToTar(tw *tar.Writer, filePath, archivePath string, manifest *Backup
 		return err
 	}
 	defer file.Close()
-	
+
 	info, err := file.Stat()
 	if err != nil {
 		return err
 	}
-	
+
 	header, err := tar.FileInfoHeader(info, "")
 	if err != nil {
 		return err
 	}
 	header.Name = archivePath
-	
+
 	if err := tw.WriteHeader(header); err != nil {
 		return err
 	}
-	
+
 	_, err = io.Copy(tw, file)
 	if err != nil {
 		return err
 	}
-	
+
 	manifest.Contents = append(manifest.Contents, archivePath)
 	return nil
 }
@@ -685,20 +697,20 @@ func addFileToTar(tw *tar.Writer, filePath, archivePath string, manifest *Backup
 // addStringToTar adds a string as a file to the tar archive
 func addStringToTar(tw *tar.Writer, content, archivePath string, manifest *BackupManifest) error {
 	header := &tar.Header{
-		Name: archivePath,
-		Mode: 0644,
-		Size: int64(len(content)),
+		Name:    archivePath,
+		Mode:    0644,
+		Size:    int64(len(content)),
 		ModTime: time.Now(),
 	}
-	
+
 	if err := tw.WriteHeader(header); err != nil {
 		return err
 	}
-	
+
 	if _, err := tw.Write([]byte(content)); err != nil {
 		return err
 	}
-	
+
 	manifest.Contents = append(manifest.Contents, archivePath)
 	return nil
 }
@@ -709,48 +721,48 @@ func addDirectoryToTar(tw *tar.Writer, dirPath, archivePrefix string, manifest *
 		if err != nil {
 			return err
 		}
-		
+
 		// Get relative path from the directory
 		relPath, err := filepath.Rel(dirPath, path)
 		if err != nil {
 			return err
 		}
-		
+
 		archivePath := filepath.Join(archivePrefix, relPath)
-		
+
 		if info.IsDir() {
 			// Add directory entry
 			header := &tar.Header{
-				Name: archivePath + "/",
-				Mode: int64(info.Mode()),
-				ModTime: info.ModTime(),
+				Name:     archivePath + "/",
+				Mode:     int64(info.Mode()),
+				ModTime:  info.ModTime(),
 				Typeflag: tar.TypeDir,
 			}
 			return tw.WriteHeader(header)
 		}
-		
+
 		// Add file
 		file, err := os.Open(path)
 		if err != nil {
 			return err
 		}
 		defer file.Close()
-		
+
 		header, err := tar.FileInfoHeader(info, "")
 		if err != nil {
 			return err
 		}
 		header.Name = archivePath
-		
+
 		if err := tw.WriteHeader(header); err != nil {
 			return err
 		}
-		
+
 		_, err = io.Copy(tw, file)
 		if err != nil {
 			return err
 		}
-		
+
 		manifest.Contents = append(manifest.Contents, archivePath)
 		return nil
 	})
@@ -776,22 +788,22 @@ func restoreSystemBackup(backupData []byte) error {
 	if len(backupData) == 0 {
 		return fmt.Errorf("empty backup data")
 	}
-	
+
 	// Validate backup archive structure
 	manifest, err := validateBackupArchive(backupData)
 	if err != nil {
 		return fmt.Errorf("invalid backup archive: %v", err)
 	}
-	
+
 	// Log restore operation
 	fmt.Printf("Restoring backup created at %s (version %s)\n", manifest.CreatedAt.Format(time.RFC3339), manifest.Version)
 	fmt.Printf("Backup contains %d files: %v\n", len(manifest.Contents), manifest.Contents)
-	
+
 	// Actually extract and restore files
 	if err := extractAndRestoreBackup(backupData); err != nil {
 		return fmt.Errorf("failed to extract and restore backup: %v", err)
 	}
-	
+
 	fmt.Printf("Backup restore completed successfully\n")
 	return nil
 }
@@ -800,21 +812,21 @@ func restoreSystemBackup(backupData []byte) error {
 func validateBackupArchive(backupData []byte) (*BackupManifest, error) {
 	// Create a buffer from the backup data
 	buf := bytes.NewReader(backupData)
-	
+
 	// Create gzip reader
 	gzr, err := gzip.NewReader(buf)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gzip reader: %v", err)
 	}
 	defer gzr.Close()
-	
+
 	// Create tar reader
 	tr := tar.NewReader(gzr)
-	
+
 	var manifest *BackupManifest
 	foundManifest := false
 	fileCount := 0
-	
+
 	// Read through the archive
 	for {
 		header, err := tr.Next()
@@ -824,44 +836,44 @@ func validateBackupArchive(backupData []byte) (*BackupManifest, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to read tar entry: %v", err)
 		}
-		
+
 		fileCount++
-		
+
 		// Check for manifest.json
 		if header.Name == "manifest.json" {
 			foundManifest = true
-			
+
 			// Read manifest content
 			manifestData, err := io.ReadAll(tr)
 			if err != nil {
 				return nil, fmt.Errorf("failed to read manifest: %v", err)
 			}
-			
+
 			// Parse manifest
 			var m BackupManifest
 			if err := json.Unmarshal(manifestData, &m); err != nil {
 				return nil, fmt.Errorf("failed to parse manifest: %v", err)
 			}
-			
+
 			manifest = &m
 		}
 	}
-	
+
 	// Validate we found the manifest
 	if !foundManifest || manifest == nil {
 		return nil, fmt.Errorf("backup archive is missing manifest.json")
 	}
-	
+
 	// Validate manifest version
 	if manifest.Version == "" {
 		return nil, fmt.Errorf("backup manifest is missing version")
 	}
-	
+
 	// Validate we have some files
 	if fileCount < 2 { // At least manifest.json and one other file
 		return nil, fmt.Errorf("backup archive appears to be incomplete (only %d files)", fileCount)
 	}
-	
+
 	// Check for required files
 	hasDatabase := false
 	for _, content := range manifest.Contents {
@@ -870,11 +882,11 @@ func validateBackupArchive(backupData []byte) (*BackupManifest, error) {
 			break
 		}
 	}
-	
+
 	if !hasDatabase && fileCount < 3 {
 		return nil, fmt.Errorf("backup archive may be incomplete - no database file found")
 	}
-	
+
 	return manifest, nil
 }
 
@@ -882,23 +894,23 @@ func validateBackupArchive(backupData []byte) (*BackupManifest, error) {
 func extractAndRestoreBackup(backupData []byte) error {
 	// Create a buffer from the backup data
 	buf := bytes.NewReader(backupData)
-	
+
 	// Create gzip reader
 	gzr, err := gzip.NewReader(buf)
 	if err != nil {
 		return fmt.Errorf("failed to create gzip reader: %v", err)
 	}
 	defer gzr.Close()
-	
+
 	// Create tar reader
 	tr := tar.NewReader(gzr)
-	
+
 	// Create backup directory for current files
 	backupDir := fmt.Sprintf("./backup-%s", time.Now().Format("20060102-150405"))
 	if err := os.MkdirAll(backupDir, 0755); err != nil {
 		fmt.Printf("Warning: could not create backup directory: %v\n", err)
 	}
-	
+
 	// Extract all files from the archive
 	for {
 		header, err := tr.Next()
@@ -908,7 +920,7 @@ func extractAndRestoreBackup(backupData []byte) error {
 		if err != nil {
 			return fmt.Errorf("failed to read tar entry: %v", err)
 		}
-		
+
 		// Determine target path based on file type
 		var targetPath string
 		switch {
@@ -929,7 +941,7 @@ func extractAndRestoreBackup(backupData []byte) error {
 			fmt.Printf("Skipping unknown file: %s\n", header.Name)
 			continue
 		}
-		
+
 		// Skip directories for now (we'll create them as needed)
 		if header.Typeflag == tar.TypeDir {
 			if err := os.MkdirAll(targetPath, os.FileMode(header.Mode)); err != nil {
@@ -937,14 +949,14 @@ func extractAndRestoreBackup(backupData []byte) error {
 			}
 			continue
 		}
-		
+
 		// Create parent directory if needed
 		if dir := filepath.Dir(targetPath); dir != "." {
 			if err := os.MkdirAll(dir, 0755); err != nil {
 				fmt.Printf("Warning: could not create parent directory %s: %v\n", dir, err)
 			}
 		}
-		
+
 		// Backup existing file if it exists
 		if _, err := os.Stat(targetPath); err == nil {
 			backupPath := filepath.Join(backupDir, filepath.Base(targetPath))
@@ -954,27 +966,27 @@ func extractAndRestoreBackup(backupData []byte) error {
 				fmt.Printf("Backed up existing file: %s -> %s\n", targetPath, backupPath)
 			}
 		}
-		
+
 		// Extract the file
 		outFile, err := os.Create(targetPath)
 		if err != nil {
 			return fmt.Errorf("failed to create file %s: %v", targetPath, err)
 		}
-		
+
 		if _, err := io.Copy(outFile, tr); err != nil {
 			outFile.Close()
 			return fmt.Errorf("failed to extract file %s: %v", targetPath, err)
 		}
 		outFile.Close()
-		
+
 		// Set file permissions
 		if err := os.Chmod(targetPath, os.FileMode(header.Mode)); err != nil {
 			fmt.Printf("Warning: could not set permissions for %s: %v\n", targetPath, err)
 		}
-		
+
 		fmt.Printf("Restored file: %s\n", targetPath)
 	}
-	
+
 	fmt.Printf("All files extracted successfully. Backup of original files saved to: %s\n", backupDir)
 	return nil
 }
@@ -991,21 +1003,21 @@ type DockerHubSearchResponse struct {
 
 // DockerHubRepository represents a Docker Hub repository
 type DockerHubRepository struct {
-	User            string `json:"user"`
-	Name            string `json:"name"`
-	Namespace       string `json:"namespace"`
-	RepositoryType  string `json:"repository_type"`
-	Status          int    `json:"status"`
-	Description     string `json:"description"`
-	IsPrivate       bool   `json:"is_private"`
-	IsAutomated     bool   `json:"is_automated"`
-	CanEdit         bool   `json:"can_edit"`
-	StarCount       int    `json:"star_count"`
-	PullCount       int64  `json:"pull_count"`
-	LastUpdated     string `json:"last_updated"`
-	RepoName        string `json:"repo_name"`
+	User             string `json:"user"`
+	Name             string `json:"name"`
+	Namespace        string `json:"namespace"`
+	RepositoryType   string `json:"repository_type"`
+	Status           int    `json:"status"`
+	Description      string `json:"description"`
+	IsPrivate        bool   `json:"is_private"`
+	IsAutomated      bool   `json:"is_automated"`
+	CanEdit          bool   `json:"can_edit"`
+	StarCount        int    `json:"star_count"`
+	PullCount        int64  `json:"pull_count"`
+	LastUpdated      string `json:"last_updated"`
+	RepoName         string `json:"repo_name"`
 	ShortDescription string `json:"short_description"`
-	IsOfficial      bool   `json:"is_official"`
+	IsOfficial       bool   `json:"is_official"`
 }
 
 // DockerHubSearchProxy proxies search requests to Docker Hub API
@@ -1017,11 +1029,11 @@ func (h *Handlers) DockerHubSearchProxy(c *gin.Context) {
 	}
 
 	pageSize := c.DefaultQuery("page_size", "25")
-	
+
 	// Make request to Docker Hub API
-	url := fmt.Sprintf("https://hub.docker.com/v2/search/repositories/?query=%s&page_size=%s", 
+	url := fmt.Sprintf("https://hub.docker.com/v2/search/repositories/?query=%s&page_size=%s",
 		query, pageSize)
-	
+
 	resp, err := http.Get(url)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch from Docker Hub"})
@@ -1061,7 +1073,7 @@ func (h *Handlers) DockerHubRepositoryProxy(c *gin.Context) {
 
 	// Make request to Docker Hub API
 	url := fmt.Sprintf("https://hub.docker.com/v2/repositories/%s/", repoName)
-	
+
 	resp, err := http.Get(url)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch from Docker Hub"})
@@ -1091,7 +1103,7 @@ func (h *Handlers) DockerHubRepositoryProxy(c *gin.Context) {
 	c.JSON(http.StatusOK, repo)
 }
 
-// DockerHubTagsProxy proxies repository tags requests to Docker Hub API  
+// DockerHubTagsProxy proxies repository tags requests to Docker Hub API
 func (h *Handlers) DockerHubTagsProxy(c *gin.Context) {
 	repoName := c.Param("repo")
 	if repoName == "" {
@@ -1102,9 +1114,9 @@ func (h *Handlers) DockerHubTagsProxy(c *gin.Context) {
 	pageSize := c.DefaultQuery("page_size", "10")
 
 	// Make request to Docker Hub API
-	url := fmt.Sprintf("https://hub.docker.com/v2/repositories/%s/tags/?page_size=%s&ordering=-last_updated", 
+	url := fmt.Sprintf("https://hub.docker.com/v2/repositories/%s/tags/?page_size=%s&ordering=-last_updated",
 		repoName, pageSize)
-	
+
 	resp, err := http.Get(url)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch from Docker Hub"})

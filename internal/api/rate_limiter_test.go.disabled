@@ -1,0 +1,68 @@
+package api
+
+import (
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestTokenBucket(t *testing.T) {
+	// Test the token bucket functionality
+	bucket := NewTokenBucket(3, 100*time.Millisecond)
+
+	// Should be able to consume 3 tokens initially
+	assert.True(t, bucket.TryConsume(), "should consume first token")
+	assert.True(t, bucket.TryConsume(), "should consume second token")
+	assert.True(t, bucket.TryConsume(), "should consume third token")
+
+	// Fourth token should fail
+	assert.False(t, bucket.TryConsume(), "should fail to consume fourth token")
+
+	// Wait for refill
+	time.Sleep(150 * time.Millisecond)
+
+	// Should be able to consume again
+	assert.True(t, bucket.TryConsume(), "should consume token after refill")
+}
+
+func TestRateLimiterMultipleKeys(t *testing.T) {
+	rl := NewRateLimiter(2, 100*time.Millisecond)
+
+	// Different keys should have independent limits
+	assert.True(t, rl.CheckLimit("key1"), "key1 should consume first token")
+	assert.True(t, rl.CheckLimit("key2"), "key2 should consume first token")
+	assert.True(t, rl.CheckLimit("key1"), "key1 should consume second token")
+	assert.True(t, rl.CheckLimit("key2"), "key2 should consume second token")
+
+	// Both keys should be rate limited now
+	assert.False(t, rl.CheckLimit("key1"), "key1 should be rate limited")
+	assert.False(t, rl.CheckLimit("key2"), "key2 should be rate limited")
+}
+
+func TestRateLimiterCleanup(t *testing.T) {
+	rl := NewRateLimiter(5, 100*time.Millisecond)
+
+	// Use the rate limiter
+	assert.True(t, rl.CheckLimit("test-key"))
+
+	// Verify bucket exists
+	rl.mu.RLock()
+	_, exists := rl.buckets["test-key"]
+	rl.mu.RUnlock()
+	assert.True(t, exists, "bucket should exist")
+
+	// Simulate old bucket by setting lastRefill to old time
+	rl.mu.Lock()
+	rl.buckets["test-key"].lastRefill = time.Now().Add(-15 * time.Minute)
+	rl.mu.Unlock()
+
+	// Run cleanup
+	rl.CleanupExpired()
+
+	// Verify bucket was removed
+	rl.mu.RLock()
+	_, exists = rl.buckets["test-key"]
+	rl.mu.RUnlock()
+	assert.False(t, exists, "expired bucket should be removed")
+}

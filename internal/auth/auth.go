@@ -69,7 +69,7 @@ func (a *AuthService) BootstrapAdminToken(ctx context.Context, adminToken string
 // Middleware creates authentication middleware for protected routes
 func (a *AuthService) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Apply rate limiting to auth attempts  
+		// Apply rate limiting to auth attempts
 		clientIP := getClientIP(c)
 		allowed, backoffDuration := a.rateLimiter.IsAllowed(clientIP)
 		if !allowed {
@@ -77,7 +77,7 @@ func (a *AuthService) Middleware() gin.HandlerFunc {
 			if backoffDuration > 0 {
 				retryAfter = fmt.Sprintf("%.0f", backoffDuration.Seconds())
 			}
-			
+
 			c.Header("Retry-After", retryAfter)
 			c.JSON(http.StatusTooManyRequests, gin.H{
 				"error":       "rate limit exceeded",
@@ -102,15 +102,15 @@ func (a *AuthService) Middleware() gin.HandlerFunc {
 				}
 			}
 		}
-		
+
 		var token string
-		
+
 		// Try Authorization header first
 		authHeader := c.GetHeader("Authorization")
 		if strings.HasPrefix(authHeader, "Bearer ") {
 			token = strings.TrimPrefix(authHeader, "Bearer ")
 		}
-		
+
 		// For WebSocket connections, also check query parameters
 		if token == "" {
 			// Check for token in query parameters (for WebSocket auth)
@@ -120,7 +120,7 @@ func (a *AuthService) Middleware() gin.HandlerFunc {
 				token = strings.TrimPrefix(queryAuth, "Bearer ")
 			}
 		}
-		
+
 		if token == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "missing authentication"})
 			c.Abort()
@@ -203,17 +203,17 @@ func hasPermission(userRole, minRole string) bool {
 	if userRole == store.RoleAdmin {
 		return true
 	}
-	
+
 	// Deployer has access to deployer and viewer resources
 	if userRole == store.RoleDeployer {
 		return minRole == store.RoleDeployer || minRole == store.RoleViewer
 	}
-	
+
 	// Viewer only has access to viewer resources
 	if userRole == store.RoleViewer {
 		return minRole == store.RoleViewer
 	}
-	
+
 	return false
 }
 
@@ -244,12 +244,12 @@ func getClientIP(c *gin.Context) string {
 			return parseIP(xff)
 		}
 	}
-	
-	// Check X-Real-IP header (nginx proxy)  
+
+	// Check X-Real-IP header (nginx proxy)
 	if xri := c.GetHeader("X-Real-IP"); xri != "" {
 		return parseIP(xri)
 	}
-	
+
 	// Fall back to direct connection IP
 	return parseIP(c.ClientIP())
 }
@@ -259,7 +259,7 @@ func parseIP(ipStr string) string {
 	if ipStr == "" {
 		return "unknown"
 	}
-	
+
 	// Handle comma-separated IPs (X-Forwarded-For)
 	for i, r := range ipStr {
 		if r == ',' || r == ' ' {

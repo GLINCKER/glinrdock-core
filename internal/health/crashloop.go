@@ -40,7 +40,7 @@ func (c *CrashLoopDetector) HandleServiceRestart(ctx context.Context, serviceID 
 
 	// Update restart count and check for crash loop
 	service.UpdateRestartCount()
-	
+
 	// Update restart tracking in database
 	err = c.store.UpdateServiceRestart(ctx, serviceID, exitCode, service.RestartCount, service.RestartWindowAt)
 	if err != nil {
@@ -67,11 +67,11 @@ func (c *CrashLoopDetector) enterCrashLoop(ctx context.Context, service *store.S
 	// Log audit event
 	if c.auditLogger != nil {
 		c.auditLogger.RecordServiceAction(ctx, "system", "service_crashloop_stop", fmt.Sprintf("%d", service.ID), map[string]interface{}{
-			"service_id":      service.ID,
-			"service_name":    service.Name,
-			"restart_count":   service.RestartCount,
-			"last_exit_code":  *service.LastExitCode,
-			"window_minutes":  store.CrashLoopWindow,
+			"service_id":     service.ID,
+			"service_name":   service.Name,
+			"restart_count":  service.RestartCount,
+			"last_exit_code": *service.LastExitCode,
+			"window_minutes": store.CrashLoopWindow,
 		})
 	}
 

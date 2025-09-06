@@ -30,15 +30,15 @@ const (
 
 // Job represents a background job
 type Job struct {
-	ID        string                 `json:"id"`
-	Type      JobType                `json:"type"`
-	Status    JobStatus              `json:"status"`
-	Data      map[string]interface{} `json:"data"`
-	Error     string                 `json:"error,omitempty"`
-	CreatedAt time.Time              `json:"created_at"`
-	StartedAt *time.Time             `json:"started_at,omitempty"`
+	ID         string                 `json:"id"`
+	Type       JobType                `json:"type"`
+	Status     JobStatus              `json:"status"`
+	Data       map[string]interface{} `json:"data"`
+	Error      string                 `json:"error,omitempty"`
+	CreatedAt  time.Time              `json:"created_at"`
+	StartedAt  *time.Time             `json:"started_at,omitempty"`
 	FinishedAt *time.Time             `json:"finished_at,omitempty"`
-	Progress  int                    `json:"progress"` // 0-100
+	Progress   int                    `json:"progress"` // 0-100
 }
 
 // JobHandler is a function that processes a job
@@ -59,7 +59,7 @@ type Queue struct {
 // NewQueue creates a new job queue
 func NewQueue(workers int) *Queue {
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	return &Queue{
 		jobs:     make(map[string]*Job),
 		jobsChan: make(chan *Job, 100), // Buffer for 100 jobs
@@ -80,7 +80,7 @@ func (q *Queue) RegisterHandler(jobType JobType, handler JobHandler) {
 // Start starts the job queue workers
 func (q *Queue) Start() {
 	log.Info().Int("workers", q.workers).Msg("starting job queue")
-	
+
 	for i := 0; i < q.workers; i++ {
 		q.wg.Add(1)
 		go q.worker(i)
@@ -90,11 +90,11 @@ func (q *Queue) Start() {
 // Stop stops the job queue and waits for all workers to finish
 func (q *Queue) Stop() {
 	log.Info().Msg("stopping job queue")
-	
+
 	q.cancel()
 	close(q.jobsChan)
 	q.wg.Wait()
-	
+
 	log.Info().Msg("job queue stopped")
 }
 
@@ -133,12 +133,12 @@ func (q *Queue) Enqueue(jobType JobType, data map[string]interface{}) *Job {
 func (q *Queue) GetJob(id string) (*Job, bool) {
 	q.mu.RLock()
 	defer q.mu.RUnlock()
-	
+
 	job, exists := q.jobs[id]
 	if !exists {
 		return nil, false
 	}
-	
+
 	// Return a copy to prevent race conditions
 	jobCopy := *job
 	return &jobCopy, true
@@ -148,7 +148,7 @@ func (q *Queue) GetJob(id string) (*Job, bool) {
 func (q *Queue) ListJobs(status JobStatus) []*Job {
 	q.mu.RLock()
 	defer q.mu.RUnlock()
-	
+
 	var jobs []*Job
 	for _, job := range q.jobs {
 		if status == "" || job.Status == status {
@@ -157,7 +157,7 @@ func (q *Queue) ListJobs(status JobStatus) []*Job {
 			jobs = append(jobs, &jobCopy)
 		}
 	}
-	
+
 	return jobs
 }
 
@@ -165,7 +165,7 @@ func (q *Queue) ListJobs(status JobStatus) []*Job {
 func (q *Queue) UpdateJobProgress(jobID string, progress int) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	
+
 	if job, exists := q.jobs[jobID]; exists && job.Status == JobStatusRunning {
 		job.Progress = progress
 	}
@@ -174,7 +174,7 @@ func (q *Queue) UpdateJobProgress(jobID string, progress int) {
 // worker processes jobs from the queue
 func (q *Queue) worker(workerID int) {
 	defer q.wg.Done()
-	
+
 	log.Info().Int("worker_id", workerID).Msg("worker started")
 	defer log.Info().Int("worker_id", workerID).Msg("worker stopped")
 
@@ -186,7 +186,7 @@ func (q *Queue) worker(workerID int) {
 				return
 			}
 			q.processJob(workerID, job)
-			
+
 		case <-q.ctx.Done():
 			return
 		}
@@ -235,7 +235,7 @@ func (q *Queue) finishJob(job *Job, err error) {
 	now := time.Now()
 	job.FinishedAt = &now
 	job.Progress = 100
-	
+
 	// Decrement active jobs counter
 	metrics.DecActiveJobs()
 

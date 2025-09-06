@@ -1,0 +1,422 @@
+package proxy
+
+import (
+	"bytes"
+	"context"
+	"os"
+	"testing"
+	"text/template"
+	"time"
+
+	"github.com/GLINCKER/glinrdock/internal/store"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+)
+
+// MockRouteStore implements RouteStore for testing
+type MockRouteStore struct {
+	mock.Mock
+}
+
+func (m *MockRouteStore) GetAllRoutes(ctx context.Context) ([]store.Route, error) {
+	args := m.Called(ctx)
+	return args.Get(0).([]store.Route), args.Error(1)
+}
+
+func (m *MockRouteStore) GetService(ctx context.Context, id int64) (store.Service, error) {
+	args := m.Called(ctx, id)
+	return args.Get(0).(store.Service), args.Error(1)
+}
+
+func TestNginxConfig_GenerateConfig(t *testing.T) {
+	// Create temporary files for testing
+	tempDir, err := os.MkdirTemp("", "glinr_nginx_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	configPath := tempDir + "/nginx.conf"
+
+	// Create mock store
+	mockStore := &MockRouteStore{}
+
+	// Setup test data
+	routes := []store.Route{
+		{
+			ID:        1,
+			ServiceID: 1,
+			Domain:    "api.example.com",
+			Port:      8080,
+			TLS:       true,
+			CreatedAt: time.Now(),
+		},
+		{
+			ID:        2,
+			ServiceID: 2,
+			Domain:    "www.example.com",
+			Port:      80,
+			TLS:       false,
+			CreatedAt: time.Now(),
+		},
+	}
+
+	services := map[int64]store.Service{
+		1: {ID: 1, ProjectID: 1, Name: "api", Image: "nginx:alpine"},
+		2: {ID: 2, ProjectID: 1, Name: "web", Image: "nginx"},
+	}
+
+	mockStore.On("GetAllRoutes", mock.Anything).Return(routes, nil)
+	for serviceID, service := range services {
+		mockStore.On("GetService", mock.Anything, serviceID).Return(service, nil)
+	}
+
+	// Create nginx config
+	nginxConfig := NewNginxConfig(configPath, tempDir, mockStore)
+
+	// Generate configuration
+	err = nginxConfig.GenerateConfig(context.Background())
+	require.NoError(t, err)
+
+	// Read generated config
+	content, err := os.ReadFile(nginxConfig.TempPath)
+	require.NoError(t, err)
+
+	configStr := string(content)
+
+	// Verify upstreams are generated
+	assert.Contains(t, configStr, "upstream glinr_1_api")
+	assert.Contains(t, configStr, "server host.docker.internal:8080")
+	assert.Contains(t, configStr, "upstream glinr_1_web")
+	assert.Contains(t, configStr, "server host.docker.internal:80")
+
+	// Verify server blocks are generated
+	assert.Contains(t, configStr, "server_name api.example.com")
+	assert.Contains(t, configStr, "server_name www.example.com")
+
+	// Verify TLS configuration for HTTPS route
+	assert.Contains(t, configStr, "listen 443 ssl http2")
+	assert.Contains(t, configStr, "ssl_certificate /etc/nginx/ssl/api.example.com.crt")
+	assert.Contains(t, configStr, "ssl_certificate_key /etc/nginx/ssl/api.example.com.key")
+
+	// Verify HTTP-only configuration
+	assert.Contains(t, configStr, "listen 80") // Should appear multiple times
+
+	// Verify proxy configuration
+	assert.Contains(t, configStr, "proxy_pass http://glinr_1_api")
+	assert.Contains(t, configStr, "proxy_pass http://glinr_1_web")
+
+	// Verify health endpoints
+	assert.Contains(t, configStr, "location /health")
+
+	// Verify HTTPS redirect for TLS-enabled route
+	assert.Contains(t, configStr, "return 301 https://$server_name$request_uri")
+
+	// Verify default server block
+	assert.Contains(t, configStr, "listen 80 default_server")
+	assert.Contains(t, configStr, "listen 443 ssl default_server")
+	assert.Contains(t, configStr, "return 444")
+
+	mockStore.AssertExpectations(t)
+}
+
+func TestNginxConfig_GenerateConfigEmptyRoutes(t *testing.T) {
+	// Create temporary files for testing
+	tempDir, err := os.MkdirTemp("", "glinr_nginx_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	configPath := tempDir + "/nginx.conf"
+
+	// Create mock store with no routes
+	mockStore := &MockRouteStore{}
+	mockStore.On("GetAllRoutes", mock.Anything).Return([]store.Route{}, nil)
+
+	// Create nginx config
+	nginxConfig := NewNginxConfig(configPath, tempDir, mockStore)
+
+	// Generate configuration
+	err = nginxConfig.GenerateConfig(context.Background())
+	require.NoError(t, err)
+
+	// Read generated config
+	content, err := os.ReadFile(nginxConfig.TempPath)
+	require.NoError(t, err)
+
+	configStr := string(content)
+
+	// Should still have basic nginx structure
+	assert.Contains(t, configStr, "events {")
+	assert.Contains(t, configStr, "http {")
+	assert.Contains(t, configStr, "listen 80 default_server")
+
+	// Should not have any service-specific upstreams or servers
+	assert.NotContains(t, configStr, "upstream glinr_")
+	assert.NotContains(t, configStr, "# Server block for")
+
+	mockStore.AssertExpectations(t)
+}
+
+func TestNginxConfig_GenerateConfigMissingService(t *testing.T) {
+	// Create temporary files for testing
+	tempDir, err := os.MkdirTemp("", "glinr_nginx_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	configPath := tempDir + "/nginx.conf"
+
+	// Create mock store
+	mockStore := &MockRouteStore{}
+
+	// Setup route with missing service
+	routes := []store.Route{
+		{ID: 1, ServiceID: 999, Domain: "missing.example.com", Port: 80, TLS: false},
+	}
+
+	mockStore.On("GetAllRoutes", mock.Anything).Return(routes, nil)
+	mockStore.On("GetService", mock.Anything, int64(999)).Return(store.Service{}, assert.AnError)
+
+	// Create nginx config
+	nginxConfig := NewNginxConfig(configPath, tempDir, mockStore)
+
+	// Generate configuration (should succeed but skip missing service)
+	err = nginxConfig.GenerateConfig(context.Background())
+	require.NoError(t, err)
+
+	// Read generated config
+	content, err := os.ReadFile(nginxConfig.TempPath)
+	require.NoError(t, err)
+
+	configStr := string(content)
+
+	// Should not contain the missing service
+	assert.NotContains(t, configStr, "missing.example.com")
+	assert.NotContains(t, configStr, "upstream glinr_999")
+
+	mockStore.AssertExpectations(t)
+}
+
+func TestNginxConfig_ValidateConfig(t *testing.T) {
+	// Create temporary files for testing
+	tempDir, err := os.MkdirTemp("", "glinr_nginx_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	configPath := tempDir + "/nginx.conf"
+
+	// Create nginx config with mock validation command
+	mockStore := &MockRouteStore{}
+	nginxConfig := NewNginxConfig(configPath, tempDir, mockStore)
+
+	// Mock successful validation command (using 'true' command)
+	nginxConfig.ValidateCmd = []string{"true"}
+
+	err = nginxConfig.ValidateConfig()
+	assert.NoError(t, err)
+
+	// Mock failed validation command (using 'false' command)
+	nginxConfig.ValidateCmd = []string{"false"}
+
+	err = nginxConfig.ValidateConfig()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "nginx validation failed")
+}
+
+func TestNginxConfig_AtomicSwap(t *testing.T) {
+	// Create temporary directory
+	tempDir, err := os.MkdirTemp("", "glinr_nginx_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	configPath := tempDir + "/nginx.conf"
+	mockStore := &MockRouteStore{}
+	nginxConfig := NewNginxConfig(configPath, tempDir, mockStore)
+
+	// Write some content to temp file
+	tempContent := "# Test nginx config"
+	err = os.WriteFile(nginxConfig.TempPath, []byte(tempContent), 0644)
+	require.NoError(t, err)
+
+	// Perform atomic swap
+	err = nginxConfig.AtomicSwap()
+	require.NoError(t, err)
+
+	// Verify main config file has the content
+	content, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+	assert.Equal(t, tempContent, string(content))
+
+	// Verify temp file no longer exists
+	_, err = os.Stat(nginxConfig.TempPath)
+	assert.True(t, os.IsNotExist(err))
+}
+
+func TestNginxConfig_ReloadNginx(t *testing.T) {
+	// Create nginx config with mock reload command
+	mockStore := &MockRouteStore{}
+	nginxConfig := NewNginxConfig("/tmp/nginx.conf", "/tmp", mockStore)
+
+	// Mock successful reload command (using 'true' command)
+	nginxConfig.ReloadCmd = []string{"true"}
+
+	err := nginxConfig.ReloadNginx()
+	assert.NoError(t, err)
+
+	// Mock failed reload command (using 'false' command)
+	nginxConfig.ReloadCmd = []string{"false"}
+
+	err = nginxConfig.ReloadNginx()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "nginx reload failed")
+}
+
+func TestNginxConfig_UpdateAndReload(t *testing.T) {
+	// Create temporary directory
+	tempDir, err := os.MkdirTemp("", "glinr_nginx_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	configPath := tempDir + "/nginx.conf"
+
+	// Create mock store with simple route
+	mockStore := &MockRouteStore{}
+	route := store.Route{ID: 1, ServiceID: 1, Domain: "test.com", Port: 80, TLS: false}
+	service := store.Service{ID: 1, ProjectID: 1, Name: "test", Image: "nginx"}
+
+	mockStore.On("GetAllRoutes", mock.Anything).Return([]store.Route{route}, nil)
+	mockStore.On("GetService", mock.Anything, int64(1)).Return(service, nil)
+
+	// Create nginx config with mock commands
+	nginxConfig := NewNginxConfig(configPath, tempDir, mockStore)
+	nginxConfig.ValidateCmd = []string{"true"}
+	nginxConfig.ReloadCmd = []string{"true"}
+
+	// Perform full update and reload
+	err = nginxConfig.UpdateAndReload(context.Background())
+	require.NoError(t, err)
+
+	// Verify final config file exists and contains expected content
+	content, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+
+	configStr := string(content)
+	assert.Contains(t, configStr, "server_name test.com")
+	assert.Contains(t, configStr, "upstream glinr_1_test")
+
+	// Verify temp file was cleaned up
+	_, err = os.Stat(nginxConfig.TempPath)
+	assert.True(t, os.IsNotExist(err))
+
+	mockStore.AssertExpectations(t)
+}
+
+func TestNginxConfig_UpdateAndReloadValidationFailure(t *testing.T) {
+	// Create temporary directory
+	tempDir, err := os.MkdirTemp("", "glinr_nginx_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	configPath := tempDir + "/nginx.conf"
+
+	// Create mock store
+	mockStore := &MockRouteStore{}
+	mockStore.On("GetAllRoutes", mock.Anything).Return([]store.Route{}, nil)
+
+	// Create nginx config with failing validation command
+	nginxConfig := NewNginxConfig(configPath, tempDir, mockStore)
+	nginxConfig.ValidateCmd = []string{"false"} // This will fail
+	nginxConfig.ReloadCmd = []string{"true"}
+
+	// Attempt update and reload (should fail at validation)
+	err = nginxConfig.UpdateAndReload(context.Background())
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "config validation failed")
+
+	// Verify main config file was not created
+	_, err = os.Stat(configPath)
+	assert.True(t, os.IsNotExist(err))
+
+	// Verify temp file was cleaned up after failure
+	_, err = os.Stat(nginxConfig.TempPath)
+	assert.True(t, os.IsNotExist(err))
+
+	mockStore.AssertExpectations(t)
+}
+
+func TestTemplateRendering(t *testing.T) {
+	// Test specific template rendering scenarios
+	testCases := []struct {
+		name     string
+		routes   []RouteData
+		contains []string
+		excludes []string
+	}{
+		{
+			name: "HTTPSRoute",
+			routes: []RouteData{
+				{
+					Route:           store.Route{Domain: "secure.com", Port: 443, TLS: true},
+					Service:         store.Service{ProjectID: 1, Name: "secure"},
+					UpstreamName:    "glinr_1_secure",
+					ServiceEndpoint: "host.docker.internal:443",
+				},
+			},
+			contains: []string{
+				"listen 443 ssl http2",
+				"ssl_certificate /etc/nginx/ssl/secure.com.crt",
+				"return 301 https://$server_name$request_uri",
+			},
+			excludes: []string{},
+		},
+		{
+			name: "HTTPRoute",
+			routes: []RouteData{
+				{
+					Route:           store.Route{Domain: "plain.com", Port: 80, TLS: false},
+					Service:         store.Service{ProjectID: 1, Name: "plain"},
+					UpstreamName:    "glinr_1_plain",
+					ServiceEndpoint: "host.docker.internal:80",
+				},
+			},
+			contains: []string{
+				"listen 80;",
+				"server_name plain.com",
+				"proxy_pass http://glinr_1_plain",
+			},
+			excludes: []string{
+				"return 301 https://$server_name$request_uri",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create temporary config for testing
+			tempDir, err := os.MkdirTemp("", "glinr_template_test")
+			require.NoError(t, err)
+			defer os.RemoveAll(tempDir)
+
+			// Generate actual config using the template
+			data := ConfigData{
+				Routes:    tc.routes,
+				Generated: time.Now(),
+			}
+
+			tmpl, err := template.New("nginx").Parse(nginxTemplate)
+			require.NoError(t, err)
+
+			var buf bytes.Buffer
+			err = tmpl.Execute(&buf, data)
+			require.NoError(t, err)
+			config := buf.String()
+
+			// Check rendered config contains expected patterns
+			for _, contains := range tc.contains {
+				assert.Contains(t, config, contains)
+			}
+
+			for _, excludes := range tc.excludes {
+				assert.NotContains(t, config, excludes)
+			}
+		})
+	}
+}

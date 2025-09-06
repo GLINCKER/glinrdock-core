@@ -226,54 +226,37 @@ export function useApiHealth() {
 export function GlobalBanners() {
   const isOnline = useOfflineStatus()
   const { isHealthy, checkHealth } = useApiHealth()
-  const [showOfflineBanner, setShowOfflineBanner] = useState(false)
-  const [showHealthBanner, setShowHealthBanner] = useState(false)
+  const [showBanner, setShowBanner] = useState(false)
+  const [bannerType, setBannerType] = useState<'offline' | 'api-unhealthy'>('offline')
 
-  // Show offline banner when going offline
+  // Unified banner logic to prevent duplicates
   useEffect(() => {
     if (!isOnline) {
-      setShowOfflineBanner(true)
+      setBannerType('offline')
+      setShowBanner(true)
+    } else if (!isHealthy && isOnline) {
+      setBannerType('api-unhealthy')
+      setShowBanner(true)
     } else {
-      // Hide banner when coming back online, but only after a short delay
-      const timer = setTimeout(() => setShowOfflineBanner(false), 1000)
+      // Hide banner when everything is working, with a short delay for online state
+      const timer = setTimeout(() => setShowBanner(false), 1000)
       return () => clearTimeout(timer)
     }
-  }, [isOnline])
+  }, [isOnline, isHealthy])
 
-  // Show health banner when API becomes unhealthy
-  useEffect(() => {
-    if (!isHealthy && isOnline) {
-      setShowHealthBanner(true)
-    } else {
-      setShowHealthBanner(false)
-    }
-  }, [isHealthy, isOnline])
-
-  const hasAnyBanner = showOfflineBanner || showHealthBanner
-  
-  if (!hasAnyBanner) return null
+  if (!showBanner) return null
   
   return (
     <div class="fixed top-[60px] lg:top-[49px] left-0 lg:left-64 right-0 z-[60]">
-      {showOfflineBanner && (
-        <AlertBanner
-          type="offline"
-          isVisible={true}
-          onClose={() => setShowOfflineBanner(false)}
-        />
-      )}
-      
-      {showHealthBanner && (
-        <AlertBanner
-          type="api-unhealthy"
-          isVisible={true}
-          action={{
-            label: 'Retry',
-            onClick: checkHealth
-          }}
-          onClose={() => setShowHealthBanner(false)}
-        />
-      )}
+      <AlertBanner
+        type={bannerType}
+        isVisible={true}
+        action={bannerType === 'api-unhealthy' ? {
+          label: 'Retry',
+          onClick: checkHealth
+        } : undefined}
+        onClose={() => setShowBanner(false)}
+      />
     </div>
   )
 }

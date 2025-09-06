@@ -35,7 +35,7 @@ func HandleTokenQuotaError(c *gin.Context, current, limit int, planName config.P
 		Plan:        planName.String(),
 		UpgradeHint: getUpgradeHint(planName),
 	}
-	
+
 	c.JSON(http.StatusForbidden, response)
 }
 
@@ -50,7 +50,7 @@ func HandleClientQuotaError(c *gin.Context, current, limit int, planName config.
 		Plan:        planName.String(),
 		UpgradeHint: getUpgradeHint(planName),
 	}
-	
+
 	c.JSON(http.StatusForbidden, response)
 }
 
@@ -65,7 +65,7 @@ func HandleUserQuotaError(c *gin.Context, current, limit int, planName config.Pl
 		Plan:        planName.String(),
 		UpgradeHint: getUpgradeHint(planName),
 	}
-	
+
 	c.JSON(http.StatusForbidden, response)
 }
 
@@ -85,16 +85,16 @@ func HandlePlanError(c *gin.Context, err error, planName config.Plan, usage plan
 	switch {
 	case err == plan.ErrTokenQuota:
 		HandleTokenQuotaError(c, usage.Tokens, limits.MaxTokens, planName)
-		
+
 	case err == plan.ErrClientQuota:
 		HandleClientQuotaError(c, usage.Clients, limits.MaxClients, planName)
-		
+
 	case err == plan.ErrUserQuota:
 		HandleUserQuotaError(c, usage.Users, limits.MaxUsers, planName)
-		
+
 	case err == plan.ErrFeatureLocked:
 		HandleFeatureLockedError(c, "user_management", planName)
-		
+
 	default:
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "plan_enforcement_error",
@@ -117,33 +117,33 @@ func getUpgradeHint(planName config.Plan) string {
 
 // SystemPlanResponse represents the response structure for plan information
 type SystemPlanResponse struct {
-	Plan   string                `json:"plan"`
-	Limits config.PlanLimits     `json:"limits"`
-	Usage  plan.Usage           `json:"usage"`
-	Features map[string]bool     `json:"features"`
+	Plan     string            `json:"plan"`
+	Limits   config.PlanLimits `json:"limits"`
+	Usage    plan.Usage        `json:"usage"`
+	Features map[string]bool   `json:"features"`
 }
 
 // GetPlanLimitsForResponse converts internal limits to JSON-safe format
 func GetPlanLimitsForResponse(limits config.PlanLimits) map[string]interface{} {
 	result := make(map[string]interface{})
-	
+
 	if limits.MaxTokens == -1 {
 		result["max_tokens"] = "unlimited"
 	} else {
 		result["max_tokens"] = limits.MaxTokens
 	}
-	
+
 	if limits.MaxClients == -1 {
 		result["max_clients"] = "unlimited"
 	} else {
 		result["max_clients"] = limits.MaxClients
 	}
-	
+
 	if limits.MaxUsers == -1 {
 		result["max_users"] = "unlimited"
 	} else {
 		result["max_users"] = limits.MaxUsers
 	}
-	
+
 	return result
 }

@@ -47,7 +47,6 @@ type GitHubStore interface {
 	GetActiveReposByInstallation(ctx context.Context, installationID int64) ([]GitHubRepo, error)
 }
 
-
 // NewWebhookHandler creates a new webhook handler
 func NewWebhookHandler(secret string, store GitHubStore) *WebhookHandler {
 	return &WebhookHandler{
@@ -178,11 +177,11 @@ func (h *WebhookHandler) handleInstallationEvent(body []byte) error {
 			CreatedAt:    time.Now(),
 			UpdatedAt:    time.Now(),
 		}
-		
+
 		if err := h.store.CreateGitHubInstallation(ctx, installation); err != nil {
 			return fmt.Errorf("failed to create installation: %w", err)
 		}
-		
+
 		// Add repositories if included in event
 		for _, repo := range event.Repositories {
 			githubRepo := &GitHubRepo{
@@ -193,26 +192,26 @@ func (h *WebhookHandler) handleInstallationEvent(body []byte) error {
 				CreatedAt:      time.Now(),
 				UpdatedAt:      time.Now(),
 			}
-			
+
 			if err := h.store.CreateGitHubRepo(ctx, githubRepo); err != nil {
 				fmt.Printf("Failed to create repo %s: %v\n", repo.FullName, err)
 			}
 		}
-		
-		fmt.Printf("Installation created: %d (%s) with %d repositories\n", 
+
+		fmt.Printf("Installation created: %d (%s) with %d repositories\n",
 			event.Installation.ID, event.Installation.Account.Login, len(event.Repositories))
-			
+
 	case "deleted":
 		// Remove installation from database (will cascade delete repos)
 		if err := h.store.DeleteGitHubInstallation(ctx, event.Installation.ID); err != nil {
 			return fmt.Errorf("failed to delete installation: %w", err)
 		}
 		fmt.Printf("Installation deleted: %d (%s)\n", event.Installation.ID, event.Installation.Account.Login)
-		
+
 	case "suspend":
 		// TODO: Mark installation as suspended (need to add suspend field to DB)
 		fmt.Printf("Installation suspended: %d (%s)\n", event.Installation.ID, event.Installation.Account.Login)
-		
+
 	case "unsuspend":
 		// TODO: Mark installation as active (need to add suspend field to DB)
 		fmt.Printf("Installation unsuspended: %d (%s)\n", event.Installation.ID, event.Installation.Account.Login)
@@ -242,14 +241,14 @@ func (h *WebhookHandler) handleInstallationRepositoriesEvent(body []byte) error 
 				CreatedAt:      time.Now(),
 				UpdatedAt:      time.Now(),
 			}
-			
+
 			if err := h.store.CreateGitHubRepo(ctx, githubRepo); err != nil {
 				fmt.Printf("Failed to create repo %s: %v\n", repo.FullName, err)
 			}
 		}
-		fmt.Printf("Repositories added to installation %d: %d repos\n", 
+		fmt.Printf("Repositories added to installation %d: %d repos\n",
 			event.Installation.ID, len(event.RepositoriesAdded))
-			
+
 	case "removed":
 		// Remove repositories from database
 		for _, repo := range event.RepositoriesRemoved {
@@ -257,7 +256,7 @@ func (h *WebhookHandler) handleInstallationRepositoriesEvent(body []byte) error 
 				fmt.Printf("Failed to delete repo %s: %v\n", repo.FullName, err)
 			}
 		}
-		fmt.Printf("Repositories removed from installation %d: %d repos\n", 
+		fmt.Printf("Repositories removed from installation %d: %d repos\n",
 			event.Installation.ID, len(event.RepositoriesRemoved))
 	}
 
@@ -300,7 +299,7 @@ func (h *WebhookHandler) handlePushEvent(body []byte) error {
 
 	// TODO: Get linked projects for this repository and trigger builds
 	// This would require extending the store interface to include project mappings
-	fmt.Printf("Push to active repo %s: %s (%d commits) - would trigger build\n", 
+	fmt.Printf("Push to active repo %s: %s (%d commits) - would trigger build\n",
 		event.Repository.FullName, event.Ref, len(event.Commits))
 
 	return nil

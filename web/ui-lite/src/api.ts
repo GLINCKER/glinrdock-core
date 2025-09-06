@@ -231,6 +231,36 @@ export interface Certificate {
   updated_at: string
 }
 
+export interface DNSProvider {
+  id: number
+  name: string
+  type: 'cloudflare' | 'route53' | 'manual'
+  label?: string
+  email?: string
+  settings?: {[key: string]: any}
+  active?: boolean
+  created_at: string
+  updated_at: string
+  provider_hints?: ProviderHints
+}
+
+export interface ProviderHints {
+  type: string
+  required_scopes?: string[]
+  dashboard_url?: string
+  description?: string
+}
+
+export interface CreateDNSProviderRequest {
+  name: string
+  type: 'cloudflare' | 'route53' | 'manual'
+  label: string
+  email?: string
+  api_token?: string
+  config: {[key: string]: any}
+  settings?: {[key: string]: any}
+}
+
 export interface ServiceStats {
   cpu_usage: number
   memory_usage: number
@@ -410,6 +440,26 @@ export interface AuthInfo {
     name?: string
     avatar_url?: string
   }
+}
+
+// Integrations Configuration types
+export interface GitHubOAuthConfig {
+  mode: 'off' | 'on'
+  client_id?: string
+  client_secret?: string // This will be redacted in API responses
+  redirect_url?: string
+}
+
+export interface GitHubAppConfig {
+  app_id?: string
+  installation_id?: string
+  private_key?: string // This will be redacted in API responses
+  webhook_secret?: string // This will be redacted in API responses
+}
+
+export interface IntegrationsConfig {
+  github_oauth?: GitHubOAuthConfig | null
+  github_app?: GitHubAppConfig | null
 }
 
 // Service Discovery types
@@ -1130,6 +1180,24 @@ class APIClient {
     return this.delete<void>(`/certificates/${id}`)
   }
 
+  // DNS Provider API methods
+  async listDNSProviders(): Promise<DNSProvider[]> {
+    const response = await this.get<{providers: DNSProvider[], count: number}>('/dns/providers')
+    return response.providers || []
+  }
+  
+  async createDNSProvider(data: CreateDNSProviderRequest): Promise<DNSProvider> {
+    return this.post<DNSProvider>('/dns/providers', data)
+  }
+  
+  async getDNSProvider(id: number): Promise<DNSProvider> {
+    return this.get<DNSProvider>(`/dns/providers/${id}`)
+  }
+  
+  async deleteDNSProvider(id: number): Promise<void> {
+    return this.delete<void>(`/dns/providers/${id}`)
+  }
+
   async checkRouteHealth(id: string): Promise<{ status: 'OK' | 'FAIL', checked_at: string }> {
     try {
       const response = await fetch(`${this.baseURL}/v1/routes/${id}/check`, {
@@ -1208,6 +1276,14 @@ class APIClient {
 
   async getSystemStatus(): Promise<any> {
     return this.get<any>('/system/status')
+  }
+
+  async systemStart(): Promise<any> {
+    return this.post<any>('/system/start')
+  }
+
+  async systemStop(): Promise<any> {
+    return this.post<any>('/system/stop')
   }
 
   async emergencyRestart(): Promise<any> {
@@ -1380,6 +1456,15 @@ class APIClient {
     return this.post<any>('/system/license/deactivate')
   }
 
+  // Integrations Configuration
+  async getIntegrationsConfig(): Promise<IntegrationsConfig> {
+    return this.get<IntegrationsConfig>('/settings/integrations')
+  }
+
+  async updateIntegrationsConfig(config: IntegrationsConfig): Promise<any> {
+    return this.put<any>('/settings/integrations', config)
+  }
+
   async downloadSupportBundle(): Promise<Blob> {
     const url = `${this.baseURL}/v1/support/bundle`
     const response = await fetch(url, {
@@ -1452,7 +1537,20 @@ class APIClient {
   }
 
   async getHelpDocument(slug: string): Promise<HelpDocument> {
-    const response = await fetch(`${this.baseURL}/v1/help/${slug}`, {
+    // Handle nested slugs by using the appropriate API route
+    let apiUrl = `${this.baseURL}/v1/help`
+    
+    // For nested documents like integrations/github-app, guides/install, using/settings
+    if (slug.includes('/')) {
+      const parts = slug.split('/')
+      if (parts.length === 2) {
+        apiUrl = `${this.baseURL}/v1/help/${parts[0]}/${parts[1]}`
+      }
+    } else {
+      apiUrl = `${this.baseURL}/v1/help/${slug}`
+    }
+
+    const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
         ...(this.token && { Authorization: `Bearer ${this.token}` }),
@@ -1466,19 +1564,23 @@ class APIClient {
       throw new APIError(`Failed to fetch help document: ${response.status}`, response.status, 'HELP_ERROR')
     }
 
-    const markdown = await response.text()
-    const etag = response.headers.get('ETag') || undefined
-
+    // The API returns JSON, not plain text
+    const jsonResponse = await response.json()
+    
     return {
-      slug,
-      markdown,
-      updated_at: new Date().toISOString(),
-      etag
+      slug: jsonResponse.slug || slug,
+      markdown: jsonResponse.markdown,
+      updated_at: jsonResponse.updated_at || new Date().toISOString(),
+      etag: jsonResponse.etag
     }
   }
 
   async reindexHelp(): Promise<{ message: string }> {
     return this.post<{ message: string }>('/search/reindex?help=true')
+  }
+
+  async reindexSearch(): Promise<{ message: string, started_at: string }> {
+    return this.post<{ message: string, started_at: string }>('/search/reindex')
   }
 }
 

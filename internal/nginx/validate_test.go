@@ -25,9 +25,9 @@ func TestNewValidator(t *testing.T) {
 func TestValidator_SetNginxPath(t *testing.T) {
 	validator := NewValidator()
 	customPath := "/usr/local/bin/nginx"
-	
+
 	validator.SetNginxPath(customPath)
-	
+
 	if validator.nginxPath != customPath {
 		t.Errorf("Expected nginxPath to be %s, got %s", customPath, validator.nginxPath)
 	}
@@ -36,9 +36,9 @@ func TestValidator_SetNginxPath(t *testing.T) {
 func TestValidator_EnableDockerValidation(t *testing.T) {
 	validator := NewValidator()
 	containerName := "custom-nginx"
-	
+
 	validator.EnableDockerValidation(containerName)
-	
+
 	if !validator.useDocker {
 		t.Error("Expected useDocker to be true")
 	}
@@ -49,9 +49,9 @@ func TestValidator_EnableDockerValidation(t *testing.T) {
 
 func TestValidator_EnableDockerValidation_EmptyContainer(t *testing.T) {
 	validator := NewValidator()
-	
+
 	validator.EnableDockerValidation("")
-	
+
 	if !validator.useDocker {
 		t.Error("Expected useDocker to be true")
 	}
@@ -63,15 +63,17 @@ func TestValidator_EnableDockerValidation_EmptyContainer(t *testing.T) {
 func TestValidator_DisableDockerValidation(t *testing.T) {
 	validator := NewValidator()
 	validator.EnableDockerValidation("test")
-	
+
 	validator.DisableDockerValidation()
-	
+
 	if validator.useDocker {
 		t.Error("Expected useDocker to be false")
 	}
 }
 
 func TestValidator_ValidateConfig(t *testing.T) {
+	skipNginxTestsInCI(t)
+
 	validator := NewValidator()
 
 	tests := []struct {
@@ -140,7 +142,7 @@ worker_processes auto;
 			defer cancel()
 
 			err := validator.ValidateConfig(ctx, tt.config)
-			
+
 			if tt.expectError && err == nil {
 				t.Error("Expected error but got none")
 			}
@@ -152,6 +154,8 @@ worker_processes auto;
 }
 
 func TestValidator_ValidateConfiguration_WithNginxCmd(t *testing.T) {
+	skipNginxTestsInCI(t)
+
 	validator := NewValidator()
 
 	tests := []struct {
@@ -199,7 +203,7 @@ server {
         proxy_pass http://backend;
     }
 }`
-			
+
 			// Write test config
 			err := os.WriteFile(configPath, []byte(testConfig), 0644)
 			if err != nil {
@@ -208,14 +212,14 @@ server {
 			defer os.Remove(configPath)
 
 			err = validator.ValidateConfiguration(ctx, configPath)
-			
+
 			if tt.expectError && err == nil {
 				t.Error("Expected error but got none")
 			}
 			if !tt.expectError && err != nil {
 				// For nginx command not found, we don't fail
 				if !strings.Contains(err.Error(), "nginx binary not found") &&
-				   !strings.Contains(err.Error(), "custom nginx command validation failed") {
+					!strings.Contains(err.Error(), "custom nginx command validation failed") {
 					t.Errorf("Unexpected error: %v", err)
 				}
 			}
@@ -224,6 +228,8 @@ server {
 }
 
 func TestValidator_ValidateConfiguration_DockerNotFound(t *testing.T) {
+	skipNginxTestsInCI(t)
+
 	validator := NewValidator()
 	validator.EnableDockerValidation("non-existent-container")
 
@@ -232,7 +238,7 @@ func TestValidator_ValidateConfiguration_DockerNotFound(t *testing.T) {
 
 	configPath := "/tmp/test-nginx.conf"
 	testConfig := `server { listen 80; }`
-	
+
 	err := os.WriteFile(configPath, []byte(testConfig), 0644)
 	if err != nil {
 		t.Fatalf("Failed to create test config: %v", err)
@@ -283,7 +289,7 @@ func TestValidator_validateWithCustomCommand(t *testing.T) {
 
 			configPath := "/tmp/test-nginx.conf"
 			testConfig := `server { listen 80; }`
-			
+
 			err := os.WriteFile(configPath, []byte(testConfig), 0644)
 			if err != nil {
 				t.Fatalf("Failed to create test config: %v", err)
@@ -291,7 +297,7 @@ func TestValidator_validateWithCustomCommand(t *testing.T) {
 			defer os.Remove(configPath)
 
 			err = validator.validateWithCustomCommand(ctx, tt.nginxCmd, configPath)
-			
+
 			if tt.expectError && err == nil {
 				t.Error("Expected error but got none")
 			}
@@ -309,7 +315,7 @@ func TestValidator_validateWithDocker(t *testing.T) {
 	defer cancel()
 
 	configPath := "/tmp/test-nginx.conf"
-	
+
 	// This should not error even if docker container doesn't exist (should skip validation)
 	err := validator.validateWithDocker(ctx, configPath)
 	if err != nil {
@@ -319,8 +325,8 @@ func TestValidator_validateWithDocker(t *testing.T) {
 
 func TestGetDockerContainerName(t *testing.T) {
 	tests := []struct {
-		name    string
-		envVar  string
+		name     string
+		envVar   string
 		expected string
 	}{
 		{

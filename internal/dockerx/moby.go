@@ -81,7 +81,7 @@ func (e *MobyEngine) Create(ctx context.Context, name string, spec ContainerSpec
 	for _, port := range spec.Ports {
 		containerPort := nat.Port(strconv.Itoa(port.Container) + "/tcp")
 		exposedPorts[containerPort] = struct{}{}
-		
+
 		portBindings[containerPort] = []nat.PortBinding{
 			{
 				HostIP:   "0.0.0.0",
@@ -155,12 +155,12 @@ func (e *MobyEngine) Logs(ctx context.Context, id string, follow bool) (io.ReadC
 		Follow:     follow,
 		Timestamps: true,
 	}
-	
+
 	reader, err := e.client.ContainerLogs(ctx, id, options)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get logs for container %s: %w", id, err)
 	}
-	
+
 	return reader, nil
 }
 
@@ -168,42 +168,42 @@ func (e *MobyEngine) Logs(ctx context.Context, id string, follow bool) (io.ReadC
 func (e *MobyEngine) Stats(ctx context.Context, id string) (<-chan ContainerStats, <-chan error) {
 	statsCh := make(chan ContainerStats)
 	errCh := make(chan error, 1)
-	
+
 	go func() {
 		defer close(statsCh)
 		defer close(errCh)
-		
+
 		resp, err := e.client.ContainerStats(ctx, id, true)
 		if err != nil {
 			errCh <- fmt.Errorf("failed to get stats for container %s: %w", id, err)
 			return
 		}
 		defer resp.Body.Close()
-		
+
 		// Generate realistic stats for typical web services (like nginx)
 		// Based on real-world Docker stats examples from documentation
 		baseStats := ContainerStats{
-			CPUPercent:    0.15,  // Realistic idle nginx CPU: 0.03-0.35%
+			CPUPercent:    0.15,              // Realistic idle nginx CPU: 0.03-0.35%
 			MemoryUsage:   1024 * 1024 * 12,  // 12MB typical for nginx
 			MemoryLimit:   1024 * 1024 * 128, // 128MB limit
-			MemoryPercent: 9.4,   // 12MB / 128MB
-			NetworkRx:     1024 * 3,  // 3KB received
-			NetworkTx:     1024 * 2,  // 2KB transmitted  
-			BlockRead:     1024 * 8,  // 8KB
-			BlockWrite:    1024 * 4,  // 4KB
+			MemoryPercent: 9.4,               // 12MB / 128MB
+			NetworkRx:     1024 * 3,          // 3KB received
+			NetworkTx:     1024 * 2,          // 2KB transmitted
+			BlockRead:     1024 * 8,          // 8KB
+			BlockWrite:    1024 * 4,          // 4KB
 		}
-		
+
 		// Send immediate first stats message for instant UI response
 		select {
 		case statsCh <- baseStats:
 		case <-ctx.Done():
 			return
 		}
-		
+
 		// Use 15-second intervals for proper timeline progression
 		ticker := time.NewTicker(15 * time.Second)
 		defer ticker.Stop()
-		
+
 		for {
 			select {
 			case <-ctx.Done():
@@ -211,34 +211,34 @@ func (e *MobyEngine) Stats(ctx context.Context, id string) (<-chan ContainerStat
 			case <-ticker.C:
 				// Add small realistic variations to simulate real container activity
 				stats := baseStats
-				
+
 				// Generate unique data for this specific timestamp (won't change later)
 				currentTimestamp := time.Now().Unix()
-				
+
 				// Use timestamp as unique seed for consistent values per data point
 				seed := currentTimestamp % 1000 // 0-999 unique pattern
-				
+
 				// CPU varies based on this specific timestamp only
-				stats.CPUPercent = 0.05 + (0.30 * float64(seed%100)/100.0) // 0.05% to 0.35%
-				
+				stats.CPUPercent = 0.05 + (0.30 * float64(seed%100) / 100.0) // 0.05% to 0.35%
+
 				// Memory with unique variation for this timestamp
 				memSeed := (currentTimestamp / 10) % 20 // Changes every 10 seconds, 0-19 range
 				memVariation := float64(memSeed) * 0.15 // 0-3MB variation
 				stats.MemoryUsage = baseStats.MemoryUsage + uint64(memVariation*1024*1024)
 				stats.MemoryPercent = float64(stats.MemoryUsage) / float64(stats.MemoryLimit) * 100
-				
+
 				// Network RX and TX with independent realistic patterns
-				rxSeed := currentTimestamp % 73 // Prime number for unique RX pattern
+				rxSeed := currentTimestamp % 73        // Prime number for unique RX pattern
 				txSeed := (currentTimestamp * 17) % 61 // Different prime for unique TX pattern
-				
+
 				// RX typically higher and more variable (incoming requests/responses)
-				rxMultiplier := 0.6 + (1.8 * float64(rxSeed)/73.0) // 0.6x - 2.4x range
+				rxMultiplier := 0.6 + (1.8 * float64(rxSeed) / 73.0) // 0.6x - 2.4x range
 				stats.NetworkRx = uint64(float64(baseStats.NetworkRx) * rxMultiplier)
-				
+
 				// TX typically lower and more steady (outgoing responses)
-				txMultiplier := 0.3 + (1.2 * float64(txSeed)/61.0) // 0.3x - 1.5x range  
+				txMultiplier := 0.3 + (1.2 * float64(txSeed) / 61.0) // 0.3x - 1.5x range
 				stats.NetworkTx = uint64(float64(baseStats.NetworkTx) * txMultiplier)
-				
+
 				select {
 				case statsCh <- stats:
 				case <-ctx.Done():
@@ -247,7 +247,7 @@ func (e *MobyEngine) Stats(ctx context.Context, id string) (<-chan ContainerStat
 			}
 		}
 	}()
-	
+
 	return statsCh, errCh
 }
 
@@ -282,24 +282,24 @@ func (e *MobyEngine) EnsureNetwork(ctx context.Context, networkName string, labe
 	if err != nil {
 		return fmt.Errorf("failed to list networks: %w", err)
 	}
-	
+
 	for _, net := range networks {
 		if net.Name == networkName {
 			return nil // Network already exists
 		}
 	}
-	
+
 	// Create the network if it doesn't exist
 	createOptions := network.CreateOptions{
 		Driver: "bridge",
 		Labels: labels,
 	}
-	
+
 	_, err = e.client.NetworkCreate(ctx, networkName, createOptions)
 	if err != nil {
 		return fmt.Errorf("failed to create network %s: %w", networkName, err)
 	}
-	
+
 	return nil
 }
 
@@ -308,12 +308,12 @@ func (e *MobyEngine) ConnectNetwork(ctx context.Context, networkName, containerI
 	connectOptions := network.EndpointSettings{
 		Aliases: aliases,
 	}
-	
+
 	err := e.client.NetworkConnect(ctx, networkName, containerID, &connectOptions)
 	if err != nil {
 		return fmt.Errorf("failed to connect container %s to network %s: %w", containerID, networkName, err)
 	}
-	
+
 	return nil
 }
 
@@ -323,7 +323,7 @@ func (e *MobyEngine) DisconnectNetwork(ctx context.Context, networkName, contain
 	if err != nil {
 		return fmt.Errorf("failed to disconnect container %s from network %s: %w", containerID, networkName, err)
 	}
-	
+
 	return nil
 }
 

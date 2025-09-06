@@ -106,6 +106,7 @@ export function HelpView({ slug, onBack, onNavigateToHelp }: HelpViewProps) {
             apiClient.getHelpManifest()
           ])
           
+          
           // Combine with manual pages, inserting them in the right position
           const apiFiles = manifestData?.files || []
           const configSectionIndex = apiFiles.findIndex(f => f.section === 'Configuration')
@@ -164,9 +165,12 @@ export function HelpView({ slug, onBack, onNavigateToHelp }: HelpViewProps) {
 
   // Extract headings from rendered content
   useEffect(() => {
-    if (!document?.markdown) return
+    if (!document?.markdown) {
+      return
+    }
 
     const headingMatches = document.markdown.match(/^(#{1,6})\s+(.+)$/gm)
+    
     if (headingMatches) {
       const extractedHeadings = headingMatches.map(match => {
         const level = match.match(/^#+/)?.[0].length || 1

@@ -50,7 +50,7 @@ func NewAppAuthenticator(appID string, privateKeyPath string) (*AppAuthenticator
 // JWTs are valid for 10 minutes and used to get installation tokens
 func (a *AppAuthenticator) CreateJWT() (string, error) {
 	now := time.Now()
-	
+
 	claims := jwt.MapClaims{
 		"iat": now.Unix(),
 		"exp": now.Add(10 * time.Minute).Unix(), // GitHub requires max 10 minutes
@@ -58,7 +58,7 @@ func (a *AppAuthenticator) CreateJWT() (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
-	
+
 	signedToken, err := token.SignedString(a.privateKey)
 	if err != nil {
 		return "", fmt.Errorf("failed to sign JWT: %w", err)
@@ -98,7 +98,7 @@ func (t *jwtTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	reqCopy.Header.Set("Authorization", "Bearer "+t.jwt)
 	reqCopy.Header.Set("Accept", "application/vnd.github.v3+json")
 	reqCopy.Header.Set("User-Agent", "GLINR-Dock-App/1.0")
-	
+
 	return t.transport.RoundTrip(reqCopy)
 }
 

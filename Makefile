@@ -24,7 +24,6 @@ all: build
 build:
 	@mkdir -p $(BUILD_DIR)
 	go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/glinrdockd
-	go build $(LDFLAGS) -o $(BUILD_DIR)/glinrdockctl ./cmd/glinrdockctl
 
 # Run the server with development settings
 run:
@@ -79,7 +78,6 @@ clean:
 pack:
 	@mkdir -p $(BUILD_DIR)
 	CGO_ENABLED=0 go build $(LDFLAGS) -a -installsuffix cgo -ldflags "-s -w" -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/glinrdockd
-	CGO_ENABLED=0 go build $(LDFLAGS) -a -installsuffix cgo -ldflags "-s -w" -o $(BUILD_DIR)/glinrdockctl ./cmd/glinrdockctl
 
 # Run database migrations against local file DB for manual testing
 db-migrate-dev:

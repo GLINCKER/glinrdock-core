@@ -20,14 +20,14 @@ import (
 )
 
 type SystemMetricsResponse struct {
-	NodeID      string              `json:"node_id"`
-	Hostname    string              `json:"hostname"`
-	Platform    PlatformInfo        `json:"platform"`
-	Uptime      time.Duration       `json:"uptime"`
-	Resources   ResourceUsage       `json:"resources"`
-	Network     NetworkStats        `json:"network"`
-	Performance PerformanceMetrics  `json:"performance"`
-	LastUpdated time.Time           `json:"last_updated"`
+	NodeID      string             `json:"node_id"`
+	Hostname    string             `json:"hostname"`
+	Platform    PlatformInfo       `json:"platform"`
+	Uptime      time.Duration      `json:"uptime"`
+	Resources   ResourceUsage      `json:"resources"`
+	Network     NetworkStats       `json:"network"`
+	Performance PerformanceMetrics `json:"performance"`
+	LastUpdated time.Time          `json:"last_updated"`
 }
 
 type PlatformInfo struct {
@@ -69,14 +69,14 @@ type NetworkStats struct {
 	BytesSent   uint64  `json:"bytes_sent"`
 	PacketsRecv uint64  `json:"packets_recv"`
 	PacketsSent uint64  `json:"packets_sent"`
-	RxRate      float64 `json:"rx_rate"`  // Bytes per second receive rate
-	TxRate      float64 `json:"tx_rate"`  // Bytes per second transmit rate
+	RxRate      float64 `json:"rx_rate"` // Bytes per second receive rate
+	TxRate      float64 `json:"tx_rate"` // Bytes per second transmit rate
 }
 
 type PerformanceMetrics struct {
-	LoadAverage      [3]float64       `json:"load_average"`      // 1min, 5min, 15min
-	ActiveProcesses  int              `json:"active_processes"`
-	FileDescriptors  FileDescriptorInfo `json:"file_descriptors"`
+	LoadAverage     [3]float64         `json:"load_average"` // 1min, 5min, 15min
+	ActiveProcesses int                `json:"active_processes"`
+	FileDescriptors FileDescriptorInfo `json:"file_descriptors"`
 }
 
 type FileDescriptorInfo struct {
@@ -92,7 +92,7 @@ func (h *Handlers) SystemMetrics(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get CPU usage"})
 		return
 	}
-	
+
 	var cpuUsed float64
 	if len(cpuPercents) > 0 {
 		cpuUsed = cpuPercents[0]
@@ -236,7 +236,7 @@ func getFileDescriptorInfo() FileDescriptorInfo {
 	} else if runtime.GOOS == "darwin" {
 		// For macOS, use a simpler approximation
 		// Count open files in /dev/fd or use system limits
-		fdInfo.Used = 0 // Placeholder - more complex implementation needed
+		fdInfo.Used = 0    // Placeholder - more complex implementation needed
 		fdInfo.Max = 10240 // Common default limit
 	}
 

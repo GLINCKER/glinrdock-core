@@ -16,18 +16,18 @@ import (
 
 // RenewalService handles automated certificate renewals
 type RenewalService struct {
-	store         *store.Store
-	acmeService   *ACMEService
-	nginxManager  *nginx.Manager
-	config        *util.Config
-	auditLogger   *audit.Logger
-	
+	store        *store.Store
+	acmeService  *ACMEService
+	nginxManager *nginx.Manager
+	config       *util.Config
+	auditLogger  *audit.Logger
+
 	// Internal state
-	ticker        *time.Ticker
-	stopCh        chan struct{}
-	running       bool
-	runningMu     sync.RWMutex
-	
+	ticker    *time.Ticker
+	stopCh    chan struct{}
+	running   bool
+	runningMu sync.RWMutex
+
 	// Configuration
 	renewalThreshold time.Duration // Renew certificates expiring within this period
 	checkInterval    time.Duration // How often to check for renewals
@@ -41,24 +41,24 @@ type RenewalConfig struct {
 
 // RenewalStats represents renewal operation statistics
 type RenewalStats struct {
-	TotalScanned      int       `json:"total_scanned"`
-	EligibleForRenewal int      `json:"eligible_for_renewal"`
-	SuccessfulRenewals int      `json:"successful_renewals"`
-	FailedRenewals    int       `json:"failed_renewals"`
-	StartTime         time.Time `json:"start_time"`
-	Duration          time.Duration `json:"duration"`
-	Errors            []string  `json:"errors,omitempty"`
+	TotalScanned       int           `json:"total_scanned"`
+	EligibleForRenewal int           `json:"eligible_for_renewal"`
+	SuccessfulRenewals int           `json:"successful_renewals"`
+	FailedRenewals     int           `json:"failed_renewals"`
+	StartTime          time.Time     `json:"start_time"`
+	Duration           time.Duration `json:"duration"`
+	Errors             []string      `json:"errors,omitempty"`
 }
 
 // RenewalResult represents the result of a single certificate renewal
 type RenewalResult struct {
-	Domain        string    `json:"domain"`
-	CertificateID int64     `json:"certificate_id"`
-	Success       bool      `json:"success"`
-	Method        string    `json:"method"`        // "dns-01" or "http-01"
-	Error         *string   `json:"error,omitempty"`
+	Domain        string        `json:"domain"`
+	CertificateID int64         `json:"certificate_id"`
+	Success       bool          `json:"success"`
+	Method        string        `json:"method"` // "dns-01" or "http-01"
+	Error         *string       `json:"error,omitempty"`
 	Duration      time.Duration `json:"duration"`
-	StartTime     time.Time `json:"start_time"`
+	StartTime     time.Time     `json:"start_time"`
 }
 
 // NewRenewalService creates a new renewal service
@@ -70,7 +70,7 @@ func NewRenewalService(store *store.Store, acmeService *ACMEService, nginxManage
 	if renewalConfig.CheckInterval == 0 {
 		renewalConfig.CheckInterval = 24 * time.Hour // Daily
 	}
-	
+
 	return &RenewalService{
 		store:            store,
 		acmeService:      acmeService,
@@ -87,16 +87,16 @@ func NewRenewalService(store *store.Store, acmeService *ACMEService, nginxManage
 func (r *RenewalService) Start(ctx context.Context) error {
 	r.runningMu.Lock()
 	defer r.runningMu.Unlock()
-	
+
 	if r.running {
 		return fmt.Errorf("renewal service is already running")
 	}
-	
+
 	log.Info().
 		Dur("renewal_threshold", r.renewalThreshold).
 		Dur("check_interval", r.checkInterval).
 		Msg("starting certificate renewal service")
-	
+
 	// Run initial scan
 	go func() {
 		log.Info().Msg("running initial certificate renewal scan")
@@ -112,13 +112,13 @@ func (r *RenewalService) Start(ctx context.Context) error {
 				Msg("initial certificate renewal scan completed")
 		}
 	}()
-	
+
 	// Start recurring ticker
 	r.ticker = time.NewTicker(r.checkInterval)
 	r.running = true
-	
+
 	go r.renewalLoop(ctx)
-	
+
 	return nil
 }
 
@@ -126,19 +126,19 @@ func (r *RenewalService) Start(ctx context.Context) error {
 func (r *RenewalService) Stop() error {
 	r.runningMu.Lock()
 	defer r.runningMu.Unlock()
-	
+
 	if !r.running {
 		return fmt.Errorf("renewal service is not running")
 	}
-	
+
 	log.Info().Msg("stopping certificate renewal service")
-	
+
 	close(r.stopCh)
 	if r.ticker != nil {
 		r.ticker.Stop()
 	}
 	r.running = false
-	
+
 	return nil
 }
 
@@ -158,13 +158,13 @@ func (r *RenewalService) renewalLoop(ctx context.Context) {
 			return
 		case <-r.ticker.C:
 			log.Debug().Msg("running scheduled certificate renewal scan")
-			
+
 			stats, err := r.runRenewalScan(ctx)
 			if err != nil {
 				log.Error().Err(err).Msg("scheduled certificate renewal scan failed")
 				continue
 			}
-			
+
 			// Log results
 			logEvent := log.Info().
 				Int("scanned", stats.TotalScanned).
@@ -172,11 +172,11 @@ func (r *RenewalService) renewalLoop(ctx context.Context) {
 				Int("renewed", stats.SuccessfulRenewals).
 				Int("failed", stats.FailedRenewals).
 				Dur("duration", stats.Duration)
-			
+
 			if len(stats.Errors) > 0 {
 				logEvent = logEvent.Strs("errors", stats.Errors)
 			}
-			
+
 			logEvent.Msg("scheduled certificate renewal scan completed")
 		}
 	}
@@ -187,20 +187,20 @@ func (r *RenewalService) runRenewalScan(ctx context.Context) (*RenewalStats, err
 	stats := &RenewalStats{
 		StartTime: time.Now(),
 	}
-	
+
 	// Get certificates expiring within threshold
 	certificates, err := r.getCertificatesForRenewal(ctx)
 	if err != nil {
 		return stats, fmt.Errorf("failed to get certificates for renewal: %w", err)
 	}
-	
+
 	stats.TotalScanned = len(certificates)
-	
+
 	log.Info().
 		Int("certificates", len(certificates)).
 		Dur("threshold", r.renewalThreshold).
 		Msg("found certificates eligible for renewal")
-	
+
 	// Process each certificate
 	var renewalResults []RenewalResult
 	for _, cert := range certificates {
@@ -212,12 +212,12 @@ func (r *RenewalService) runRenewalScan(ctx context.Context) (*RenewalStats, err
 				Msg("skipping certificate with non-active status")
 			continue
 		}
-		
+
 		stats.EligibleForRenewal++
-		
+
 		result := r.renewCertificate(ctx, cert)
 		renewalResults = append(renewalResults, result)
-		
+
 		if result.Success {
 			stats.SuccessfulRenewals++
 		} else {
@@ -226,25 +226,25 @@ func (r *RenewalService) runRenewalScan(ctx context.Context) (*RenewalStats, err
 				stats.Errors = append(stats.Errors, fmt.Sprintf("%s: %s", cert.Domain, *result.Error))
 			}
 		}
-		
+
 		// Small delay between renewals to avoid overwhelming ACME servers
 		time.Sleep(2 * time.Second)
 	}
-	
+
 	stats.Duration = time.Since(stats.StartTime)
-	
+
 	// Audit log renewal batch
 	if r.auditLogger != nil {
 		r.auditLogger.RecordCertificateAction(ctx, "renewal-service", audit.ActionCertificateRenew, "batch", map[string]interface{}{
-			"total_scanned":       stats.TotalScanned,
-			"eligible_for_renewal": stats.EligibleForRenewal,
-			"successful_renewals":  stats.SuccessfulRenewals,
-			"failed_renewals":      stats.FailedRenewals,
-			"duration_ms":          stats.Duration.Milliseconds(),
+			"total_scanned":           stats.TotalScanned,
+			"eligible_for_renewal":    stats.EligibleForRenewal,
+			"successful_renewals":     stats.SuccessfulRenewals,
+			"failed_renewals":         stats.FailedRenewals,
+			"duration_ms":             stats.Duration.Milliseconds(),
 			"renewal_threshold_hours": r.renewalThreshold.Hours(),
 		})
 	}
-	
+
 	return stats, nil
 }
 
@@ -252,7 +252,7 @@ func (r *RenewalService) runRenewalScan(ctx context.Context) (*RenewalStats, err
 func (r *RenewalService) getCertificatesForRenewal(ctx context.Context) ([]store.EnhancedCertificate, error) {
 	// Calculate cutoff date
 	cutoff := time.Now().Add(r.renewalThreshold)
-	
+
 	query := `
 		SELECT id, domain, type, issuer, not_before, not_after, status, 
 			   pem_cert, pem_chain, pem_key_enc, pem_key_nonce, 
@@ -263,18 +263,18 @@ func (r *RenewalService) getCertificatesForRenewal(ctx context.Context) ([]store
 		  AND not_after <= ?
 		ORDER BY not_after ASC
 	`
-	
+
 	rows, err := r.store.GetDB().QueryContext(ctx, query, cutoff)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query certificates for renewal: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var certificates []store.EnhancedCertificate
 	for rows.Next() {
 		var cert store.EnhancedCertificate
 		err := rows.Scan(
-			&cert.ID, &cert.Domain, &cert.Type, &cert.Issuer, 
+			&cert.ID, &cert.Domain, &cert.Type, &cert.Issuer,
 			&cert.NotBefore, &cert.NotAfter, &cert.Status,
 			&cert.PEMCert, &cert.PEMChain, &cert.PEMKeyEnc, &cert.PEMKeyNonce,
 			&cert.CreatedAt, &cert.UpdatedAt,
@@ -284,7 +284,7 @@ func (r *RenewalService) getCertificatesForRenewal(ctx context.Context) ([]store
 		}
 		certificates = append(certificates, cert)
 	}
-	
+
 	return certificates, rows.Err()
 }
 
@@ -296,17 +296,17 @@ func (r *RenewalService) renewCertificate(ctx context.Context, cert store.Enhanc
 		StartTime:     time.Now(),
 		Success:       false,
 	}
-	
+
 	defer func() {
 		result.Duration = time.Since(result.StartTime)
 	}()
-	
+
 	log.Info().
 		Int64("cert_id", cert.ID).
 		Str("domain", cert.Domain).
 		Time("expires_at", *cert.NotAfter).
 		Msg("starting certificate renewal")
-	
+
 	// Determine renewal method
 	method, err := r.determineRenewalMethod(ctx, cert.Domain)
 	if err != nil {
@@ -318,14 +318,14 @@ func (r *RenewalService) renewCertificate(ctx context.Context, cert store.Enhanc
 			Msg("failed to determine renewal method")
 		return result
 	}
-	
+
 	result.Method = method
-	
+
 	log.Debug().
 		Str("domain", cert.Domain).
 		Str("method", method).
 		Msg("using renewal method")
-	
+
 	// Issue new certificate
 	newCert, err := r.acmeService.IssueCertificate(ctx, cert.Domain)
 	if err != nil {
@@ -338,7 +338,7 @@ func (r *RenewalService) renewCertificate(ctx context.Context, cert store.Enhanc
 			Msg("certificate renewal failed")
 		return result
 	}
-	
+
 	// Update nginx configuration atomically
 	if r.nginxManager != nil {
 		err = r.nginxManager.CertificateUpdateHook(ctx, newCert, r.store, nil)
@@ -351,9 +351,9 @@ func (r *RenewalService) renewCertificate(ctx context.Context, cert store.Enhanc
 			// Don't fail the renewal - the certificate was issued successfully
 		}
 	}
-	
+
 	result.Success = true
-	
+
 	log.Info().
 		Int64("old_cert_id", cert.ID).
 		Int64("new_cert_id", newCert.ID).
@@ -361,20 +361,20 @@ func (r *RenewalService) renewCertificate(ctx context.Context, cert store.Enhanc
 		Str("method", method).
 		Dur("duration", result.Duration).
 		Msg("certificate renewed successfully")
-	
+
 	// Audit log individual renewal
 	if r.auditLogger != nil {
 		r.auditLogger.RecordCertificateAction(ctx, "renewal-service", audit.ActionCertificateRenew, cert.Domain, map[string]interface{}{
-			"old_cert_id":   cert.ID,
-			"new_cert_id":   newCert.ID,
-			"domain":        cert.Domain,
-			"method":        method,
-			"duration_ms":   result.Duration.Milliseconds(),
-			"old_expires":   cert.NotAfter,
-			"new_expires":   newCert.NotAfter,
+			"old_cert_id": cert.ID,
+			"new_cert_id": newCert.ID,
+			"domain":      cert.Domain,
+			"method":      method,
+			"duration_ms": result.Duration.Milliseconds(),
+			"old_expires": cert.NotAfter,
+			"new_expires": newCert.NotAfter,
 		})
 	}
-	
+
 	return result
 }
 
@@ -387,15 +387,15 @@ func (r *RenewalService) determineRenewalMethod(ctx context.Context, domain stri
 		LEFT JOIN dns_providers dp ON d.provider_id = dp.id 
 		WHERE d.domain = ?
 	`
-	
+
 	var autoManage bool
 	var providerType sql.NullString
-	
+
 	err := r.store.GetDB().QueryRowContext(ctx, query, domain).Scan(&autoManage, &providerType)
 	if err != nil && err != sql.ErrNoRows {
 		return "", fmt.Errorf("failed to check domain configuration: %w", err)
 	}
-	
+
 	// Prefer DNS-01 if domain has auto-managed provider
 	if autoManage && providerType.Valid {
 		log.Debug().
@@ -404,7 +404,7 @@ func (r *RenewalService) determineRenewalMethod(ctx context.Context, domain stri
 			Msg("using DNS-01 renewal method (auto-managed domain)")
 		return "dns-01", nil
 	}
-	
+
 	// Fall back to HTTP-01 if PUBLIC_EDGE is available
 	if r.config.PublicEdgeHost != "" || r.config.PublicEdgeIPv4 != "" || r.config.PublicEdgeIPv6 != "" {
 		log.Debug().
@@ -412,7 +412,7 @@ func (r *RenewalService) determineRenewalMethod(ctx context.Context, domain stri
 			Msg("using HTTP-01 renewal method (PUBLIC_EDGE available)")
 		return "http-01", nil
 	}
-	
+
 	return "", fmt.Errorf("no suitable renewal method available for domain %s", domain)
 }
 
@@ -428,10 +428,10 @@ func (r *RenewalService) ForceRenewal(ctx context.Context, domain string) (*Rene
 		ORDER BY created_at DESC
 		LIMIT 1
 	`
-	
+
 	var cert store.EnhancedCertificate
 	err := r.store.GetDB().QueryRowContext(ctx, query, domain).Scan(
-		&cert.ID, &cert.Domain, &cert.Type, &cert.Issuer, 
+		&cert.ID, &cert.Domain, &cert.Type, &cert.Issuer,
 		&cert.NotBefore, &cert.NotAfter, &cert.Status,
 		&cert.PEMCert, &cert.PEMChain, &cert.PEMKeyEnc, &cert.PEMKeyNonce,
 		&cert.CreatedAt, &cert.UpdatedAt,
@@ -442,31 +442,31 @@ func (r *RenewalService) ForceRenewal(ctx context.Context, domain string) (*Rene
 		}
 		return nil, fmt.Errorf("failed to get certificate for domain %s: %w", domain, err)
 	}
-	
+
 	log.Info().
 		Str("domain", domain).
 		Int64("cert_id", cert.ID).
 		Msg("forcing certificate renewal")
-	
+
 	result := r.renewCertificate(ctx, cert)
 	return &result, nil
 }
 
-// GetRenewalStats returns current renewal statistics  
+// GetRenewalStats returns current renewal statistics
 func (r *RenewalService) GetRenewalStats(ctx context.Context) (*RenewalStats, error) {
 	// Get count of certificates expiring within threshold
 	cutoff := time.Now().Add(r.renewalThreshold)
-	
+
 	var totalActive int
 	var eligibleForRenewal int
-	
+
 	// Count total active certificates
-	err := r.store.GetDB().QueryRowContext(ctx, 
+	err := r.store.GetDB().QueryRowContext(ctx,
 		"SELECT COUNT(*) FROM certificates_enhanced WHERE status = 'active'").Scan(&totalActive)
 	if err != nil {
 		return nil, fmt.Errorf("failed to count active certificates: %w", err)
 	}
-	
+
 	// Count certificates eligible for renewal
 	err = r.store.GetDB().QueryRowContext(ctx,
 		"SELECT COUNT(*) FROM certificates_enhanced WHERE status = 'active' AND not_after IS NOT NULL AND not_after <= ?",
@@ -474,7 +474,7 @@ func (r *RenewalService) GetRenewalStats(ctx context.Context) (*RenewalStats, er
 	if err != nil {
 		return nil, fmt.Errorf("failed to count certificates eligible for renewal: %w", err)
 	}
-	
+
 	return &RenewalStats{
 		TotalScanned:       totalActive,
 		EligibleForRenewal: eligibleForRenewal,

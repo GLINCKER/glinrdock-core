@@ -37,7 +37,7 @@ func (h *HelpHandlers) GetHelpManifest(c *gin.Context) {
 	}
 
 	manifestPath := "appdocs/_manifest.json"
-	
+
 	// Check if manifest exists
 	if _, err := os.Stat(manifestPath); os.IsNotExist(err) {
 		log.Error().Str("path", manifestPath).Msg("help manifest not found")
@@ -61,7 +61,7 @@ func (h *HelpHandlers) GetHelpManifest(c *gin.Context) {
 
 	// Generate ETag from file modification time and size
 	etag := fmt.Sprintf("\"%x\"", md5.Sum([]byte(fmt.Sprintf("%d-%d", fileInfo.ModTime().Unix(), fileInfo.Size()))))
-	
+
 	// Check If-None-Match header for caching
 	if inm := c.GetHeader("If-None-Match"); inm == etag {
 		c.Status(http.StatusNotModified)
@@ -84,7 +84,7 @@ func (h *HelpHandlers) GetHelpManifest(c *gin.Context) {
 	c.Header("Cache-Control", "public, max-age=60") // Cache for 1 minute
 	c.Header("Last-Modified", fileInfo.ModTime().UTC().Format(http.TimeFormat))
 	c.Header("Content-Type", "application/json")
-	
+
 	c.Data(http.StatusOK, "application/json", manifestData)
 }
 
@@ -92,19 +92,19 @@ func (h *HelpHandlers) GetHelpManifest(c *gin.Context) {
 func (h *HelpHandlers) GetHelpDocumentNested(c *gin.Context) {
 	section := c.Request.URL.Path
 	slug := c.Param("slug")
-	
-	// Extract section from path (e.g., "/v1/help/guides/install" -> "guides")  
+
+	// Extract section from path (e.g., "/v1/help/guides/install" -> "guides")
 	parts := strings.Split(strings.Trim(section, "/"), "/")
 	if len(parts) >= 3 {
 		sectionName := parts[2] // v1, help, guides
 		fullSlug := sectionName + "/" + slug
-		
+
 		// Set the slug parameter and call the existing handler
 		c.Params = gin.Params{{Key: "slug", Value: fullSlug}}
 		h.GetHelpDocument(c)
 		return
 	}
-	
+
 	c.JSON(http.StatusNotFound, gin.H{
 		"error": "Help document not found",
 		"code":  "DOCUMENT_NOT_FOUND",
@@ -114,7 +114,7 @@ func (h *HelpHandlers) GetHelpDocumentNested(c *gin.Context) {
 // GetHelpDocument serves a specific help document by slug
 func (h *HelpHandlers) GetHelpDocument(c *gin.Context) {
 	slug := c.Param("slug")
-	
+
 	// Validate slug format
 	if slug == "" || strings.Contains(slug, "..") || strings.HasPrefix(slug, "_") {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -135,7 +135,7 @@ func (h *HelpHandlers) GetHelpDocument(c *gin.Context) {
 
 	// Convert slug to file path
 	filePath := h.slugToFilePath(slug)
-	
+
 	// Check if file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		log.Debug().Str("slug", slug).Str("path", filePath).Msg("help document not found")
@@ -171,7 +171,7 @@ func (h *HelpHandlers) GetHelpDocument(c *gin.Context) {
 
 	// Generate ETag from content hash
 	etag := fmt.Sprintf("\"%x\"", md5.Sum(content))
-	
+
 	// Check If-None-Match header for caching
 	if inm := c.GetHeader("If-None-Match"); inm == etag {
 		c.Status(http.StatusNotModified)
@@ -183,12 +183,12 @@ func (h *HelpHandlers) GetHelpDocument(c *gin.Context) {
 	c.Header("Cache-Control", "public, max-age=60") // Cache for 1 minute
 	c.Header("Last-Modified", fileInfo.ModTime().UTC().Format(http.TimeFormat))
 	c.Header("Content-Type", "text/markdown; charset=utf-8")
-	
+
 	// Return markdown content
 	c.JSON(http.StatusOK, gin.H{
-		"slug":     slug,
-		"markdown": string(content),
-		"etag":     strings.Trim(etag, "\""),
+		"slug":       slug,
+		"markdown":   string(content),
+		"etag":       strings.Trim(etag, "\""),
 		"updated_at": fileInfo.ModTime().UTC().Format(time.RFC3339),
 	})
 }
@@ -197,7 +197,7 @@ func (h *HelpHandlers) GetHelpDocument(c *gin.Context) {
 func (h *HelpHandlers) ReindexHelp(c *gin.Context) {
 	// This will be implemented in Phase 2 when search integration is added
 	// For now, return a placeholder response
-	
+
 	// Audit logging for admin action
 	if h.auditLogger != nil {
 		actor := audit.GetActorFromContext(c.Request.Context())
@@ -207,7 +207,7 @@ func (h *HelpHandlers) ReindexHelp(c *gin.Context) {
 	}
 
 	log.Info().Str("actor", audit.GetActorFromContext(c.Request.Context())).Msg("help reindex requested")
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Help reindex will be implemented in Phase 2",
 		"status":  "placeholder",
@@ -220,14 +220,13 @@ func (h *HelpHandlers) slugToFilePath(slug string) string {
 	// Convert slug back to file path
 	// e.g., "guides/getting-started" -> "appdocs/guides/getting-started.md"
 	// or "faq" -> "appdocs/faq.md"
-	
+
 	filePath := filepath.Join("appdocs", slug+".md")
-	
+
 	// Handle special case for root README
 	if slug == "help" || slug == "" {
 		filePath = "appdocs/README.md"
 	}
-	
+
 	return filePath
 }
-

@@ -96,7 +96,7 @@ func (r *Reloader) ReloadConfiguration(ctx context.Context, configPath string) e
 	// Run nginx reload command
 	cmd := exec.CommandContext(ctx, r.nginxPath, "-s", "reload", "-c", configPath)
 	output, err := cmd.CombinedOutput()
-	
+
 	if err != nil {
 		log.Error().
 			Str("config_path", configPath).
@@ -110,7 +110,7 @@ func (r *Reloader) ReloadConfiguration(ctx context.Context, configPath string) e
 		Str("config_path", configPath).
 		Str("output", string(output)).
 		Msg("nginx configuration reloaded successfully")
-	
+
 	return nil
 }
 

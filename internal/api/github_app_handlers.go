@@ -21,10 +21,10 @@ type GitHubAppHandlers struct {
 func NewGitHubAppHandlers(store *store.Store, settingsService *SettingsService, buildQueue BuildQueue) *GitHubAppHandlers {
 	// Initialize GitHub service from settings
 	githubService := initializeGitHubAppFromSettings(context.Background(), settingsService)
-	
+
 	// Create admin handlers
 	adminHandlers := NewGitHubAdminHandlers(store, settingsService, githubService)
-	
+
 	// Create webhook handler
 	webhookHandler := NewGitHubWebhookHandler(store, settingsService, githubService, buildQueue)
 
