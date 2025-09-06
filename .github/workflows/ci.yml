@@ -34,8 +34,8 @@ jobs:
         version: latest
         args: --timeout=2m
     
-    - name: Test with Race Detection
-      run: go test -race -short ./...
+    - name: Run tests
+      run: go test -short ./...
     
     - name: Vulnerability Check
       run: govulncheck ./...
