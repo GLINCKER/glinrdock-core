@@ -16,10 +16,8 @@ WORKDIR /app/web/ui-lite
 # Install dependencies (this layer will be cached)
 RUN npm ci --prefer-offline --no-audit
 
-# Copy only necessary frontend source files
-COPY web/ui-lite/src ./src/
-COPY web/ui-lite/public ./public/
-COPY web/ui-lite/*.config.* web/ui-lite/index.html web/ui-lite/tsconfig.json ./
+# Copy all frontend source files
+COPY web/ui-lite/ ./
 
 # Build frontend
 RUN npm run build
