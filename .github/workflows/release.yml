@@ -241,13 +241,14 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     needs: [build, merge]
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    # Temporarily disabled until RELEASE_PAT is configured for cross-repo access
+    if: false && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     steps:
       - name: Checkout public release repository
         uses: actions/checkout@v4
         with:
           repository: GLINCKER/glinrdock
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
           path: release-repo
 
       - name: Download all artifacts
@@ -316,7 +317,7 @@ jobs:
       - name: Create GitHub Release
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
         with:
           tag_name: v${{ steps.version.outputs.VERSION }}
           release_name: GLINRDOCK v${{ steps.version.outputs.VERSION }}
