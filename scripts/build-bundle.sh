@@ -33,6 +33,49 @@ log_step() {
     echo -e "${BLUE}[STEP]${NC} $1"
 }
 
+# Cross-platform file size functions
+get_file_size_bytes() {
+    local file="$1"
+    if [[ "$(uname)" == "Darwin" ]]; then
+        # macOS doesn't have -b flag for du, use stat instead
+        stat -f%z "$file"
+    else
+        # Linux has du -b
+        du -b "$file" | cut -f1
+    fi
+}
+
+get_file_size_human() {
+    local file="$1"
+    if [[ "$(uname)" == "Darwin" ]]; then
+        du -h "$file" | cut -f1
+    else
+        du -h "$file" | cut -f1
+    fi
+}
+
+# Cross-platform human-readable byte formatting
+format_bytes() {
+    local bytes="$1"
+    if command -v numfmt >/dev/null 2>&1; then
+        numfmt --to=iec "$bytes"
+    elif [[ "$(uname)" == "Darwin" ]] && command -v gstat >/dev/null 2>&1; then
+        # GNU coreutils on macOS (brew install coreutils)
+        gnumfmt --to=iec "$bytes"
+    else
+        # Fallback: simple conversion
+        if [[ $bytes -gt 1073741824 ]]; then
+            echo "$(( bytes / 1073741824 ))G"
+        elif [[ $bytes -gt 1048576 ]]; then
+            echo "$(( bytes / 1048576 ))M"
+        elif [[ $bytes -gt 1024 ]]; then
+            echo "$(( bytes / 1024 ))K"
+        else
+            echo "${bytes}B"
+        fi
+    fi
+}
+
 usage() {
     echo "GLINRDOCK Bundle Builder"
     echo ""
@@ -151,8 +194,14 @@ if [[ ! -d ../static/ui-lite || ! -f ../static/ui-lite/index.html ]]; then
     exit 1
 fi
 
-# Calculate frontend size
-FRONTEND_SIZE=$(du -sh ../static/ui-lite | cut -f1)
+# Calculate frontend size (cross-platform)
+if command -v gdu >/dev/null 2>&1; then
+    FRONTEND_SIZE=$(gdu -sh ../static/ui-lite | cut -f1)
+elif [[ "$(uname)" == "Darwin" ]]; then
+    FRONTEND_SIZE=$(du -sh ../static/ui-lite | cut -f1)
+else
+    FRONTEND_SIZE=$(du -sh ../static/ui-lite | cut -f1)
+fi
 log_info "Frontend built successfully: $FRONTEND_SIZE"
 
 cd ../..
@@ -197,15 +246,23 @@ if [[ ! -f bin/$BINARY_NAME ]]; then
     exit 1
 fi
 
-# Calculate binary size
-BINARY_SIZE=$(du -sh bin/$BINARY_NAME | cut -f1)
+# Calculate binary size (cross-platform)
+if [[ "$(uname)" == "Darwin" ]]; then
+    BINARY_SIZE=$(du -sh bin/$BINARY_NAME | cut -f1)
+else
+    BINARY_SIZE=$(du -sh bin/$BINARY_NAME | cut -f1)
+fi
 log_info "Backend built successfully: $BINARY_SIZE"
 
 # Optional: Compress with UPX (if available and not debug build)
 if command -v upx &> /dev/null && [[ "$BUILD_TYPE" == "release" ]]; then
     log_info "Compressing binary with UPX..."
     upx --best --lzma bin/$BINARY_NAME 2>/dev/null || log_warn "UPX compression failed"
-    COMPRESSED_SIZE=$(du -sh bin/$BINARY_NAME | cut -f1)
+    if [[ "$(uname)" == "Darwin" ]]; then
+        COMPRESSED_SIZE=$(du -sh bin/$BINARY_NAME | cut -f1)
+    else
+        COMPRESSED_SIZE=$(du -sh bin/$BINARY_NAME | cut -f1)
+    fi
     log_info "Binary compressed: $COMPRESSED_SIZE"
 fi
 
@@ -421,8 +478,8 @@ cat > glinrdock-$VERSION-$OS-$ARCH.json << EOF
     "build_type": "$BUILD_TYPE",
     "build_time": "$(date -u -Iseconds)",
     "archive": "$ARCHIVE_NAME",
-    "size_compressed": "$(du -b $ARCHIVE_NAME | cut -f1)",
-    "size_human": "$(du -h $ARCHIVE_NAME | cut -f1)",
+    "size_compressed": "$(get_file_size_bytes $ARCHIVE_NAME)",
+    "size_human": "$(get_file_size_human $ARCHIVE_NAME)",
     "checksums": {
         "sha256": "$(cat $ARCHIVE_NAME.sha256 | cut -d' ' -f1)",
         "md5": "$(cat $ARCHIVE_NAME.md5 | cut -d' ' -f1)"
@@ -443,8 +500,8 @@ cd ..
 # Final validation
 log_step "10. Bundle validation"
 
-FINAL_SIZE=$(du -h dist/$ARCHIVE_NAME | cut -f1)
-FINAL_SIZE_BYTES=$(du -b dist/$ARCHIVE_NAME | cut -f1)
+FINAL_SIZE=$(get_file_size_human dist/$ARCHIVE_NAME)
+FINAL_SIZE_BYTES=$(get_file_size_bytes dist/$ARCHIVE_NAME)
 
 # Size check
 if [[ $FINAL_SIZE_BYTES -gt 52428800 ]]; then  # 50MB
@@ -467,7 +524,7 @@ log_info "🎉 Bundle created successfully!"
 echo ""
 echo -e "${BLUE}Bundle Information:${NC}"
 echo "  📦 Package: dist/$ARCHIVE_NAME"
-echo "  📊 Size: $FINAL_SIZE ($(numfmt --to=iec $FINAL_SIZE_BYTES))"
+echo "  📊 Size: $FINAL_SIZE ($(format_bytes $FINAL_SIZE_BYTES))"
 echo "  🏗️  Version: $VERSION"
 echo "  🖥️  Platform: $OS-$ARCH"
 echo "  🔧 Build Type: $BUILD_TYPE"
