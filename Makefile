@@ -24,7 +24,6 @@ all: build
 build:
 	@mkdir -p $(BUILD_DIR)
 	go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/glinrdockd
-	go build $(LDFLAGS) -o $(BUILD_DIR)/glinrdockctl ./cmd/glinrdockctl
 
 # Run the server with development settings
 run:
