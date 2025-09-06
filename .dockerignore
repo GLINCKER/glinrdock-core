@@ -1,0 +1,77 @@
+# Git and version control
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+README*
+CHANGELOG*
+LICENSE*
+docs/
+appdocs/
+
+# Development files
+.vscode/
+.idea/
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Build artifacts and cache
+bin/
+build/
+dist/
+node_modules/
+target/
+.cache/
+**/.DS_Store
+
+# Test files
+*_test.go
+**/*_test.go
+test/
+tests/
+coverage/
+.coverage
+
+# Development data
+dev-data/
+test-data/
+
+# GitHub Actions and CI
+.github/
+.circleci/
+.travis.yml
+
+# Docker files (except the one we need)
+Dockerfile*
+!Dockerfile.builder
+docker-compose*
+
+# Temporary build binaries
+glinrdockd*
+!cmd/
+
+# Frontend development
+web/ui-lite/node_modules/
+web/ui-lite/dist/
+web/ui-lite/.vite/
+web/ui-lite/coverage/
+
+# Scripts not needed in container
+scripts/
+deploy/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
