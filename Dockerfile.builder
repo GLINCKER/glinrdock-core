@@ -23,7 +23,7 @@ COPY web/ui-lite/ ./
 RUN npm run build
 
 # Go builder stage for Linux
-FROM golang:1.21-alpine AS go-builder-linux
+FROM golang:1.23-alpine AS go-builder-linux
 
 # Install build dependencies
 RUN apk add --no-cache gcc musl-dev sqlite-dev git
@@ -41,10 +41,7 @@ RUN go mod download
 COPY . .
 
 # Copy built frontend assets
-COPY --from=frontend-builder /app/static ./static
-
-# Generate embedded assets
-RUN go generate ./...
+COPY --from=frontend-builder /app/web/ui-lite/dist ./static
 
 # Build arguments
 ARG VERSION=0.1.0-beta
@@ -56,7 +53,7 @@ RUN CGO_ENABLED=1 \
     GOOS=${TARGETOS} \
     GOARCH=${TARGETARCH} \
     go build \
-    -ldflags="-s -w -X main.version=${VERSION} -X main.buildTime=$(date -u '+%Y-%m-%d_%H:%M:%S')" \
+    -ldflags="-s -w -X 'github.com/GLINCKER/glinrdock/internal/version.Version=${VERSION}' -X 'github.com/GLINCKER/glinrdock/internal/version.Commit=$(git rev-parse --short HEAD 2>/dev/null || echo \"unknown\")' -X 'github.com/GLINCKER/glinrdock/internal/version.BuildTime=$(date -u '+%Y-%m-%d %H:%M:%S UTC')'" \
     -trimpath \
     -buildvcs=false \
     -o bin/glinrdockd-${TARGETOS}-${TARGETARCH} \
