@@ -73,7 +73,7 @@ func TestNewGitHubAppService(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service, err := NewGitHubAppService(tt.appID, tt.privateKey, tt.webhookSecret)
+			service, err := NewGitHubAppService(tt.appID, tt.privateKey)
 			
 			if tt.wantError {
 				assert.Error(t, err)

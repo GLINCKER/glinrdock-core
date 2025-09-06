@@ -229,11 +229,8 @@ func TestQueue_UpdateJobProgress(t *testing.T) {
 	queue := NewQueue(1)
 	defer queue.Stop()
 
-	var jobID string
-
 	// Register a handler that updates progress
 	queue.RegisterHandler(JobTypeBuild, func(ctx context.Context, job *Job) error {
-		jobID = job.ID
 		queue.UpdateJobProgress(job.ID, 25)
 		time.Sleep(10 * time.Millisecond)
 		queue.UpdateJobProgress(job.ID, 50)

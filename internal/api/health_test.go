@@ -296,11 +296,7 @@ func TestGetServiceWithHealthFields(t *testing.T) {
 	}
 }
 
-// Helper functions
-func stringPtr(s string) *string {
-	return &s
-}
-
+// Helper functions (stringPtr is defined in github_admin_test.go)
 func intPtr(i int) *int {
 	return &i
 }
