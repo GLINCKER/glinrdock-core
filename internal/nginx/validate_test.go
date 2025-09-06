@@ -8,7 +8,6 @@ import (
 	"time"
 )
 
-
 func TestNewValidator(t *testing.T) {
 	validator := NewValidator()
 
@@ -74,7 +73,7 @@ func TestValidator_DisableDockerValidation(t *testing.T) {
 
 func TestValidator_ValidateConfig(t *testing.T) {
 	skipNginxTestsInCI(t)
-	
+
 	validator := NewValidator()
 
 	tests := []struct {
@@ -156,7 +155,7 @@ worker_processes auto;
 
 func TestValidator_ValidateConfiguration_WithNginxCmd(t *testing.T) {
 	skipNginxTestsInCI(t)
-	
+
 	validator := NewValidator()
 
 	tests := []struct {
@@ -230,7 +229,7 @@ server {
 
 func TestValidator_ValidateConfiguration_DockerNotFound(t *testing.T) {
 	skipNginxTestsInCI(t)
-	
+
 	validator := NewValidator()
 	validator.EnableDockerValidation("non-existent-container")
 
