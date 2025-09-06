@@ -159,7 +159,9 @@ jobs:
       matrix:
         platform:
           - linux/amd64
-          - linux/arm64
+          # ARM64 disabled in CI due to 6+ hour QEMU emulation issues
+          # Use local Mac build instead: docker buildx build --platform linux/arm64
+          # - linux/arm64
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -231,12 +233,11 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.VERSION }}"
           
-          # Create multi-platform manifest
+          # Create manifest (AMD64 only - ARM64 built locally due to CI performance issues)
           docker buildx imagetools create \
             --tag ${{ env.REGISTRY }}/glincker/glinrdock:$VERSION \
             --tag ${{ env.REGISTRY }}/glincker/glinrdock:latest \
-            ${{ env.REGISTRY }}/glincker/glinrdock:$VERSION-amd64 \
-            ${{ env.REGISTRY }}/glincker/glinrdock:$VERSION-arm64
+            ${{ env.REGISTRY }}/glincker/glinrdock:$VERSION-amd64
 
   publish:
     runs-on: ubuntu-latest
