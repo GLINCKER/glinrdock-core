@@ -182,8 +182,8 @@ jobs:
           build-args: |
             VERSION=${{ steps.version.outputs.VERSION }}
           tags: |
-            ${{ env.REGISTRY }}/glincker/glinrdock:${{ steps.version.outputs.VERSION }}
-            ${{ env.REGISTRY }}/glincker/glinrdock:latest
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/glinrdock:${{ steps.version.outputs.VERSION }}
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/glinrdock:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -233,7 +233,7 @@ jobs:
             "packages": [
           $(find release-repo/releases/$VERSION/ -name "*.tar.gz" | sed 's|release-repo/releases/'$VERSION'/||' | sed 's|^|      "|; s|$|",|' | sed '$ s|,$||')
             ],
-            "docker_image": "${{ env.REGISTRY }}/glincker/glinrdock:$VERSION"
+            "docker_image": "${{ env.REGISTRY }}/${{ github.repository_owner }}/glinrdock:$VERSION"
           }
           EOF
 
@@ -289,7 +289,7 @@ jobs:
             
             **Docker:**
             ```bash
-            docker pull ${{ env.REGISTRY }}/glincker/glinrdock:${{ steps.version.outputs.VERSION }}
+            docker pull ${{ env.REGISTRY }}/${{ github.repository_owner }}/glinrdock:${{ steps.version.outputs.VERSION }}
             ```
             
             ### 🔒 Security
