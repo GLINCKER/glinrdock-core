@@ -11,6 +11,10 @@ on:
         required: true
         default: '0.1.0-beta'
 
+permissions:
+  contents: read
+  packages: write
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: glinrdock
@@ -148,6 +152,9 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     needs: build
+    permissions:
+      contents: read
+      packages: write
     strategy:
       matrix:
         platform:
@@ -199,6 +206,9 @@ jobs:
   merge:
     runs-on: ubuntu-latest
     needs: docker
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Log in to Container Registry
         uses: docker/login-action@v3
