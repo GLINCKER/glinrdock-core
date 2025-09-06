@@ -48,12 +48,14 @@ ARG VERSION=0.1.0-beta
 ARG TARGETOS=linux  
 ARG TARGETARCH=amd64
 
-# Build binary with CGO support for native architecture
+# Build binary with CGO support and optimizations for faster compilation
 RUN CGO_ENABLED=1 \
+    GOCACHE=/tmp/gocache \
     go build \
     -ldflags="-s -w -X 'github.com/GLINCKER/glinrdock/internal/version.Version=${VERSION}' -X 'github.com/GLINCKER/glinrdock/internal/version.Commit=$(git rev-parse --short HEAD 2>/dev/null || echo \"unknown\")' -X 'github.com/GLINCKER/glinrdock/internal/version.BuildTime=$(date -u '+%Y-%m-%d %H:%M:%S UTC')'" \
     -trimpath \
     -buildvcs=false \
+    -compiler=gc \
     -o bin/glinrdockd \
     ./cmd/glinrdockd
 
