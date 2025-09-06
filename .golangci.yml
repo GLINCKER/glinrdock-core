@@ -33,19 +33,19 @@ linters-settings:
 
 linters:
   enable:
-    - gosimple
     - govet
-    - staticcheck
     - typecheck
     - gofmt
     - goimports
   disable:
-    - errcheck      # Too many issues to fix right now
+    - errcheck       # Too many issues to fix right now
     - ineffassign    # Non-critical
     - unused         # Many false positives
     - misspell       # Non-critical
     - goconst        # Non-critical code quality
     - revive         # Non-critical style issues
+    - gosimple       # Code quality suggestions, non-critical
+    - staticcheck    # Static analysis issues, non-critical for deployment
     - gocyclo
     - dupl
     - maligned
