@@ -99,9 +99,6 @@ jobs:
 
       - name: Build Binary for ${{ matrix.os }}-${{ matrix.arch }}
         run: |
-          # Generate embedded assets
-          go generate ./...
-          
           # Build binary
           CGO_ENABLED=1
           if [[ "${{ matrix.os }}" != "linux" ]]; then
@@ -114,11 +111,16 @@ jobs:
             BINARY_NAME="glinrdockd.exe"
           fi
           
+          # Get version and commit info
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+          BUILD_TIME=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          
           GOOS=${{ matrix.os }} \
           GOARCH=${{ matrix.arch }} \
           CGO_ENABLED=$CGO_ENABLED \
           go build \
-            -ldflags="-s -w -X main.version=${{ steps.version.outputs.VERSION }} -X main.buildTime=$(date -u '+%Y-%m-%d_%H:%M:%S')" \
+            -ldflags="-s -w -X 'github.com/GLINCKER/glinrdock/internal/version.Version=$VERSION' -X 'github.com/GLINCKER/glinrdock/internal/version.Commit=$COMMIT' -X 'github.com/GLINCKER/glinrdock/internal/version.BuildTime=$BUILD_TIME'" \
             -trimpath \
             -buildvcs=false \
             -o bin/$BINARY_NAME \
