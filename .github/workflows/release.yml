@@ -159,8 +159,7 @@ jobs:
       matrix:
         platform:
           - linux/amd64
-          # Skip ARM64 for beta releases to save build time - only build for production releases
-          # - linux/arm64
+          - linux/arm64
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -232,17 +231,17 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.VERSION }}"
           
-          # Create manifest (AMD64 only for beta releases)
+          # Create multi-platform manifest
           docker buildx imagetools create \
             --tag ${{ env.REGISTRY }}/glincker/glinrdock:$VERSION \
             --tag ${{ env.REGISTRY }}/glincker/glinrdock:latest \
-            ${{ env.REGISTRY }}/glincker/glinrdock:$VERSION-amd64
+            ${{ env.REGISTRY }}/glincker/glinrdock:$VERSION-amd64 \
+            ${{ env.REGISTRY }}/glincker/glinrdock:$VERSION-arm64
 
   publish:
     runs-on: ubuntu-latest
     needs: [build, merge]
-    # Temporarily disabled until RELEASE_PAT is configured for cross-repo access
-    if: false && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout public release repository
         uses: actions/checkout@v4
