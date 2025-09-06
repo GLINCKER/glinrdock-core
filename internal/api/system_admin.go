@@ -15,16 +15,16 @@ import (
 
 // Global lockdown state
 type LockdownState struct {
-	IsLocked     bool      `json:"is_locked"`
-	Reason       string    `json:"reason"`
-	Timestamp    time.Time `json:"timestamp"`
-	InitiatedBy  string    `json:"initiated_by"`
+	IsLocked    bool      `json:"is_locked"`
+	Reason      string    `json:"reason"`
+	Timestamp   time.Time `json:"timestamp"`
+	InitiatedBy string    `json:"initiated_by"`
 }
 
 // Global lockdown manager
 var (
-	lockdownMutex sync.RWMutex
-	lockdownState = &LockdownState{IsLocked: false}
+	lockdownMutex   sync.RWMutex
+	lockdownState   = &LockdownState{IsLocked: false}
 	lastRestartTime time.Time
 )
 
@@ -111,18 +111,18 @@ func (h *Handlers) SystemStart(c *gin.Context) {
 			actor = "system"
 		}
 		h.auditLogger.RecordSystemAction(c.Request.Context(), actor, audit.ActionSystemRestart, map[string]interface{}{
-			"action":        "start",
-			"initiated_by":  actor,
-			"start_reason":  "system_start",
+			"action":       "start",
+			"initiated_by": actor,
+			"start_reason": "system_start",
 		})
 	}
 
 	// In development/demo mode, just return success
 	// In production, this would actually start system services
 	c.JSON(http.StatusOK, gin.H{
-		"status":       "start_completed", 
-		"message":      "System start completed successfully.",
-		"timestamp":    time.Now().Format(time.RFC3339),
+		"status":    "start_completed",
+		"message":   "System start completed successfully.",
+		"timestamp": time.Now().Format(time.RFC3339),
 	})
 
 	go func() {
@@ -131,7 +131,7 @@ func (h *Handlers) SystemStart(c *gin.Context) {
 	}()
 }
 
-// SystemStop stops the system service (admin only) 
+// SystemStop stops the system service (admin only)
 func (h *Handlers) SystemStop(c *gin.Context) {
 	log.Warn().
 		Str("admin_user", c.GetString("token_name")).
@@ -379,10 +379,10 @@ func splitLines(text string) []string {
 	if text == "" {
 		return []string{}
 	}
-	
+
 	lines := []string{}
 	current := ""
-	
+
 	for _, char := range text {
 		if char == '\n' {
 			if current != "" {
@@ -393,11 +393,11 @@ func splitLines(text string) []string {
 			current += string(char)
 		}
 	}
-	
+
 	if current != "" {
 		lines = append(lines, current)
 	}
-	
+
 	return lines
 }
 
@@ -406,7 +406,7 @@ func parseIntParam(param string, defaultVal int) (int, error) {
 	if len(param) == 0 {
 		return defaultVal, nil
 	}
-	
+
 	result := 0
 	for _, char := range param {
 		if char >= '0' && char <= '9' {
@@ -415,10 +415,10 @@ func parseIntParam(param string, defaultVal int) (int, error) {
 			return defaultVal, nil
 		}
 	}
-	
+
 	if result == 0 {
 		return defaultVal, nil
 	}
-	
+
 	return result, nil
 }

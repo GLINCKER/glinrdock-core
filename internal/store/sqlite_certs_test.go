@@ -111,9 +111,9 @@ func TestListCertsExpiringSoon(t *testing.T) {
 		expiresAt time.Time
 		status    string
 	}{
-		{"expire-soon.com", "test1@example.com", now.Add(10 * 24 * time.Hour), "issued"}, // 10 days - should be included
+		{"expire-soon.com", "test1@example.com", now.Add(10 * 24 * time.Hour), "issued"},  // 10 days - should be included
 		{"expire-later.com", "test2@example.com", now.Add(50 * 24 * time.Hour), "issued"}, // 50 days - should not be included
-		{"no-expiry.com", "test3@example.com", time.Time{}, "queued"}, // no expiry set
+		{"no-expiry.com", "test3@example.com", time.Time{}, "queued"},                     // no expiry set
 	}
 
 	for _, tc := range testCases {

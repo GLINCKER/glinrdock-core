@@ -157,13 +157,13 @@ func TestZoneDetector_DetectProvider(t *testing.T) {
 
 func TestZoneDetector_GetZoneInfo(t *testing.T) {
 	tests := []struct {
-		name        string
-		setupMock   func(*MockResolver)
-		domain      string
-		expectedZone string
+		name             string
+		setupMock        func(*MockResolver)
+		domain           string
+		expectedZone     string
 		expectedProvider string
-		expectedNS  []string
-		expectError bool
+		expectedNS       []string
+		expectError      bool
 	}{
 		{
 			name: "complete zone info for cloudflare domain",
@@ -220,12 +220,12 @@ func TestZoneDetector_GetZoneInfo(t *testing.T) {
 
 func TestZoneDetector_ValidateZoneOwnership(t *testing.T) {
 	tests := []struct {
-		name         string
-		setupMock    func(*MockResolver)
-		domain       string
-		expectedZone string
+		name           string
+		setupMock      func(*MockResolver)
+		domain         string
+		expectedZone   string
 		expectedResult bool
-		expectError  bool
+		expectError    bool
 	}{
 		{
 			name: "domain belongs to expected zone",

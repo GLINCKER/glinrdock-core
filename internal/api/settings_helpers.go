@@ -112,11 +112,11 @@ func (s *SettingsService) getGitHubAppConfig(ctx context.Context) (*store.GitHub
 	// Check if we have a private key
 	_, err = s.store.GetSetting(ctx, GitHubAppPrivateKeyKey)
 	config.HasPrivateKey = err == nil
-	
+
 	// Check if we have a webhook secret
 	_, err = s.store.GetSetting(ctx, GitHubAppWebhookSecretKey)
 	config.HasWebhookSecret = err == nil
-	
+
 	config.Installed = config.HasPrivateKey && config.AppID != ""
 
 	return &config, nil

@@ -10,11 +10,11 @@ import (
 
 func TestMockInspector_DetectAuthoritativeNS(t *testing.T) {
 	tests := []struct {
-		name         string
-		setupMock    func(*MockResolver)
-		domain       string
-		expected     []string
-		expectError  bool
+		name        string
+		setupMock   func(*MockResolver)
+		domain      string
+		expected    []string
+		expectError bool
 	}{
 		{
 			name: "exact domain match",
@@ -167,7 +167,7 @@ func TestMockInspector_LookupA(t *testing.T) {
 			result, err := inspector.LookupA(context.Background(), tt.hostname)
 
 			require.NoError(t, err)
-			
+
 			var resultStrings []string
 			for _, ip := range result {
 				resultStrings = append(resultStrings, ip.String())
@@ -220,7 +220,7 @@ func TestMockInspector_LookupAAAA(t *testing.T) {
 			result, err := inspector.LookupAAAA(context.Background(), tt.hostname)
 
 			require.NoError(t, err)
-			
+
 			var resultStrings []string
 			for _, ip := range result {
 				resultStrings = append(resultStrings, ip.String())
@@ -274,7 +274,10 @@ func TestMockInspector_LookupMX(t *testing.T) {
 		name      string
 		setupMock func(*MockResolver)
 		hostname  string
-		expected  []struct{ host string; pref uint16 }
+		expected  []struct {
+			host string
+			pref uint16
+		}
 	}{
 		{
 			name: "single MX record",
@@ -282,7 +285,10 @@ func TestMockInspector_LookupMX(t *testing.T) {
 				mr.AddMXRecord("example.com", "mail.example.com", 10)
 			},
 			hostname: "example.com",
-			expected: []struct{ host string; pref uint16 }{
+			expected: []struct {
+				host string
+				pref uint16
+			}{
 				{"mail.example.com", 10},
 			},
 		},
@@ -293,7 +299,10 @@ func TestMockInspector_LookupMX(t *testing.T) {
 				mr.AddMXRecord("example.com", "mail2.example.com", 20)
 			},
 			hostname: "example.com",
-			expected: []struct{ host string; pref uint16 }{
+			expected: []struct {
+				host string
+				pref uint16
+			}{
 				{"mail1.example.com", 10},
 				{"mail2.example.com", 20},
 			},
@@ -304,7 +313,10 @@ func TestMockInspector_LookupMX(t *testing.T) {
 				// No records added
 			},
 			hostname: "nonexistent.example.com",
-			expected: []struct{ host string; pref uint16 }{},
+			expected: []struct {
+				host string
+				pref uint16
+			}{},
 		},
 	}
 
@@ -318,7 +330,7 @@ func TestMockInspector_LookupMX(t *testing.T) {
 
 			require.NoError(t, err)
 			assert.Len(t, result, len(tt.expected))
-			
+
 			for i, expected := range tt.expected {
 				if i < len(result) {
 					assert.Equal(t, expected.host, result[i].Host)

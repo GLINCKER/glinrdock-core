@@ -9,12 +9,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
-	"github.com/rs/zerolog/log"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
+	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
+	"github.com/rs/zerolog/log"
 )
 
 // WebSocketUpgrader configures the WebSocket upgrader
@@ -57,7 +57,7 @@ func (h *Handlers) ServiceLogsHandler(c *gin.Context) {
 			return
 		}
 		containerID = discoveredID
-		
+
 		// Update the service record with discovered container ID
 		err = h.serviceStore.UpdateServiceContainerID(c.Request.Context(), serviceID, containerID)
 		if err != nil {
@@ -157,7 +157,7 @@ func (h *Handlers) ServiceStatsHandler(c *gin.Context) {
 			return
 		}
 		containerID = discoveredID
-		
+
 		// Update the service record with discovered container ID
 		err = h.serviceStore.UpdateServiceContainerID(c.Request.Context(), serviceID, containerID)
 		if err != nil {
@@ -269,7 +269,7 @@ func (h *Handlers) ServiceLogsTailHandler(c *gin.Context) {
 			return
 		}
 		containerID = discoveredID
-		
+
 		// Update the service record with discovered container ID
 		err = h.serviceStore.UpdateServiceContainerID(c.Request.Context(), serviceID, containerID)
 		if err != nil {
@@ -300,7 +300,7 @@ func (h *Handlers) ServiceLogsTailHandler(c *gin.Context) {
 
 	// Split logs into lines and get the tail
 	logLines := strings.Split(strings.TrimSpace(string(logBytes)), "\n")
-	
+
 	// Get last N lines
 	var tailedLines []string
 	if len(logLines) > tailLines {
@@ -318,11 +318,11 @@ func (h *Handlers) ServiceLogsTailHandler(c *gin.Context) {
 	}
 
 	response := map[string]interface{}{
-		"service_id":   serviceID,
-		"container":    containerID,
-		"tail_lines":   tailLines,
-		"total_lines":  len(filteredLines),
-		"logs":         filteredLines,
+		"service_id":  serviceID,
+		"container":   containerID,
+		"tail_lines":  tailLines,
+		"total_lines": len(filteredLines),
+		"logs":        filteredLines,
 	}
 
 	log.Debug().Int64("service_id", serviceID).Str("container_id", containerID).Int("lines", len(filteredLines)).Msg("service logs retrieved")

@@ -201,7 +201,7 @@ func TestQueue_ListJobs(t *testing.T) {
 	})
 
 	// Don't start queue to keep jobs queued
-	
+
 	// Enqueue multiple jobs
 	job1 := queue.Enqueue(JobTypeBuild, map[string]interface{}{"id": 1})
 	job2 := queue.Enqueue(JobTypeDeploy, map[string]interface{}{"id": 2})

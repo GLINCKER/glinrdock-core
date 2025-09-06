@@ -100,7 +100,7 @@ func (h *BuildJobHandler) Handle(ctx context.Context, job *Job) error {
 			finishedAt = result.Duration.Nanoseconds()
 		}
 	}
-	
+
 	// Record build metrics
 	metrics.RecordBuild(success, buildDuration)
 
@@ -155,7 +155,7 @@ func (h *DeployJobHandler) Handle(ctx context.Context, job *Job) error {
 	if !ok {
 		return fmt.Errorf("invalid deployment data in job")
 	}
-	
+
 	// Track deployment duration for metrics
 	deployStart := time.Now()
 	deploySuccess := true
@@ -235,9 +235,9 @@ func (h *DeployJobHandler) Handle(ctx context.Context, job *Job) error {
 
 // LogWriter wraps an io.Writer to provide progress updates during builds
 type LogWriter struct {
-	writer     io.Writer
-	queue      *Queue
-	jobID      string
+	writer       io.Writer
+	queue        *Queue
+	jobID        string
 	baseProgress int
 	maxProgress  int
 	lineCount    int
@@ -247,9 +247,9 @@ type LogWriter struct {
 // NewLogWriter creates a new LogWriter that updates job progress
 func NewLogWriter(writer io.Writer, queue *Queue, jobID string, baseProgress, maxProgress, estimatedLines int) *LogWriter {
 	return &LogWriter{
-		writer:      writer,
-		queue:       queue,
-		jobID:       jobID,
+		writer:       writer,
+		queue:        queue,
+		jobID:        jobID,
 		baseProgress: baseProgress,
 		maxProgress:  maxProgress,
 		targetLines:  estimatedLines,
@@ -259,26 +259,26 @@ func NewLogWriter(writer io.Writer, queue *Queue, jobID string, baseProgress, ma
 // Write implements io.Writer and updates progress based on log output
 func (w *LogWriter) Write(p []byte) (n int, err error) {
 	n, err = w.writer.Write(p)
-	
+
 	// Count lines to estimate progress
 	for _, b := range p[:n] {
 		if b == '\n' {
 			w.lineCount++
 		}
 	}
-	
+
 	// Update progress based on line count
 	if w.targetLines > 0 {
 		progressRange := w.maxProgress - w.baseProgress
 		lineProgress := (w.lineCount * progressRange) / w.targetLines
 		currentProgress := w.baseProgress + lineProgress
-		
+
 		if currentProgress > w.maxProgress {
 			currentProgress = w.maxProgress
 		}
-		
+
 		w.queue.UpdateJobProgress(w.jobID, currentProgress)
 	}
-	
+
 	return n, err
 }

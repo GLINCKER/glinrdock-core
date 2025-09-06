@@ -107,10 +107,10 @@ func (nm *NetworkManager) GetContainerNetworks(ctx context.Context, containerID 
 	var networks []ContainerNetwork
 	for networkName, endpointSettings := range inspect.NetworkSettings.Networks {
 		networks = append(networks, ContainerNetwork{
-			Name:    networkName,
-			ID:      endpointSettings.NetworkID,
+			Name:      networkName,
+			ID:        endpointSettings.NetworkID,
 			IPAddress: endpointSettings.IPAddress,
-			Aliases: endpointSettings.Aliases,
+			Aliases:   endpointSettings.Aliases,
 		})
 	}
 
@@ -159,10 +159,10 @@ type ContainerNetwork struct {
 // GenerateServiceAliases generates DNS aliases for a service
 func GenerateServiceAliases(serviceName, projectSlug string) []string {
 	aliases := []string{serviceName}
-	
+
 	if projectSlug != "" {
 		aliases = append(aliases, fmt.Sprintf("%s.%s.local", serviceName, projectSlug))
 	}
-	
+
 	return aliases
 }

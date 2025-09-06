@@ -25,7 +25,7 @@ func NewRegistryStore(db *sql.DB) *RegistryStore {
 	// In production, this should be from environment or secure key management
 	systemSalt := "glinrdock-registry-encryption"
 	key := pbkdf2.Key([]byte(systemSalt), []byte("static-salt"), 4096, 32, sha256.New)
-	
+
 	return &RegistryStore{
 		db:            db,
 		encryptionKey: key,
@@ -103,7 +103,7 @@ func (s *RegistryStore) CreateRegistry(req RegistryCreateRequest) (*Registry, er
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
-	_, err = s.db.Exec(query, 
+	_, err = s.db.Exec(query,
 		registry.ID, registry.Name, registry.Type, registry.Server, registry.Username,
 		registry.SecretEnc, registry.Nonce, registry.CreatedAt, registry.UpdatedAt)
 	if err != nil {
@@ -130,7 +130,7 @@ func (s *RegistryStore) ListRegistries() ([]*RegistryPublic, error) {
 	var registries []*RegistryPublic
 	for rows.Next() {
 		registry := &RegistryPublic{}
-		err := rows.Scan(&registry.ID, &registry.Name, &registry.Type, 
+		err := rows.Scan(&registry.ID, &registry.Name, &registry.Type,
 			&registry.Server, &registry.Username, &registry.CreatedAt, &registry.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan registry: %w", err)

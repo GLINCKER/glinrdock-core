@@ -117,9 +117,9 @@ func TestRecordComparator_GetCurrentRecords(t *testing.T) {
 
 func TestRecordComparator_CompareRecords(t *testing.T) {
 	tests := []struct {
-		name           string
-		setupMock      func(*MockResolver)
-		desiredRecords []DNSRecord
+		name            string
+		setupMock       func(*MockResolver)
+		desiredRecords  []DNSRecord
 		expectedMissing []DNSRecord
 		expectedExtra   []DNSRecord
 		expectedMatch   []DNSRecord

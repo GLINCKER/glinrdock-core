@@ -36,7 +36,7 @@ type BuildStore interface {
 	UpdateBuildStatus(ctx context.Context, buildID int64, status string, logPath *string, startedAt, finishedAt *int64) error
 }
 
-// DeploymentStore interface for deployment-related database operations  
+// DeploymentStore interface for deployment-related database operations
 type DeploymentStore interface {
 	CreateDeployment(ctx context.Context, deployment *store.Deployment) error
 	GetDeployment(ctx context.Context, deploymentID int64) (*store.Deployment, error)
@@ -397,7 +397,7 @@ func (h *CICDHandlers) triggerBuildForService(ctx context.Context, service *stor
 		ServiceID:   service.ID,
 		GitURL:      gitURL,
 		GitRef:      gitRef,
-		ContextPath: ".", // Default context path
+		ContextPath: ".",          // Default context path
 		Dockerfile:  "Dockerfile", // Default dockerfile
 		ImageTag:    fmt.Sprintf("%s:%s-%d", service.Name, gitRef[:7], time.Now().Unix()),
 		Status:      "queued",
@@ -430,9 +430,9 @@ func verifyWebhookSignature(payload []byte, signature, secret string) bool {
 
 // GitHubPushPayload represents a GitHub push webhook payload
 type GitHubPushPayload struct {
-	Ref    string `json:"ref"`
-	Before string `json:"before"`
-	After  string `json:"after"`
+	Ref        string `json:"ref"`
+	Before     string `json:"before"`
+	After      string `json:"after"`
 	Repository struct {
 		ID       int    `json:"id"`
 		Name     string `json:"name"`

@@ -63,7 +63,7 @@ func NewBuildKitRunner() (*BuildKitRunner, error) {
 // BuildImage builds a Docker image using BuildKit
 func (r *BuildKitRunner) BuildImage(ctx context.Context, spec BuildSpec) (*BuildResult, error) {
 	startTime := time.Now()
-	
+
 	result := &BuildResult{
 		ImageTag: spec.ImageTag,
 	}
@@ -90,7 +90,7 @@ func (r *BuildKitRunner) BuildImage(ctx context.Context, spec BuildSpec) (*Build
 	}
 
 	cmd := exec.CommandContext(ctx, r.dockerCmd, args...)
-	
+
 	// Set up output capture
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -115,7 +115,7 @@ func (r *BuildKitRunner) BuildImage(ctx context.Context, spec BuildSpec) (*Build
 
 	// Read output in goroutines
 	var logOutput strings.Builder
-	
+
 	go r.streamOutput(stdout, spec.LogWriter, &logOutput)
 	go r.streamOutput(stderr, spec.LogWriter, &logOutput)
 
@@ -145,7 +145,7 @@ func (r *BuildKitRunner) BuildImage(ctx context.Context, spec BuildSpec) (*Build
 // PushImage pushes a Docker image to a registry
 func (r *BuildKitRunner) PushImage(ctx context.Context, imageTag string) error {
 	cmd := exec.CommandContext(ctx, r.dockerCmd, "push", imageTag)
-	
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to push image %s: %w\nOutput: %s", imageTag, err, output)
@@ -157,7 +157,7 @@ func (r *BuildKitRunner) PushImage(ctx context.Context, imageTag string) error {
 // PullImage pulls a Docker image from a registry
 func (r *BuildKitRunner) PullImage(ctx context.Context, imageTag string) error {
 	cmd := exec.CommandContext(ctx, r.dockerCmd, "pull", imageTag)
-	
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to pull image %s: %w\nOutput: %s", imageTag, err, output)
@@ -169,7 +169,7 @@ func (r *BuildKitRunner) PullImage(ctx context.Context, imageTag string) error {
 // TagImage creates a new tag for an existing image
 func (r *BuildKitRunner) TagImage(ctx context.Context, sourceTag, targetTag string) error {
 	cmd := exec.CommandContext(ctx, r.dockerCmd, "tag", sourceTag, targetTag)
-	
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to tag image %s -> %s: %w\nOutput: %s", sourceTag, targetTag, err, output)
@@ -181,7 +181,7 @@ func (r *BuildKitRunner) TagImage(ctx context.Context, sourceTag, targetTag stri
 // ImageExists checks if a Docker image exists locally
 func (r *BuildKitRunner) ImageExists(ctx context.Context, imageTag string) (bool, error) {
 	cmd := exec.CommandContext(ctx, r.dockerCmd, "image", "inspect", imageTag)
-	
+
 	err := cmd.Run()
 	if err != nil {
 		if exitError, ok := err.(*exec.ExitError); ok && exitError.ExitCode() == 1 {
@@ -202,7 +202,7 @@ func (r *BuildKitRunner) cloneRepo(ctx context.Context, gitURL, gitRef string) (
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp directory: %w", err)
 	}
-	
+
 	tmpDir := strings.TrimSpace(string(output))
 
 	// Clone repository
@@ -213,7 +213,7 @@ func (r *BuildKitRunner) cloneRepo(ctx context.Context, gitURL, gitRef string) (
 		if err := cloneCmd.Run(); err != nil {
 			return "", fmt.Errorf("failed to clone repository: %w", err)
 		}
-		
+
 		// Checkout the specific ref
 		checkoutCmd := exec.CommandContext(ctx, "git", "-C", tmpDir, "checkout", gitRef)
 		if err := checkoutCmd.Run(); err != nil {
@@ -228,12 +228,12 @@ func (r *BuildKitRunner) streamOutput(reader io.Reader, logWriter io.Writer, buf
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		line := scanner.Text()
-		
+
 		// Write to log file if provided
 		if logWriter != nil {
 			fmt.Fprintln(logWriter, line)
 		}
-		
+
 		// Store in buffer for result
 		buffer.WriteString(line + "\n")
 	}
@@ -241,7 +241,7 @@ func (r *BuildKitRunner) streamOutput(reader io.Reader, logWriter io.Writer, buf
 
 func (r *BuildKitRunner) getImageID(ctx context.Context, imageTag string) (string, error) {
 	cmd := exec.CommandContext(ctx, r.dockerCmd, "image", "inspect", "--format={{.Id}}", imageTag)
-	
+
 	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to get image ID: %w", err)

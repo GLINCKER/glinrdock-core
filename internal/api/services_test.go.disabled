@@ -126,7 +126,7 @@ func setupServiceTestServer(t *testing.T, serviceStore ServiceStore, dockerEngin
 	handlers := NewHandlers(dockerClient, nil, nil, serviceStore, nil, dockerEngine, nil, nil, nil, nil, nil, nil, nil, nil, eventCache)
 
 	r := gin.New()
-	
+
 	// Add routes without authentication middleware for testing
 	v1 := r.Group("/v1")
 	{
@@ -151,14 +151,14 @@ func setupServiceTestServer(t *testing.T, serviceStore ServiceStore, dockerEngin
 func TestCreateService(t *testing.T) {
 	mockStore := &MockServiceStore{}
 	mockEngine := &MockDockerEngine{}
-	
+
 	// Mock project exists
 	project := store.Project{ID: 1, Name: "test-project"}
 	mockStore.On("GetProject", mock.Anything, int64(1)).Return(project, nil)
-	
+
 	// Mock successful image pull
 	mockEngine.On("Pull", mock.Anything, "nginx:alpine").Return(nil)
-	
+
 	// Mock service creation
 	expectedService := store.Service{
 		ID:        1,
@@ -170,12 +170,12 @@ func TestCreateService(t *testing.T) {
 	}
 	serviceSpec := store.ServiceSpec{
 		Name:  "api",
-		Image: "nginx:alpine", 
+		Image: "nginx:alpine",
 		Env:   map[string]string{"ENV": "test"},
 		Ports: []store.PortMap{{Container: 8080, Host: 8081}},
 	}
 	mockStore.On("CreateService", mock.Anything, int64(1), serviceSpec).Return(expectedService, nil)
-	
+
 	// Mock container creation
 	mockEngine.On("Create", mock.Anything, "glinr_1_api", mock.AnythingOfType("dockerx.ContainerSpec"), mock.AnythingOfType("map[string]string")).Return("container-id", nil)
 
@@ -211,7 +211,7 @@ func TestCreateService(t *testing.T) {
 
 func TestListServices(t *testing.T) {
 	mockStore := &MockServiceStore{}
-	
+
 	expectedServices := []store.Service{
 		{ID: 1, ProjectID: 1, Name: "api", Image: "nginx"},
 		{ID: 2, ProjectID: 1, Name: "worker", Image: "alpine"},
@@ -238,7 +238,7 @@ func TestListServices(t *testing.T) {
 
 func TestGetService(t *testing.T) {
 	mockStore := &MockServiceStore{}
-	
+
 	expectedService := store.Service{
 		ID: 1, ProjectID: 1, Name: "api", Image: "nginx",
 	}
@@ -265,7 +265,7 @@ func TestGetService(t *testing.T) {
 func TestDeleteService(t *testing.T) {
 	mockStore := &MockServiceStore{}
 	mockEngine := &MockDockerEngine{}
-	
+
 	service := store.Service{ID: 1, ProjectID: 1, Name: "api"}
 	mockStore.On("GetService", mock.Anything, int64(1)).Return(service, nil)
 	mockEngine.On("Remove", mock.Anything, "glinr_1_api").Return(nil)
@@ -326,7 +326,7 @@ func TestServiceValidation(t *testing.T) {
 // Test status functionality with EventCache
 func TestListServicesWithStatus(t *testing.T) {
 	mockStore := &MockServiceStore{}
-	
+
 	// Create mock services
 	expectedServices := []store.Service{
 		{ID: 1, ProjectID: 1, Name: "api", Image: "nginx"},
@@ -354,7 +354,7 @@ func TestListServicesWithStatus(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
 	assert.Len(t, response["services"], 2)
-	
+
 	// Verify status was populated from event cache
 	services := response["services"]
 	for _, service := range services {
@@ -370,7 +370,7 @@ func TestListServicesWithStatus(t *testing.T) {
 
 func TestGetServiceWithStatus(t *testing.T) {
 	mockStore := &MockServiceStore{}
-	
+
 	expectedService := store.Service{
 		ID: 1, ProjectID: 1, Name: "api", Image: "nginx",
 	}
@@ -401,7 +401,7 @@ func TestGetServiceWithStatus(t *testing.T) {
 
 func TestServicesWithoutEventCache(t *testing.T) {
 	mockStore := &MockServiceStore{}
-	
+
 	expectedServices := []store.Service{
 		{ID: 1, ProjectID: 1, Name: "api", Image: "nginx"},
 	}
@@ -422,7 +422,7 @@ func TestServicesWithoutEventCache(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
 	assert.Len(t, response["services"], 1)
-	
+
 	// Status should be empty when no event cache
 	services := response["services"]
 	assert.Equal(t, "", services[0].Status)
@@ -432,7 +432,7 @@ func TestServicesWithoutEventCache(t *testing.T) {
 
 func TestServiceStatusDefaultsToStopped(t *testing.T) {
 	mockStore := &MockServiceStore{}
-	
+
 	expectedServices := []store.Service{
 		{ID: 999, ProjectID: 1, Name: "unknown", Image: "nginx"}, // Service not in cache
 	}
@@ -455,7 +455,7 @@ func TestServiceStatusDefaultsToStopped(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
 	assert.Len(t, response["services"], 1)
-	
+
 	// Status should default to "stopped" when service not found in cache
 	services := response["services"]
 	assert.Equal(t, "stopped", services[0].Status)
@@ -467,11 +467,11 @@ func TestServiceStatusDefaultsToStopped(t *testing.T) {
 
 func TestGetServiceNetwork(t *testing.T) {
 	mockStore := &MockServiceStore{}
-	
+
 	expectedNetwork := store.ServiceNetwork{
-		ServiceID: 1,
+		ServiceID:   1,
 		ServiceName: "api",
-		Alias: "svc-test-project-api",
+		Alias:       "svc-test-project-api",
 		ProjectName: "test-project",
 		InternalPorts: []store.InternalPortMapping{
 			{Port: 8080, Protocol: "tcp"},
@@ -479,7 +479,7 @@ func TestGetServiceNetwork(t *testing.T) {
 		},
 		NetworkName: "glinr_default",
 		Hints: map[string]string{
-			"DNS": "svc-test-project-api:8080",
+			"DNS":  "svc-test-project-api:8080",
 			"curl": "curl http://svc-test-project-api:8080/health",
 		},
 	}
@@ -508,7 +508,7 @@ func TestGetServiceNetwork(t *testing.T) {
 
 func TestGetServiceNetworkNotFound(t *testing.T) {
 	mockStore := &MockServiceStore{}
-	
+
 	mockStore.On("GetServiceNetwork", mock.Anything, int64(999)).Return(store.ServiceNetwork{}, assert.AnError)
 
 	r := setupServiceTestServer(t, mockStore, nil, nil)
@@ -526,7 +526,7 @@ func TestGetServiceNetworkNotFound(t *testing.T) {
 
 func TestGetServiceLinks(t *testing.T) {
 	mockStore := &MockServiceStore{}
-	
+
 	expectedLinks := []store.LinkedService{
 		{ID: 2, Name: "database", Alias: "svc-test-project-database"},
 		{ID: 3, Name: "redis", Alias: "svc-test-project-redis"},
@@ -555,7 +555,7 @@ func TestGetServiceLinks(t *testing.T) {
 
 func TestUpdateServiceLinks(t *testing.T) {
 	mockStore := &MockServiceStore{}
-	
+
 	targetIDs := []int64{2, 3}
 	mockStore.On("CreateServiceLinks", mock.Anything, int64(1), targetIDs).Return(nil)
 

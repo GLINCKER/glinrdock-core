@@ -123,7 +123,7 @@ func TestRealTimeIndexing_ServiceLifecycle(t *testing.T) {
 			Env:   make(map[string]string),
 			Ports: make([]store.PortMap, 0),
 		}
-		
+
 		service, err := testStore.CreateService(ctx, project.ID, spec)
 		require.NoError(t, err)
 
@@ -159,7 +159,7 @@ func TestRealTimeIndexing_ServiceLifecycle(t *testing.T) {
 			Env:   make(map[string]string),
 			Ports: make([]store.PortMap, 0),
 		}
-		
+
 		service, err := testStore.CreateService(ctx, project.ID, spec)
 		require.NoError(t, err)
 

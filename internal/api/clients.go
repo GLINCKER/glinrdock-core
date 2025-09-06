@@ -34,7 +34,7 @@ type TouchClientRequest struct {
 func (h *Handlers) ListClients(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
-	
+
 	// Cast tokenStore to ClientStore interface - we know it implements both
 	clientStore, ok := h.tokenStore.(ClientStore)
 	if !ok {
@@ -61,7 +61,7 @@ func (h *Handlers) TouchClient(c *gin.Context) {
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
-	
+
 	// Cast tokenStore to ClientStore interface
 	clientStore, ok := h.tokenStore.(ClientStore)
 	if !ok {
@@ -111,7 +111,7 @@ func (h *Handlers) DeleteClient(c *gin.Context) {
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
-	
+
 	// Cast tokenStore to ClientStore interface
 	clientStore, ok := h.tokenStore.(ClientStore)
 	if !ok {
@@ -148,13 +148,13 @@ func getClientIP(c *gin.Context) string {
 		ips := strings.Split(xff, ",")
 		return strings.TrimSpace(ips[0])
 	}
-	
+
 	// Check X-Real-IP header
 	realIP := c.GetHeader("X-Real-IP")
 	if realIP != "" {
 		return realIP
 	}
-	
+
 	// Fall back to remote address
 	return c.ClientIP()
 }

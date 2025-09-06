@@ -19,7 +19,7 @@ func setupTestStore(t *testing.T) *Store {
 	require.NoError(t, err)
 
 	store := &Store{db: db}
-	
+
 	// Run migrations
 	ctx := context.Background()
 	err = store.Migrate(ctx)
@@ -40,7 +40,7 @@ func TestMigrations(t *testing.T) {
 	tables := []string{"tokens", "projects", "services", "routes", "service_links", "schema_version"}
 	for _, table := range tables {
 		var count int
-		err := store.db.QueryRowContext(ctx, 
+		err := store.db.QueryRowContext(ctx,
 			"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&count)
 		require.NoError(t, err)
 		assert.Equal(t, 1, count, "table %s should exist", table)
@@ -65,7 +65,7 @@ func TestTokenOperations(t *testing.T) {
 		assert.Equal(t, "test-token", token.Name)
 		assert.NotEmpty(t, token.Hash)
 		assert.NotEqual(t, "secret123", token.Hash) // Should be bcrypt hash
-		
+
 		// Verify bcrypt hash
 		err = bcrypt.CompareHashAndPassword([]byte(token.Hash), []byte("secret123"))
 		assert.NoError(t, err)
@@ -216,7 +216,7 @@ func TestServiceOperations(t *testing.T) {
 
 	t.Run("CreateService", func(t *testing.T) {
 		store := setupTestStore(t)
-		
+
 		// Create project first
 		project, err := store.CreateProject(ctx, "test-project")
 		require.NoError(t, err)
@@ -265,7 +265,7 @@ func TestServiceOperations(t *testing.T) {
 		// Create services
 		spec1 := ServiceSpec{Name: "web", Image: "nginx"}
 		spec2 := ServiceSpec{Name: "api", Image: "alpine"}
-		
+
 		_, err = store.CreateService(ctx, project.ID, spec1)
 		require.NoError(t, err)
 		_, err = store.CreateService(ctx, project.ID, spec2)
@@ -368,7 +368,7 @@ func TestServiceNetworking(t *testing.T) {
 
 		assert.Contains(t, network.Aliases, "web-api")
 		assert.Equal(t, "glinr_default", network.ProjectNetwork)
-		
+
 		// Check internal ports
 		assert.Len(t, network.PortsInternal, 2)
 		expectedPorts := map[int]string{80: "tcp", 9090: "tcp"}

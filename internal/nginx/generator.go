@@ -252,14 +252,14 @@ func (g *Generator) GenerateConfiguration(ctx context.Context, routes []RouteCon
 
 	// TODO: In future phases, generate actual nginx configuration files
 	// For now, this is a placeholder to satisfy the scaffolding requirements
-	
+
 	log.Info().Msg("nginx configuration generation completed (placeholder)")
 	return nil
 }
 
 // RenderInput contains data needed for nginx config generation
 type RenderInput struct {
-	Routes []store.RouteWithService              `json:"routes"`
+	Routes []store.RouteWithService             `json:"routes"`
 	Certs  map[string]store.EnhancedCertificate `json:"certs"`
 }
 

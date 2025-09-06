@@ -36,7 +36,7 @@ func (m *mockEnvVarStore) SetEnvVar(ctx context.Context, serviceID int64, key, v
 	if serviceID != 1 {
 		return store.ErrNotFound
 	}
-	
+
 	envVar := store.EnvVar{
 		ID:         int64(len(m.envVars) + 1),
 		ServiceID:  serviceID,
@@ -46,7 +46,7 @@ func (m *mockEnvVarStore) SetEnvVar(ctx context.Context, serviceID int64, key, v
 		Nonce:      nonce,
 		Ciphertext: ciphertext,
 	}
-	
+
 	m.envVars[key] = envVar
 	return nil
 }
@@ -55,12 +55,12 @@ func (m *mockEnvVarStore) GetEnvVar(ctx context.Context, serviceID int64, key st
 	if serviceID != 1 {
 		return store.EnvVar{}, store.ErrNotFound
 	}
-	
+
 	envVar, exists := m.envVars[key]
 	if !exists {
 		return store.EnvVar{}, store.ErrNotFound
 	}
-	
+
 	return envVar, nil
 }
 
@@ -68,12 +68,12 @@ func (m *mockEnvVarStore) ListEnvVars(ctx context.Context, serviceID int64) ([]s
 	if serviceID != 1 {
 		return nil, store.ErrNotFound
 	}
-	
+
 	var envVars []store.EnvVar
 	for _, envVar := range m.envVars {
 		envVars = append(envVars, envVar)
 	}
-	
+
 	return envVars, nil
 }
 
@@ -81,11 +81,11 @@ func (m *mockEnvVarStore) DeleteEnvVar(ctx context.Context, serviceID int64, key
 	if serviceID != 1 {
 		return store.ErrNotFound
 	}
-	
+
 	if _, exists := m.envVars[key]; !exists {
 		return store.ErrNotFound
 	}
-	
+
 	delete(m.envVars, key)
 	return nil
 }
@@ -94,14 +94,14 @@ func (m *mockEnvVarStore) BulkSetEnvVars(ctx context.Context, serviceID int64, e
 	if serviceID != 1 {
 		return store.ErrNotFound
 	}
-	
+
 	for _, update := range envVars {
 		err := m.SetEnvVar(ctx, serviceID, update.Key, update.Value, update.IsSecret, update.Nonce, update.Ciphertext)
 		if err != nil {
 			return err
 		}
 	}
-	
+
 	return nil
 }
 
@@ -109,11 +109,11 @@ func (m *mockEnvVarStore) BulkDeleteEnvVars(ctx context.Context, serviceID int64
 	if serviceID != 1 {
 		return store.ErrNotFound
 	}
-	
+
 	for _, key := range keys {
 		delete(m.envVars, key)
 	}
-	
+
 	return nil
 }
 
@@ -142,19 +142,19 @@ func TestGetServiceEnvVars(t *testing.T) {
 			os.Unsetenv("GLINRDOCK_SECRET")
 		}
 	}()
-	
+
 	// Generate test key
 	testKey := make([]byte, 32)
 	for i := range testKey {
 		testKey[i] = byte(i)
 	}
 	os.Setenv("GLINRDOCK_SECRET", "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=")
-	
+
 	handlers, mockStore := setupTestHandlers()
 
 	// Add some test data
 	mockStore.SetEnvVar(context.Background(), 1, "PLAIN_VAR", "plain_value", false, nil, nil)
-	
+
 	// Add a secret var with encryption
 	masterKey, _ := crypto.LoadMasterKeyFromEnv()
 	nonce, ciphertext, _ := crypto.Encrypt(masterKey, []byte("secret_value"))
@@ -162,7 +162,7 @@ func TestGetServiceEnvVars(t *testing.T) {
 
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	
+
 	t.Run("ViewerRole", func(t *testing.T) {
 		router.GET("/services/:id/env-vars", func(c *gin.Context) {
 			c.Set("user_role", store.RoleViewer)
@@ -229,7 +229,7 @@ func TestGetServiceEnvVars(t *testing.T) {
 		}
 
 		envVars := response["env_vars"]
-		
+
 		// Check that secret is decrypted for deployer
 		for _, envVar := range envVars {
 			if envVar.Key == "SECRET_VAR" {
@@ -272,7 +272,7 @@ func TestSetServiceEnvVar(t *testing.T) {
 		reqBody, _ := json.Marshal(req)
 		httpReq := httptest.NewRequest("PUT", "/services/1/env-vars", bytes.NewReader(reqBody))
 		httpReq.Header.Set("Content-Type", "application/json")
-		
+
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, httpReq)
 
@@ -304,7 +304,7 @@ func TestSetServiceEnvVar(t *testing.T) {
 		reqBody, _ := json.Marshal(req)
 		httpReq := httptest.NewRequest("PUT", "/services/1/env-vars", bytes.NewReader(reqBody))
 		httpReq.Header.Set("Content-Type", "application/json")
-		
+
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, httpReq)
 
@@ -354,7 +354,7 @@ func TestSetServiceEnvVar(t *testing.T) {
 		reqBody, _ := json.Marshal(req)
 		httpReq := httptest.NewRequest("PUT", "/services/1/env-vars-viewer", bytes.NewReader(reqBody))
 		httpReq.Header.Set("Content-Type", "application/json")
-		
+
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, httpReq)
 

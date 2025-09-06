@@ -51,7 +51,7 @@ func (zd *ZoneDetector) FindZone(ctx context.Context, domain string) (string, er
 
 	// Try the domain itself and walk up the hierarchy
 	parts := strings.Split(domain, ".")
-	
+
 	// Try each level starting from the full domain
 	for i := 0; i < len(parts)-1; i++ { // Don't try just the TLD
 		currentDomain := strings.Join(parts[i:], ".")
@@ -78,12 +78,12 @@ func (zd *ZoneDetector) DetectProvider(ctx context.Context, zone string) (string
 func (zd *ZoneDetector) detectProviderFromNS(nameservers []string) string {
 	for _, ns := range nameservers {
 		ns = strings.ToLower(ns)
-		
+
 		// Check for Cloudflare nameservers
 		if strings.Contains(ns, "cloudflare.com") {
 			return ProviderCloudflare
 		}
-		
+
 		// Add more provider detection logic here as needed
 		// Example patterns:
 		// if strings.Contains(ns, "amazonaws.com") {

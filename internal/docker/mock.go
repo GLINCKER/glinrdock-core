@@ -16,11 +16,11 @@ type MockRunner struct {
 // BuildImage mocks building a Docker image
 func (m *MockRunner) BuildImage(ctx context.Context, spec BuildSpec) (*BuildResult, error) {
 	args := m.Called(ctx, spec)
-	
+
 	if result := args.Get(0); result != nil {
 		return result.(*BuildResult), args.Error(1)
 	}
-	
+
 	return nil, args.Error(1)
 }
 
@@ -128,7 +128,7 @@ func (t *TestRunner) SetFailPull(images []string) {
 // BuildImage simulates building a Docker image
 func (t *TestRunner) BuildImage(ctx context.Context, spec BuildSpec) (*BuildResult, error) {
 	startTime := time.Now()
-	
+
 	// Simulate build time
 	select {
 	case <-time.After(t.buildDelay):

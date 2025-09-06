@@ -39,11 +39,11 @@ func (m *MockTokenStore) DeleteTokenByName(ctx context.Context, name string) err
 func setupTokenTestRouter(tokenStore TokenStore) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	
+
 	handlers := &Handlers{
 		tokenStore: tokenStore,
 	}
-	
+
 	// Setup routes with authentication middleware
 	v1 := r.Group("/v1")
 	{
@@ -67,7 +67,7 @@ func setupTokenTestRouter(tokenStore TokenStore) *gin.Engine {
 			}
 			c.Next()
 		})
-		
+
 		// Token management endpoints (admin only)
 		tokens := protected.Group("/tokens")
 		tokens.Use(func(c *gin.Context) {
@@ -85,7 +85,7 @@ func setupTokenTestRouter(tokenStore TokenStore) *gin.Engine {
 			tokens.DELETE("/:name", handlers.DeleteToken)
 		}
 	}
-	
+
 	return r
 }
 
@@ -96,36 +96,36 @@ func TestCreateToken_Success(t *testing.T) {
 		Name: "new-token",
 		Role: store.RoleDeployer,
 	}
-	
+
 	mockStore.On("CreateToken", mock.Anything, "new-token", "secret123", store.RoleDeployer).Return(expectedToken, nil)
-	
+
 	router := setupTokenTestRouter(mockStore)
-	
+
 	reqBody := CreateTokenRequest{
 		Name:  "new-token",
 		Plain: "secret123",
 		Role:  store.RoleDeployer,
 	}
 	bodyBytes, _ := json.Marshal(reqBody)
-	
+
 	req := httptest.NewRequest("POST", "/v1/tokens", bytes.NewBuffer(bodyBytes))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer admin-token")
 	w := httptest.NewRecorder()
-	
+
 	router.ServeHTTP(w, req)
-	
+
 	assert.Equal(t, http.StatusCreated, w.Code)
-	
+
 	var response map[string]interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
-	
+
 	assert.Equal(t, float64(1), response["id"])
 	assert.Equal(t, "new-token", response["name"])
 	assert.Equal(t, store.RoleDeployer, response["role"])
 	assert.NotContains(t, response, "hash") // Hash should not be returned
-	
+
 	mockStore.AssertExpectations(t)
 }
 
@@ -136,25 +136,25 @@ func TestCreateToken_DefaultRole(t *testing.T) {
 		Name: "admin-token",
 		Role: store.RoleAdmin,
 	}
-	
+
 	mockStore.On("CreateToken", mock.Anything, "admin-token", "secret123", store.RoleAdmin).Return(expectedToken, nil)
-	
+
 	router := setupTokenTestRouter(mockStore)
-	
+
 	reqBody := CreateTokenRequest{
 		Name:  "admin-token",
 		Plain: "secret123",
 		// Role omitted - should default to admin
 	}
 	bodyBytes, _ := json.Marshal(reqBody)
-	
+
 	req := httptest.NewRequest("POST", "/v1/tokens", bytes.NewBuffer(bodyBytes))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer admin-token")
 	w := httptest.NewRecorder()
-	
+
 	router.ServeHTTP(w, req)
-	
+
 	assert.Equal(t, http.StatusCreated, w.Code)
 	mockStore.AssertExpectations(t)
 }
@@ -162,24 +162,24 @@ func TestCreateToken_DefaultRole(t *testing.T) {
 func TestCreateToken_InvalidRole(t *testing.T) {
 	mockStore := &MockTokenStore{}
 	router := setupTokenTestRouter(mockStore)
-	
+
 	reqBody := CreateTokenRequest{
 		Name:  "test-token",
 		Plain: "secret123",
 		Role:  "invalid-role",
 	}
 	bodyBytes, _ := json.Marshal(reqBody)
-	
+
 	req := httptest.NewRequest("POST", "/v1/tokens", bytes.NewBuffer(bodyBytes))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer admin-token")
 	w := httptest.NewRecorder()
-	
+
 	router.ServeHTTP(w, req)
-	
+
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	assert.Contains(t, w.Body.String(), "invalid role")
-	
+
 	// Should not call store
 	mockStore.AssertNotCalled(t, "CreateToken")
 }
@@ -195,28 +195,28 @@ func TestCreateToken_PermissionDenied(t *testing.T) {
 		{"Bearer invalid-token", http.StatusUnauthorized, "invalid token"},
 		{"", http.StatusUnauthorized, "no token"},
 	}
-	
+
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			mockStore := &MockTokenStore{}
 			router := setupTokenTestRouter(mockStore)
-			
+
 			reqBody := CreateTokenRequest{
 				Name:  "test-token",
 				Plain: "secret123",
 				Role:  store.RoleViewer,
 			}
 			bodyBytes, _ := json.Marshal(reqBody)
-			
+
 			req := httptest.NewRequest("POST", "/v1/tokens", bytes.NewBuffer(bodyBytes))
 			req.Header.Set("Content-Type", "application/json")
 			if test.token != "" {
 				req.Header.Set("Authorization", test.token)
 			}
 			w := httptest.NewRecorder()
-			
+
 			router.ServeHTTP(w, req)
-			
+
 			assert.Equal(t, test.expectCode, w.Code)
 			mockStore.AssertNotCalled(t, "CreateToken")
 		})
@@ -230,31 +230,31 @@ func TestListTokens_Success(t *testing.T) {
 		{ID: 2, Name: "deployer-token", Role: store.RoleDeployer},
 		{ID: 3, Name: "viewer-token", Role: store.RoleViewer},
 	}
-	
+
 	mockStore.On("ListTokens", mock.Anything).Return(expectedTokens, nil)
-	
+
 	router := setupTokenTestRouter(mockStore)
-	
+
 	req := httptest.NewRequest("GET", "/v1/tokens", nil)
 	req.Header.Set("Authorization", "Bearer admin-token")
 	w := httptest.NewRecorder()
-	
+
 	router.ServeHTTP(w, req)
-	
+
 	assert.Equal(t, http.StatusOK, w.Code)
-	
+
 	var response map[string]interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
-	
+
 	tokens := response["tokens"].([]interface{})
 	assert.Len(t, tokens, 3)
-	
+
 	// Check first token
 	firstToken := tokens[0].(map[string]interface{})
 	assert.Equal(t, "admin-token", firstToken["name"])
 	assert.Equal(t, store.RoleAdmin, firstToken["role"])
-	
+
 	mockStore.AssertExpectations(t)
 }
 
@@ -267,18 +267,18 @@ func TestListTokens_PermissionDenied(t *testing.T) {
 		{"Bearer deployer-token", http.StatusForbidden, "deployer cannot list tokens"},
 		{"Bearer viewer-token", http.StatusForbidden, "viewer cannot list tokens"},
 	}
-	
+
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			mockStore := &MockTokenStore{}
 			router := setupTokenTestRouter(mockStore)
-			
+
 			req := httptest.NewRequest("GET", "/v1/tokens", nil)
 			req.Header.Set("Authorization", test.token)
 			w := httptest.NewRecorder()
-			
+
 			router.ServeHTTP(w, req)
-			
+
 			assert.Equal(t, test.expectCode, w.Code)
 			mockStore.AssertNotCalled(t, "ListTokens")
 		})
@@ -288,35 +288,35 @@ func TestListTokens_PermissionDenied(t *testing.T) {
 func TestDeleteToken_Success(t *testing.T) {
 	mockStore := &MockTokenStore{}
 	mockStore.On("DeleteTokenByName", mock.Anything, "test-token").Return(nil)
-	
+
 	router := setupTokenTestRouter(mockStore)
-	
+
 	req := httptest.NewRequest("DELETE", "/v1/tokens/test-token", nil)
 	req.Header.Set("Authorization", "Bearer admin-token")
 	w := httptest.NewRecorder()
-	
+
 	router.ServeHTTP(w, req)
-	
+
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), "token deleted successfully")
-	
+
 	mockStore.AssertExpectations(t)
 }
 
 func TestDeleteToken_NotFound(t *testing.T) {
 	mockStore := &MockTokenStore{}
 	mockStore.On("DeleteTokenByName", mock.Anything, "nonexistent").Return(assert.AnError)
-	
+
 	router := setupTokenTestRouter(mockStore)
-	
+
 	req := httptest.NewRequest("DELETE", "/v1/tokens/nonexistent", nil)
 	req.Header.Set("Authorization", "Bearer admin-token")
 	w := httptest.NewRecorder()
-	
+
 	router.ServeHTTP(w, req)
-	
+
 	assert.Equal(t, http.StatusInternalServerError, w.Code) // Should handle error better
-	
+
 	mockStore.AssertExpectations(t)
 }
 
@@ -329,18 +329,18 @@ func TestDeleteToken_PermissionDenied(t *testing.T) {
 		{"Bearer deployer-token", http.StatusForbidden, "deployer cannot delete tokens"},
 		{"Bearer viewer-token", http.StatusForbidden, "viewer cannot delete tokens"},
 	}
-	
+
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			mockStore := &MockTokenStore{}
 			router := setupTokenTestRouter(mockStore)
-			
+
 			req := httptest.NewRequest("DELETE", "/v1/tokens/test-token", nil)
 			req.Header.Set("Authorization", test.token)
 			w := httptest.NewRecorder()
-			
+
 			router.ServeHTTP(w, req)
-			
+
 			assert.Equal(t, test.expectCode, w.Code)
 			mockStore.AssertNotCalled(t, "DeleteTokenByName")
 		})
@@ -350,7 +350,7 @@ func TestDeleteToken_PermissionDenied(t *testing.T) {
 func TestCreateToken_ValidationErrors(t *testing.T) {
 	mockStore := &MockTokenStore{}
 	router := setupTokenTestRouter(mockStore)
-	
+
 	tests := []struct {
 		reqBody    interface{}
 		expectCode int
@@ -376,7 +376,7 @@ func TestCreateToken_ValidationErrors(t *testing.T) {
 			desc:       "invalid JSON",
 		},
 	}
-	
+
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			var bodyBytes []byte
@@ -385,19 +385,19 @@ func TestCreateToken_ValidationErrors(t *testing.T) {
 			} else {
 				bodyBytes, _ = json.Marshal(test.reqBody)
 			}
-			
+
 			req := httptest.NewRequest("POST", "/v1/tokens", bytes.NewBuffer(bodyBytes))
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Authorization", "Bearer admin-token")
 			w := httptest.NewRecorder()
-			
+
 			router.ServeHTTP(w, req)
-			
+
 			assert.Equal(t, test.expectCode, w.Code)
 			if test.expectMsg != "" {
 				assert.Contains(t, w.Body.String(), test.expectMsg)
 			}
-			
+
 			mockStore.AssertNotCalled(t, "CreateToken")
 		})
 	}

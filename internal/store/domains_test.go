@@ -17,7 +17,7 @@ func TestStore_CreateDomain(t *testing.T) {
 	domain := &Domain{
 		Name: "example.com",
 	}
-	
+
 	id, err := store.CreateDomain(ctx, domain)
 	require.NoError(t, err)
 	assert.Greater(t, id, int64(0))
@@ -32,7 +32,7 @@ func TestStore_CreateDomain(t *testing.T) {
 		ZoneID:            stringPtr("abc123"),
 		VerificationToken: "custom-token",
 	}
-	
+
 	id2, err := store.CreateDomain(ctx, domain2)
 	require.NoError(t, err)
 	assert.Greater(t, id2, int64(0))
@@ -56,7 +56,7 @@ func TestStore_CreateDomain_InvalidInput(t *testing.T) {
 	domain := &Domain{
 		Name: "",
 	}
-	
+
 	_, err := store.CreateDomain(ctx, domain)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "domain name cannot be empty")
@@ -74,7 +74,7 @@ func TestStore_GetDomainByName(t *testing.T) {
 		Provider: stringPtr("cloudflare"),
 		ZoneID:   stringPtr("zone123"),
 	}
-	
+
 	id, err := store.CreateDomain(ctx, domain)
 	require.NoError(t, err)
 
@@ -143,7 +143,7 @@ func TestStore_ListDomains(t *testing.T) {
 	activeDomains, err := store.ListDomains(ctx, []string{DomainStatusActive, DomainStatusVerified})
 	require.NoError(t, err)
 	assert.Len(t, activeDomains, 2)
-	
+
 	// Verify both domains are returned
 	names := []string{activeDomains[0].Name, activeDomains[1].Name}
 	assert.Contains(t, names, "active.com")
@@ -165,7 +165,7 @@ func TestStore_UpdateDomainStatus(t *testing.T) {
 		Name:   "example.com",
 		Status: DomainStatusPending,
 	}
-	
+
 	id, err := store.CreateDomain(ctx, domain)
 	require.NoError(t, err)
 
@@ -211,7 +211,7 @@ func TestStore_Domain_UniqueConstraint(t *testing.T) {
 	domain1 := &Domain{
 		Name: "unique.com",
 	}
-	
+
 	_, err := store.CreateDomain(ctx, domain1)
 	require.NoError(t, err)
 
@@ -219,7 +219,7 @@ func TestStore_Domain_UniqueConstraint(t *testing.T) {
 	domain2 := &Domain{
 		Name: "unique.com", // Same name
 	}
-	
+
 	_, err = store.CreateDomain(ctx, domain2)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "already exists")
@@ -239,7 +239,7 @@ func TestStore_Domain_TimestampsUpdate(t *testing.T) {
 	domain := &Domain{
 		Name: "timestamps.com",
 	}
-	
+
 	id, err := store.CreateDomain(ctx, domain)
 	require.NoError(t, err)
 
@@ -261,4 +261,3 @@ func TestStore_Domain_TimestampsUpdate(t *testing.T) {
 	assert.Equal(t, initialCreated, updated.CreatedAt)
 	assert.True(t, updated.UpdatedAt.After(initialUpdated) || updated.UpdatedAt.Equal(initialUpdated))
 }
-

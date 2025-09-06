@@ -58,10 +58,10 @@ func NewAuthRateLimiter(config *AuthRateLimitConfig) *AuthRateLimiter {
 		config:   config,
 		requests: make(map[string]*ipRequestTracker),
 	}
-	
+
 	// Start cleanup goroutine
 	go limiter.cleanup()
-	
+
 	return limiter
 }
 
@@ -69,11 +69,11 @@ func NewAuthRateLimiter(config *AuthRateLimitConfig) *AuthRateLimiter {
 func (rl *AuthRateLimiter) cleanup() {
 	ticker := time.NewTicker(rl.config.CleanupInterval)
 	defer ticker.Stop()
-	
+
 	for range ticker.C {
 		rl.mutex.Lock()
 		cutoff := time.Now().Add(-2 * time.Minute) // Keep last 2 minutes
-		
+
 		for ip, tracker := range rl.requests {
 			// Remove old requests
 			var recentRequests []time.Time
@@ -83,7 +83,7 @@ func (rl *AuthRateLimiter) cleanup() {
 				}
 			}
 			tracker.requests = recentRequests
-			
+
 			// Remove IPs with no recent activity and no active backoff
 			if len(tracker.requests) == 0 && time.Now().After(tracker.backoffUntil) {
 				delete(rl.requests, ip)
@@ -97,7 +97,7 @@ func (rl *AuthRateLimiter) cleanup() {
 func (rl *AuthRateLimiter) IsAllowed(ip string) (bool, time.Duration) {
 	rl.mutex.Lock()
 	defer rl.mutex.Unlock()
-	
+
 	now := time.Now()
 	tracker, exists := rl.requests[ip]
 	if !exists {
@@ -106,12 +106,12 @@ func (rl *AuthRateLimiter) IsAllowed(ip string) (bool, time.Duration) {
 		}
 		rl.requests[ip] = tracker
 	}
-	
+
 	// Check if IP is in backoff period
 	if now.Before(tracker.backoffUntil) {
 		return false, tracker.backoffUntil.Sub(now)
 	}
-	
+
 	// Clean up requests older than 1 minute
 	cutoff := now.Add(-1 * time.Minute)
 	var recentRequests []time.Time
@@ -121,23 +121,23 @@ func (rl *AuthRateLimiter) IsAllowed(ip string) (bool, time.Duration) {
 		}
 	}
 	tracker.requests = recentRequests
-	
+
 	// Check rate limit
 	if len(tracker.requests) >= rl.config.RequestsPerMinute {
 		// Rate limit exceeded, start exponential backoff
 		tracker.failures++
 		tracker.lastFailure = now
-		
+
 		// Calculate exponential backoff duration
 		backoffMinutes := int(math.Min(
 			math.Pow(rl.config.BackoffMultiplier, float64(tracker.failures)),
 			float64(rl.config.MaxBackoffMinutes),
 		))
 		tracker.backoffUntil = now.Add(time.Duration(backoffMinutes) * time.Minute)
-		
+
 		return false, tracker.backoffUntil.Sub(now)
 	}
-	
+
 	// Request allowed, add to tracker
 	tracker.requests = append(tracker.requests, now)
 	return true, 0
@@ -147,7 +147,7 @@ func (rl *AuthRateLimiter) IsAllowed(ip string) (bool, time.Duration) {
 func (rl *AuthRateLimiter) RecordSuccess(ip string) {
 	rl.mutex.Lock()
 	defer rl.mutex.Unlock()
-	
+
 	if tracker, exists := rl.requests[ip]; exists {
 		tracker.failures = 0
 		tracker.backoffUntil = time.Time{} // Clear any backoff
@@ -158,7 +158,7 @@ func (rl *AuthRateLimiter) RecordSuccess(ip string) {
 func AuthRateLimit(limiter *AuthRateLimiter) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		clientIP := getClientIP(c)
-		
+
 		allowed, backoffDuration := limiter.IsAllowed(clientIP)
 		if !allowed {
 			var retryAfter string
@@ -167,7 +167,7 @@ func AuthRateLimit(limiter *AuthRateLimiter) gin.HandlerFunc {
 			} else {
 				retryAfter = "60" // Default retry after 1 minute
 			}
-			
+
 			c.Header("Retry-After", retryAfter)
 			c.JSON(http.StatusTooManyRequests, gin.H{
 				"error":       "rate limit exceeded",
@@ -177,11 +177,11 @@ func AuthRateLimit(limiter *AuthRateLimiter) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		// Store limiter in context for success recording
 		c.Set("auth_rate_limiter", limiter)
 		c.Set("client_ip", clientIP)
-		
+
 		c.Next()
 	}
 }
@@ -208,12 +208,12 @@ func getClientIP(c *gin.Context) string {
 			return parseIP(xff)
 		}
 	}
-	
+
 	// Check X-Real-IP header (nginx proxy)
 	if xri := c.GetHeader("X-Real-IP"); xri != "" {
 		return parseIP(xri)
 	}
-	
+
 	// Fall back to direct connection IP
 	return parseIP(c.ClientIP())
 }
@@ -223,7 +223,7 @@ func parseIP(ipStr string) string {
 	if ipStr == "" {
 		return "unknown"
 	}
-	
+
 	// Handle comma-separated IPs (X-Forwarded-For)
 	for i, r := range ipStr {
 		if r == ',' || r == ' ' {

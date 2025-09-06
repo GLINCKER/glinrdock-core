@@ -44,14 +44,14 @@ type MergedEnvironmentVariable struct {
 
 // EnvironmentTemplate represents a reusable environment configuration
 type EnvironmentTemplate struct {
-	ID              string          `json:"id" db:"id"`
-	Name            string          `json:"name" db:"name"`
-	Description     *string         `json:"description,omitempty" db:"description"`
-	EnvironmentType string          `json:"environment_type" db:"environment_type"`
-	TemplateData    TemplateData    `json:"template_data" db:"template_data"`
-	IsSystem        bool            `json:"is_system" db:"is_system"`
-	CreatedAt       time.Time       `json:"created_at" db:"created_at"`
-	UpdatedAt       time.Time       `json:"updated_at" db:"updated_at"`
+	ID              string       `json:"id" db:"id"`
+	Name            string       `json:"name" db:"name"`
+	Description     *string      `json:"description,omitempty" db:"description"`
+	EnvironmentType string       `json:"environment_type" db:"environment_type"`
+	TemplateData    TemplateData `json:"template_data" db:"template_data"`
+	IsSystem        bool         `json:"is_system" db:"is_system"`
+	CreatedAt       time.Time    `json:"created_at" db:"created_at"`
+	UpdatedAt       time.Time    `json:"updated_at" db:"updated_at"`
 }
 
 // TemplateData represents the variable and secret structure for a template
@@ -62,13 +62,13 @@ type TemplateData struct {
 
 // EnvironmentWithVariables combines environment with its resolved variables
 type EnvironmentWithVariables struct {
-	Environment     Environment                  `json:"environment"`
-	Variables       map[string]string            `json:"variables"`
-	Secrets         map[string]bool              `json:"secrets"` // Keys only, values hidden
-	MergedVariables []MergedEnvironmentVariable  `json:"merged_variables"`
-	VariableCount   int                          `json:"variable_count"`
-	SecretCount     int                          `json:"secret_count"`
-	InheritedCount  int                          `json:"inherited_count"`
+	Environment     Environment                 `json:"environment"`
+	Variables       map[string]string           `json:"variables"`
+	Secrets         map[string]bool             `json:"secrets"` // Keys only, values hidden
+	MergedVariables []MergedEnvironmentVariable `json:"merged_variables"`
+	VariableCount   int                         `json:"variable_count"`
+	SecretCount     int                         `json:"secret_count"`
+	InheritedCount  int                         `json:"inherited_count"`
 }
 
 // Value implements driver.Valuer for TemplateData to store as JSON
@@ -93,7 +93,7 @@ func (td *TemplateData) Scan(value interface{}) error {
 // ValidEnvironmentTypes defines allowed environment types
 var ValidEnvironmentTypes = []string{
 	"development",
-	"staging", 
+	"staging",
 	"production",
 	"testing",
 }

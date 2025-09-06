@@ -11,65 +11,65 @@ import (
 type Action string
 
 const (
-	ActionRead           Action = "read"
-	ActionUpdate         Action = "update"
-	ActionTokenCreate    Action = "token_create"
-	ActionTokenDelete    Action = "token_delete"
-	ActionServiceStart   Action = "service_start"
-	ActionServiceStop    Action = "service_stop"
-	ActionServiceRestart Action = "service_restart"
-	ActionServiceDeploy  Action = "service_deploy"
-	ActionServiceScale   Action = "service_scale"
-	ActionServiceView    Action = "service_view"
-	ActionServiceUpdate  Action = "service_update"
-	ActionServiceLinksUpdate Action = "service_links_update"
-	ActionSystemLockdown Action = "system_lockdown"
-	ActionSystemRestart  Action = "system_restart"
-	ActionLicenseActivate Action = "license_activate"
-	ActionLicenseDeactivate Action = "license_deactivate"
-	ActionBackupCreate    Action = "backup_create"
-	ActionBackupRestore   Action = "backup_restore"
-	ActionProjectCreate  Action = "project_create"
-	ActionProjectUpdate  Action = "project_update"
-	ActionProjectDelete  Action = "project_delete"
-	ActionRouteCreate    Action = "route_create"
-	ActionRouteDelete    Action = "route_delete"
-	ActionClientRegister Action = "client_register"
-	ActionRegistryCreate Action = "registry_create"
-	ActionRegistryDelete Action = "registry_delete"
-	ActionWebhookDelivery Action = "webhook_delivery"
-	ActionDeployTriggered Action = "deploy_triggered"
+	ActionRead                 Action = "read"
+	ActionUpdate               Action = "update"
+	ActionTokenCreate          Action = "token_create"
+	ActionTokenDelete          Action = "token_delete"
+	ActionServiceStart         Action = "service_start"
+	ActionServiceStop          Action = "service_stop"
+	ActionServiceRestart       Action = "service_restart"
+	ActionServiceDeploy        Action = "service_deploy"
+	ActionServiceScale         Action = "service_scale"
+	ActionServiceView          Action = "service_view"
+	ActionServiceUpdate        Action = "service_update"
+	ActionServiceLinksUpdate   Action = "service_links_update"
+	ActionSystemLockdown       Action = "system_lockdown"
+	ActionSystemRestart        Action = "system_restart"
+	ActionLicenseActivate      Action = "license_activate"
+	ActionLicenseDeactivate    Action = "license_deactivate"
+	ActionBackupCreate         Action = "backup_create"
+	ActionBackupRestore        Action = "backup_restore"
+	ActionProjectCreate        Action = "project_create"
+	ActionProjectUpdate        Action = "project_update"
+	ActionProjectDelete        Action = "project_delete"
+	ActionRouteCreate          Action = "route_create"
+	ActionRouteDelete          Action = "route_delete"
+	ActionClientRegister       Action = "client_register"
+	ActionRegistryCreate       Action = "registry_create"
+	ActionRegistryDelete       Action = "registry_delete"
+	ActionWebhookDelivery      Action = "webhook_delivery"
+	ActionDeployTriggered      Action = "deploy_triggered"
 	ActionProjectNetworkEnsure Action = "project_network_ensure"
 	ActionServiceNetworkAttach Action = "service_network_attach"
-	ActionSearchQuery     Action = "search.query"
-	ActionSearchSuggest   Action = "search.suggest"
-	ActionHelpView        Action = "help_view"
-	ActionHelpReindex     Action = "help_reindex"
-	ActionCertificateCreate Action = "certificate_create"
-	ActionCertificateDelete Action = "certificate_delete"
-	ActionCertificateRenew  Action = "certificate_renew"
-	ActionNginxReload     Action = "nginx_reload"
-	ActionNginxValidate   Action = "nginx_validate"
-	ActionNginxConfigApply Action = "nginx_config_apply"
-	
+	ActionSearchQuery          Action = "search.query"
+	ActionSearchSuggest        Action = "search.suggest"
+	ActionHelpView             Action = "help_view"
+	ActionHelpReindex          Action = "help_reindex"
+	ActionCertificateCreate    Action = "certificate_create"
+	ActionCertificateDelete    Action = "certificate_delete"
+	ActionCertificateRenew     Action = "certificate_renew"
+	ActionNginxReload          Action = "nginx_reload"
+	ActionNginxValidate        Action = "nginx_validate"
+	ActionNginxConfigApply     Action = "nginx_config_apply"
+
 	// DNS and Domain actions
-	ActionDNSProviderCreate  Action = "dns_provider_create"
-	ActionDNSProviderList    Action = "dns_provider_list"
-	ActionDomainCreate       Action = "domain_create"
-	ActionDomainConfigure    Action = "domain_configure"
-	ActionDomainVerify       Action = "domain_verify"
-	ActionDomainActivate     Action = "domain_activate"
-	ActionDomainStatusCheck  Action = "domain_status_check"
+	ActionDNSProviderCreate Action = "dns_provider_create"
+	ActionDNSProviderList   Action = "dns_provider_list"
+	ActionDomainCreate      Action = "domain_create"
+	ActionDomainConfigure   Action = "domain_configure"
+	ActionDomainVerify      Action = "domain_verify"
+	ActionDomainActivate    Action = "domain_activate"
+	ActionDomainStatusCheck Action = "domain_status_check"
 )
 
 // Entry represents a single audit log entry
 type Entry struct {
 	ID         int64                  `json:"id" db:"id"`
-	Timestamp  time.Time             `json:"timestamp" db:"timestamp"`
-	Actor      string                `json:"actor" db:"actor"`
-	Action     Action                `json:"action" db:"action"`
-	TargetType string                `json:"target_type" db:"target_type"`
-	TargetID   string                `json:"target_id" db:"target_id"`
+	Timestamp  time.Time              `json:"timestamp" db:"timestamp"`
+	Actor      string                 `json:"actor" db:"actor"`
+	Action     Action                 `json:"action" db:"action"`
+	TargetType string                 `json:"target_type" db:"target_type"`
+	TargetID   string                 `json:"target_id" db:"target_id"`
 	Meta       map[string]interface{} `json:"meta" db:"meta"`
 }
 
@@ -115,19 +115,19 @@ func (l *Logger) RecordSampled(ctx context.Context, actor string, action Action,
 	if l.store == nil {
 		return // Fail silently if no store configured
 	}
-	
+
 	// Sample at 1:sampleRate (e.g., 1:20 for sampleRate=20)
 	if rand.Intn(sampleRate) != 0 {
 		return // Skip this sample
 	}
-	
+
 	// Add sampling info to metadata
 	if meta == nil {
 		meta = make(map[string]interface{})
 	}
 	meta["sampled"] = true
 	meta["sample_rate"] = fmt.Sprintf("1:%d", sampleRate)
-	
+
 	entry := &Entry{
 		Timestamp:  time.Now(),
 		Actor:      actor,

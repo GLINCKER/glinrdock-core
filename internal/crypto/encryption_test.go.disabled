@@ -47,31 +47,35 @@ func TestEncryptDecryptStringAPI(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Convert string inputs to byte arrays
+			plaintextBytes := []byte(tt.plaintext)
+			keyBytes := []byte(tt.key)
+			
 			// Encrypt the plaintext
-			encrypted, err := Encrypt(tt.plaintext, tt.key)
+			nonce, ciphertext, err := Encrypt(keyBytes, plaintextBytes)
 			require.NoError(t, err)
-			assert.NotEmpty(t, encrypted)
-			assert.NotEqual(t, tt.plaintext, encrypted)
+			assert.NotEmpty(t, ciphertext)
+			assert.NotEmpty(t, nonce)
 
-			// Decrypt the ciphertext
-			decrypted, err := Decrypt(encrypted, tt.key)
+			// Decrypt the ciphertext  
+			decrypted, err := Decrypt(keyBytes, nonce, ciphertext)
 			require.NoError(t, err)
-			assert.Equal(t, tt.plaintext, decrypted)
+			assert.Equal(t, tt.plaintext, string(decrypted))
 		})
 	}
 }
 
 func TestEncryptDecrypt_DifferentKeys(t *testing.T) {
-	plaintext := "test message"
-	key1 := "test-key-32-bytes-long-for-aes!"
-	key2 := "different-key-32-bytes-long-!!!"
+	plaintext := []byte("test message")
+	key1 := []byte("test-key-32-bytes-long-for-aes!")
+	key2 := []byte("different-key-32-bytes-long-!!!")
 
 	// Encrypt with key1
-	encrypted, err := Encrypt(plaintext, key1)
+	nonce, ciphertext, err := Encrypt(key1, plaintext)
 	require.NoError(t, err)
 
 	// Try to decrypt with key2 - should fail
-	_, err = Decrypt(encrypted, key2)
+	_, err = Decrypt(key2, nonce, ciphertext)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "cipher: message authentication failed")
 }

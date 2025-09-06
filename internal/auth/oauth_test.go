@@ -68,7 +68,7 @@ func (m *MockUserStore) UpsertUser(ctx context.Context, user User) (User, error)
 			return user, nil
 		}
 	}
-	
+
 	// Create new user
 	user.ID = int64(len(m.users) + 1)
 	user.CreatedAt = time.Now()
@@ -180,14 +180,14 @@ func TestOAuthService_GenerateAuthURL(t *testing.T) {
 		BaseURL:      "https://example.com",
 		Secret:       "hmac-secret",
 	}
-	
+
 	userStore := NewMockUserStore()
 	stateStore := NewMockStateStore()
 	service := NewOAuthService(config, userStore, stateStore)
-	
+
 	ctx := context.Background()
 	authURL, state, err := service.GenerateAuthURL(ctx)
-	
+
 	require.NoError(t, err)
 	assert.Contains(t, authURL, "https://github.com/login/oauth/authorize")
 	assert.Contains(t, authURL, "client_id=test-client-id")
@@ -205,21 +205,21 @@ func TestOAuthService_CreateAndVerifyStateToken(t *testing.T) {
 		BaseURL:      "https://example.com",
 		Secret:       "test-hmac-secret",
 	}
-	
+
 	userStore := NewMockUserStore()
 	stateStore := NewMockStateStore()
 	service := NewOAuthService(config, userStore, stateStore)
-	
+
 	// Create state token
 	state := service.CreateStateToken()
 	assert.NotEmpty(t, state)
-	
+
 	// Verify immediately (should pass)
 	assert.True(t, service.VerifyStateToken(state))
-	
+
 	// Verify invalid token
 	assert.False(t, service.VerifyStateToken("invalid-token"))
-	
+
 	// Verify token with wrong signature
 	assert.False(t, service.VerifyStateToken(state+"tampered"))
 }
@@ -228,26 +228,26 @@ func TestOAuthService_AuthenticateUser_FirstUser(t *testing.T) {
 	config := OAuthConfig{
 		Mode:         "confidential",
 		ClientID:     "test-client-id",
-		ClientSecret: "test-secret", 
+		ClientSecret: "test-secret",
 		BaseURL:      "https://example.com",
 		Secret:       "hmac-secret",
 	}
-	
+
 	userStore := NewMockUserStore()
 	userStore.userCount = 0 // First user
 	stateStore := NewMockStateStore()
 	service := NewOAuthService(config, userStore, stateStore)
-	
+
 	githubUser := &GitHubUser{
 		ID:        12345,
 		Login:     "testuser",
 		Name:      "Test User",
 		AvatarURL: "https://avatar.url/user.jpg",
 	}
-	
+
 	ctx := context.Background()
 	user, err := service.AuthenticateUser(ctx, githubUser)
-	
+
 	require.NoError(t, err)
 	assert.Equal(t, int64(12345), user.GitHubID)
 	assert.Equal(t, "testuser", user.Login)
@@ -261,25 +261,25 @@ func TestOAuthService_AuthenticateUser_SubsequentUser(t *testing.T) {
 		Mode:         "confidential",
 		ClientID:     "test-client-id",
 		ClientSecret: "test-secret",
-		BaseURL:      "https://example.com", 
+		BaseURL:      "https://example.com",
 		Secret:       "hmac-secret",
 	}
-	
+
 	userStore := NewMockUserStore()
 	userStore.userCount = 1 // Not first user
 	stateStore := NewMockStateStore()
 	service := NewOAuthService(config, userStore, stateStore)
-	
+
 	githubUser := &GitHubUser{
 		ID:        67890,
 		Login:     "newuser",
 		Name:      "New User",
 		AvatarURL: "https://avatar.url/new.jpg",
 	}
-	
+
 	ctx := context.Background()
 	user, err := service.AuthenticateUser(ctx, githubUser)
-	
+
 	require.NoError(t, err)
 	assert.Equal(t, int64(67890), user.GitHubID)
 	assert.Equal(t, "newuser", user.Login)
@@ -296,32 +296,32 @@ func TestOAuthService_CreateAndVerifySessionCookie(t *testing.T) {
 		BaseURL:      "https://example.com",
 		Secret:       "test-hmac-secret-for-sessions",
 	}
-	
+
 	userStore := NewMockUserStore()
 	stateStore := NewMockStateStore()
 	service := NewOAuthService(config, userStore, stateStore)
-	
+
 	user := &User{
 		ID:    123,
 		Login: "testuser",
 		Role:  "admin",
 	}
-	
+
 	// Create session cookie
 	cookie, err := service.CreateSessionCookie(user)
 	require.NoError(t, err)
-	
+
 	assert.Equal(t, "glinr_session", cookie.Name)
 	assert.True(t, cookie.HttpOnly)
 	assert.True(t, cookie.Secure)
 	assert.Equal(t, http.SameSiteLaxMode, cookie.SameSite)
 	assert.Equal(t, "/", cookie.Path)
 	assert.NotEmpty(t, cookie.Value)
-	
+
 	// Verify session cookie
 	sessionUser, err := service.VerifySessionCookie(cookie.Value)
 	require.NoError(t, err)
-	
+
 	assert.Equal(t, user.ID, sessionUser.ID)
 	assert.Equal(t, user.Login, sessionUser.Login)
 	assert.Equal(t, user.Role, sessionUser.Role)
@@ -334,25 +334,25 @@ func TestOAuthService_FetchGitHubUser(t *testing.T) {
 			http.Error(w, "Not Found", http.StatusNotFound)
 			return
 		}
-		
+
 		auth := r.Header.Get("Authorization")
 		if auth != "Bearer test-access-token" {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-		
+
 		user := GitHubUser{
 			ID:        12345,
 			Login:     "testuser",
 			Name:      "Test User",
 			AvatarURL: "https://avatars.githubusercontent.com/u/12345?v=4",
 		}
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(user)
 	}))
 	defer server.Close()
-	
+
 	config := OAuthConfig{
 		Mode:         "confidential",
 		ClientID:     "test-client-id",
@@ -360,18 +360,18 @@ func TestOAuthService_FetchGitHubUser(t *testing.T) {
 		BaseURL:      "https://example.com",
 		Secret:       "hmac-secret",
 	}
-	
+
 	userStore := NewMockUserStore()
 	stateStore := NewMockStateStore()
 	service := NewOAuthService(config, userStore, stateStore)
-	
+
 	// Replace the GitHub API URL for testing
 	// In real implementation, we'd need dependency injection for the HTTP client
 	// For now, this test demonstrates the expected behavior
-	
+
 	ctx := context.Background()
 	user, err := service.FetchGitHubUser(ctx, "test-access-token")
-	
+
 	// Since we can't easily mock the HTTP client in the current implementation,
 	// this will fail with a real HTTP request. In a production implementation,
 	// we'd inject the HTTP client or make the GitHub API URL configurable.
@@ -391,13 +391,13 @@ func TestOAuthService_ClearSessionCookie(t *testing.T) {
 		BaseURL:      "https://example.com",
 		Secret:       "hmac-secret",
 	}
-	
+
 	userStore := NewMockUserStore()
 	stateStore := NewMockStateStore()
 	service := NewOAuthService(config, userStore, stateStore)
-	
+
 	cookie := service.ClearSessionCookie()
-	
+
 	assert.Equal(t, "glinr_session", cookie.Name)
 	assert.Equal(t, "", cookie.Value)
 	assert.Equal(t, -1, cookie.MaxAge)
@@ -416,14 +416,14 @@ func TestOAuthService_PKCE_GenerateAuthURL(t *testing.T) {
 		BaseURL:  "https://example.com",
 		Secret:   "hmac-secret",
 	}
-	
+
 	userStore := NewMockUserStore()
 	stateStore := NewMockStateStore()
 	service := NewOAuthService(config, userStore, stateStore)
-	
+
 	ctx := context.Background()
 	authURL, state, err := service.GenerateAuthURL(ctx)
-	
+
 	require.NoError(t, err)
 	assert.Contains(t, authURL, "https://github.com/login/oauth/authorize")
 	assert.Contains(t, authURL, "client_id=test-client-id")
@@ -433,7 +433,7 @@ func TestOAuthService_PKCE_GenerateAuthURL(t *testing.T) {
 	assert.Contains(t, authURL, "code_challenge=")
 	assert.Contains(t, authURL, "code_challenge_method=S256")
 	assert.NotEmpty(t, state)
-	
+
 	// Verify state was stored with PKCE verifier
 	storedVerifier, err := stateStore.GetOAuthState(ctx, state)
 	require.NoError(t, err)
@@ -447,20 +447,20 @@ func TestOAuthService_PKCE_GenerateCodeVerifier(t *testing.T) {
 		BaseURL:  "https://example.com",
 		Secret:   "hmac-secret",
 	}
-	
+
 	userStore := NewMockUserStore()
 	stateStore := NewMockStateStore()
 	service := NewOAuthService(config, userStore, stateStore)
-	
+
 	verifier1, err1 := service.generateCodeVerifier()
 	verifier2, err2 := service.generateCodeVerifier()
-	
+
 	require.NoError(t, err1)
 	require.NoError(t, err2)
-	
+
 	// Should be different each time
 	assert.NotEqual(t, verifier1, verifier2)
-	
+
 	// Should be proper length (43-128 characters)
 	assert.GreaterOrEqual(t, len(verifier1), 43)
 	assert.LessOrEqual(t, len(verifier1), 128)
@@ -475,17 +475,17 @@ func TestOAuthService_PKCE_GenerateCodeChallenge(t *testing.T) {
 		BaseURL:  "https://example.com",
 		Secret:   "hmac-secret",
 	}
-	
+
 	userStore := NewMockUserStore()
 	stateStore := NewMockStateStore()
 	service := NewOAuthService(config, userStore, stateStore)
-	
+
 	verifier := "test-code-verifier-123456789"
 	challenge := service.generateCodeChallenge(verifier)
-	
+
 	assert.NotEmpty(t, challenge)
 	assert.NotEqual(t, verifier, challenge)
-	
+
 	// Should generate same challenge for same verifier
 	challenge2 := service.generateCodeChallenge(verifier)
 	assert.Equal(t, challenge, challenge2)
@@ -546,64 +546,64 @@ func TestOAuthService_PKCE_TokenExchange(t *testing.T) {
 			http.Error(w, "Not Found", http.StatusNotFound)
 			return
 		}
-		
+
 		if r.Method != "POST" {
 			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		
+
 		// Parse form data
 		err := r.ParseForm()
 		if err != nil {
 			http.Error(w, "Bad Request", http.StatusBadRequest)
 			return
 		}
-		
+
 		// Validate PKCE parameters
 		clientID := r.FormValue("client_id")
 		code := r.FormValue("code")
 		codeVerifier := r.FormValue("code_verifier")
-		
+
 		if clientID != "test-client-id" || code != "test-auth-code" || codeVerifier == "" {
 			http.Error(w, "Invalid request", http.StatusBadRequest)
 			return
 		}
-		
+
 		// Return access token
 		response := map[string]interface{}{
 			"access_token": "test-access-token",
 			"token_type":   "Bearer",
 			"scope":        "read:user,user:email",
 		}
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
-	
+
 	config := OAuthConfig{
 		Mode:     "pkce",
 		ClientID: "test-client-id",
 		BaseURL:  "https://example.com",
 		Secret:   "hmac-secret",
 	}
-	
+
 	userStore := NewMockUserStore()
 	stateStore := NewMockStateStore()
 	service := NewOAuthService(config, userStore, stateStore)
-	
+
 	// First, simulate storing a PKCE verifier
 	ctx := context.Background()
 	state := "test-state-123"
 	verifier := "test-code-verifier-abcdef123456789"
-	
+
 	// Store the state with verifier (would normally be done in GenerateAuthURL)
 	verifierHash, err := service.encryptVerifier(verifier)
 	require.NoError(t, err)
-	
+
 	err = stateStore.StoreOAuthState(ctx, state, verifierHash, time.Now().Add(10*time.Minute))
 	require.NoError(t, err)
-	
+
 	// Test token exchange would use the real GitHub endpoint, so we skip this
 	// test since we can't easily mock the HTTP client. In a production implementation,
 	// we'd inject the HTTP client or make the GitHub OAuth URL configurable.
@@ -617,24 +617,24 @@ func TestOAuthService_PKCE_VerifierEncryption(t *testing.T) {
 		BaseURL:  "https://example.com",
 		Secret:   "test-hmac-secret-32-chars-long!!",
 	}
-	
+
 	userStore := NewMockUserStore()
 	stateStore := NewMockStateStore()
 	service := NewOAuthService(config, userStore, stateStore)
-	
+
 	verifier := "test-code-verifier-123456789"
-	
+
 	// Test encryption
 	encrypted, err := service.encryptVerifier(verifier)
 	require.NoError(t, err)
 	assert.NotEmpty(t, encrypted)
 	assert.NotEqual(t, []byte(verifier), encrypted)
-	
+
 	// Test decryption
 	decrypted, err := service.decryptVerifier(encrypted)
 	require.NoError(t, err)
 	assert.Equal(t, verifier, decrypted)
-	
+
 	// Test with different verifier produces different ciphertext
 	verifier2 := "different-code-verifier-987654321"
 	encrypted2, err := service.encryptVerifier(verifier2)
@@ -649,28 +649,28 @@ func TestOAuthService_PKCE_StateStore_Integration(t *testing.T) {
 		BaseURL:  "https://example.com",
 		Secret:   "hmac-secret",
 	}
-	
+
 	userStore := NewMockUserStore()
 	stateStore := NewMockStateStore()
 	service := NewOAuthService(config, userStore, stateStore)
-	
+
 	ctx := context.Background()
-	
+
 	// Generate auth URL should store state
 	authURL, state, err := service.GenerateAuthURL(ctx)
 	require.NoError(t, err)
 	assert.NotEmpty(t, authURL)
 	assert.NotEmpty(t, state)
-	
+
 	// State should be stored
 	storedVerifier, err := stateStore.GetOAuthState(ctx, state)
 	require.NoError(t, err)
 	assert.NotEmpty(t, storedVerifier)
-	
+
 	// Should be able to delete state
 	err = stateStore.DeleteOAuthState(ctx, state)
 	require.NoError(t, err)
-	
+
 	// State should no longer exist
 	_, err = stateStore.GetOAuthState(ctx, state)
 	assert.Equal(t, store.ErrNotFound, err)

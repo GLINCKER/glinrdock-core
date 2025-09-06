@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/GLINCKER/glinrdock/internal/metrics"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/client"
 	"github.com/gorilla/websocket"
-	"github.com/GLINCKER/glinrdock/internal/metrics"
 	"github.com/rs/zerolog/log"
 )
 
@@ -53,10 +53,10 @@ func (ec *EventCache) UpdateServiceState(serviceID int64, containerID, container
 	}
 
 	ec.services[serviceID] = state
-	
+
 	// Update running services metric
 	ec.updateRunningServicesMetric()
-	
+
 	// Broadcast to connected WebSocket clients
 	ec.broadcastState(state)
 
@@ -71,7 +71,7 @@ func (ec *EventCache) UpdateServiceState(serviceID int64, containerID, container
 func (ec *EventCache) GetServiceState(serviceID int64) (*ServiceState, bool) {
 	ec.mu.RLock()
 	defer ec.mu.RUnlock()
-	
+
 	state, exists := ec.services[serviceID]
 	return state, exists
 }
@@ -80,7 +80,7 @@ func (ec *EventCache) GetServiceState(serviceID int64) (*ServiceState, bool) {
 func (ec *EventCache) GetAllServiceStates() map[int64]*ServiceState {
 	ec.mu.RLock()
 	defer ec.mu.RUnlock()
-	
+
 	// Create a copy to avoid race conditions
 	result := make(map[int64]*ServiceState)
 	for k, v := range ec.services {
@@ -104,7 +104,7 @@ func (ec *EventCache) updateRunningServicesMetric() {
 func (ec *EventCache) AddWebSocketClient(conn *websocket.Conn) {
 	ec.mu.Lock()
 	defer ec.mu.Unlock()
-	
+
 	ec.clients[conn] = true
 	log.Debug().Msg("WebSocket client added to event cache")
 }
@@ -113,7 +113,7 @@ func (ec *EventCache) AddWebSocketClient(conn *websocket.Conn) {
 func (ec *EventCache) RemoveWebSocketClient(conn *websocket.Conn) {
 	ec.mu.Lock()
 	defer ec.mu.Unlock()
-	
+
 	delete(ec.clients, conn)
 	log.Debug().Msg("WebSocket client removed from event cache")
 }
@@ -237,7 +237,7 @@ func extractServiceIDFromContainerName(containerName string) (int64, error) {
 	for _, char := range containerName {
 		hash = hash*31 + int64(char)
 	}
-	
+
 	// Ensure positive ID
 	if hash < 0 {
 		hash = -hash

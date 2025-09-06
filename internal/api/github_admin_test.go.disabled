@@ -51,16 +51,16 @@ type MockSettingsService struct {
 
 func TestGitHubAdminHandlers_GetInstallations(t *testing.T) {
 	tests := []struct {
-		name           string
-		setupMocks     func(*MockStore, *MockGitHubAppService)
-		expectedStatus int
+		name             string
+		setupMocks       func(*MockStore, *MockGitHubAppService)
+		expectedStatus   int
 		validateResponse func(*testing.T, map[string]interface{})
 	}{
 		{
 			name: "success with installations and repos",
 			setupMocks: func(store *MockStore, github *MockGitHubAppService) {
 				github.On("IsConfigured").Return(true)
-				
+
 				installations := []store.GitHubInstallation{
 					{
 						InstallationID: 12345,
@@ -70,7 +70,7 @@ func TestGitHubAdminHandlers_GetInstallations(t *testing.T) {
 					},
 				}
 				store.On("GetGitHubInstallations", mock.Anything).Return(installations, nil)
-				
+
 				repos := []store.GitHubRepository{
 					{
 						RepositoryID:   54321,
@@ -88,15 +88,15 @@ func TestGitHubAdminHandlers_GetInstallations(t *testing.T) {
 				installations, ok := resp["installations"].([]interface{})
 				require.True(t, ok)
 				require.Len(t, installations, 1)
-				
+
 				installation := installations[0].(map[string]interface{})
 				instData := installation["installation"].(map[string]interface{})
 				assert.Equal(t, float64(12345), instData["installation_id"])
 				assert.Equal(t, "testorg", instData["account_login"])
-				
+
 				repositories := installation["repositories"].([]interface{})
 				require.Len(t, repositories, 1)
-				
+
 				repo := repositories[0].(map[string]interface{})
 				assert.Equal(t, float64(54321), repo["repository_id"])
 				assert.Equal(t, "test-repo", repo["name"])
@@ -137,7 +137,7 @@ func TestGitHubAdminHandlers_GetInstallations(t *testing.T) {
 
 			req := httptest.NewRequest("GET", "/installations", nil)
 			w := httptest.NewRecorder()
-			
+
 			gin.SetMode(gin.TestMode)
 			c, _ := gin.CreateTestContext(w)
 			c.Request = req
@@ -160,16 +160,16 @@ func TestGitHubAdminHandlers_GetInstallations(t *testing.T) {
 
 func TestGitHubAdminHandlers_GetRepositories(t *testing.T) {
 	tests := []struct {
-		name           string
-		setupMocks     func(*MockStore, *MockGitHubAppService)
-		expectedStatus int
+		name             string
+		setupMocks       func(*MockStore, *MockGitHubAppService)
+		expectedStatus   int
 		validateResponse func(*testing.T, map[string]interface{})
 	}{
 		{
 			name: "success with repositories",
 			setupMocks: func(store *MockStore, github *MockGitHubAppService) {
 				github.On("IsConfigured").Return(true)
-				
+
 				repos := []store.GitHubRepositoryWithMapping{
 					{
 						GitHubRepository: store.GitHubRepository{
@@ -199,7 +199,7 @@ func TestGitHubAdminHandlers_GetRepositories(t *testing.T) {
 				repositories, ok := resp["repositories"].([]interface{})
 				require.True(t, ok)
 				require.Len(t, repositories, 2)
-				
+
 				assert.Equal(t, float64(2), resp["total_count"])
 				assert.Equal(t, float64(1), resp["activated_count"])
 			},
@@ -228,7 +228,7 @@ func TestGitHubAdminHandlers_GetRepositories(t *testing.T) {
 
 			req := httptest.NewRequest("GET", "/repositories", nil)
 			w := httptest.NewRecorder()
-			
+
 			gin.SetMode(gin.TestMode)
 			c, _ := gin.CreateTestContext(w)
 			c.Request = req
@@ -251,11 +251,11 @@ func TestGitHubAdminHandlers_GetRepositories(t *testing.T) {
 
 func TestGitHubAdminHandlers_ActivateRepository(t *testing.T) {
 	tests := []struct {
-		name           string
-		repoID         string
-		requestBody    ActivateRepositoryRequest
-		setupMocks     func(*MockStore, *MockGitHubAppService)
-		expectedStatus int
+		name             string
+		repoID           string
+		requestBody      ActivateRepositoryRequest
+		setupMocks       func(*MockStore, *MockGitHubAppService)
+		expectedStatus   int
 		validateResponse func(*testing.T, map[string]interface{})
 	}{
 		{
@@ -383,9 +383,9 @@ func TestGitHubAdminHandlers_ActivateRepository(t *testing.T) {
 
 			req := httptest.NewRequest("POST", fmt.Sprintf("/repositories/%s/activate", tt.repoID), bytes.NewReader(requestBody))
 			req.Header.Set("Content-Type", "application/json")
-			
+
 			w := httptest.NewRecorder()
-			
+
 			gin.SetMode(gin.TestMode)
 			c, _ := gin.CreateTestContext(w)
 			c.Request = req
@@ -409,10 +409,10 @@ func TestGitHubAdminHandlers_ActivateRepository(t *testing.T) {
 
 func TestGitHubAdminHandlers_DeactivateRepository(t *testing.T) {
 	tests := []struct {
-		name           string
-		repoID         string
-		setupMocks     func(*MockStore, *MockGitHubAppService)
-		expectedStatus int
+		name             string
+		repoID           string
+		setupMocks       func(*MockStore, *MockGitHubAppService)
+		expectedStatus   int
 		validateResponse func(*testing.T, map[string]interface{})
 	}{
 		{
@@ -468,7 +468,7 @@ func TestGitHubAdminHandlers_DeactivateRepository(t *testing.T) {
 
 			req := httptest.NewRequest("DELETE", fmt.Sprintf("/repositories/%s/activate", tt.repoID), nil)
 			w := httptest.NewRecorder()
-			
+
 			gin.SetMode(gin.TestMode)
 			c, _ := gin.CreateTestContext(w)
 			c.Request = req
@@ -492,9 +492,9 @@ func TestGitHubAdminHandlers_DeactivateRepository(t *testing.T) {
 
 func TestGitHubAdminHandlers_SyncInstallations(t *testing.T) {
 	tests := []struct {
-		name           string
-		setupMocks     func(*MockStore, *MockGitHubAppService)
-		expectedStatus int
+		name             string
+		setupMocks       func(*MockStore, *MockGitHubAppService)
+		expectedStatus   int
 		validateResponse func(*testing.T, map[string]interface{})
 	}{
 		{
@@ -538,7 +538,7 @@ func TestGitHubAdminHandlers_SyncInstallations(t *testing.T) {
 			expectedStatus: http.StatusOK,
 			validateResponse: func(t *testing.T, resp map[string]interface{}) {
 				assert.Equal(t, "sync completed", resp["message"])
-				
+
 				stats, ok := resp["stats"].(map[string]interface{})
 				require.True(t, ok)
 				assert.Equal(t, float64(1), stats["installations_processed"])
@@ -569,7 +569,7 @@ func TestGitHubAdminHandlers_SyncInstallations(t *testing.T) {
 
 			req := httptest.NewRequest("POST", "/sync", nil)
 			w := httptest.NewRecorder()
-			
+
 			gin.SetMode(gin.TestMode)
 			c, _ := gin.CreateTestContext(w)
 			c.Request = req

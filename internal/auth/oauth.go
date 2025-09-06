@@ -36,14 +36,14 @@ type StateStore interface {
 
 // User represents a GitHub authenticated user
 type User struct {
-	ID          int64     `json:"id" db:"id"`
-	GitHubID    int64     `json:"github_id" db:"github_id"`
-	Login       string    `json:"login" db:"login"`
-	Name        string    `json:"name" db:"name"`
-	AvatarURL   string    `json:"avatar_url" db:"avatar_url"`
-	Role        string    `json:"role" db:"role"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+	ID          int64      `json:"id" db:"id"`
+	GitHubID    int64      `json:"github_id" db:"github_id"`
+	Login       string     `json:"login" db:"login"`
+	Name        string     `json:"name" db:"name"`
+	AvatarURL   string     `json:"avatar_url" db:"avatar_url"`
+	Role        string     `json:"role" db:"role"`
+	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
 	LastLoginAt *time.Time `json:"last_login_at" db:"last_login_at"`
 }
 
@@ -102,17 +102,17 @@ func (o *OAuthService) IsConfigured() bool {
 	if o.config.Mode == "off" {
 		return false
 	}
-	
+
 	// Basic requirements for all modes
 	if o.config.ClientID == "" || o.config.BaseURL == "" || o.config.Secret == "" {
 		return false
 	}
-	
+
 	// Confidential mode requires client secret
 	if o.config.Mode == "confidential" && o.config.ClientSecret == "" {
 		return false
 	}
-	
+
 	return o.config.Mode == "pkce" || o.config.Mode == "confidential"
 }
 
@@ -123,10 +123,10 @@ func (o *OAuthService) generateCodeVerifier() (string, error) {
 	if _, err := rand.Read(randomBytes); err != nil {
 		return "", fmt.Errorf("failed to generate random bytes: %w", err)
 	}
-	
+
 	// Use base64url encoding without padding
 	verifier := base64.RawURLEncoding.EncodeToString(randomBytes)
-	
+
 	// Ensure it's within the valid range (43-128 characters)
 	if len(verifier) < 43 {
 		return "", fmt.Errorf("code verifier too short: %d characters", len(verifier))
@@ -134,7 +134,7 @@ func (o *OAuthService) generateCodeVerifier() (string, error) {
 	if len(verifier) > 128 {
 		verifier = verifier[:128] // Truncate if too long
 	}
-	
+
 	return verifier, nil
 }
 
@@ -150,17 +150,17 @@ func (o *OAuthService) encryptVerifier(verifier string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("master key not available: %w", err)
 	}
-	
+
 	nonce, ciphertext, err := crypto.Encrypt(masterKey, []byte(verifier))
 	if err != nil {
 		return nil, fmt.Errorf("failed to encrypt verifier: %w", err)
 	}
-	
+
 	// Store nonce + ciphertext together
 	result := make([]byte, len(nonce)+len(ciphertext))
 	copy(result, nonce)
 	copy(result[len(nonce):], ciphertext)
-	
+
 	return result, nil
 }
 
@@ -169,21 +169,21 @@ func (o *OAuthService) decryptVerifier(encryptedData []byte) (string, error) {
 	if len(encryptedData) < 12 {
 		return "", fmt.Errorf("invalid encrypted verifier: too short")
 	}
-	
+
 	masterKey, err := crypto.LoadMasterKeyFromEnv()
 	if err != nil {
 		return "", fmt.Errorf("master key not available: %w", err)
 	}
-	
+
 	// Extract nonce and ciphertext (nonce is first 12 bytes)
 	nonce := encryptedData[:12]
 	ciphertext := encryptedData[12:]
-	
+
 	plaintext, err := crypto.Decrypt(masterKey, nonce, ciphertext)
 	if err != nil {
 		return "", fmt.Errorf("failed to decrypt verifier: %w", err)
 	}
-	
+
 	return string(plaintext), nil
 }
 
@@ -191,30 +191,30 @@ func (o *OAuthService) decryptVerifier(encryptedData []byte) (string, error) {
 func (o *OAuthService) GenerateAuthURL(ctx context.Context) (string, string, error) {
 	// Generate and sign state token
 	state := o.CreateStateToken()
-	
+
 	var encryptedVerifier []byte
-	
+
 	// For PKCE mode, generate verifier and challenge
 	if o.config.Mode == "pkce" {
 		verifier, err := o.generateCodeVerifier()
 		if err != nil {
 			return "", "", fmt.Errorf("failed to generate code verifier: %w", err)
 		}
-		
+
 		challenge := o.generateCodeChallenge(verifier)
-		
+
 		// Encrypt and store verifier
 		encryptedVerifier, err = o.encryptVerifier(verifier)
 		if err != nil {
 			return "", "", fmt.Errorf("failed to encrypt verifier: %w", err)
 		}
-		
+
 		// Store state and encrypted verifier
 		expiresAt := time.Now().Add(10 * time.Minute)
 		if err := o.stateStore.StoreOAuthState(ctx, state, encryptedVerifier, expiresAt); err != nil {
 			return "", "", fmt.Errorf("failed to store OAuth state: %w", err)
 		}
-		
+
 		// Build URL with PKCE parameters
 		params := url.Values{
 			"client_id":             {o.config.ClientID},
@@ -224,23 +224,23 @@ func (o *OAuthService) GenerateAuthURL(ctx context.Context) (string, string, err
 			"code_challenge":        {challenge},
 			"code_challenge_method": {"S256"},
 		}
-		
+
 		return "https://github.com/login/oauth/authorize?" + params.Encode(), state, nil
 	}
-	
+
 	// For confidential mode (or fallback)
 	expiresAt := time.Now().Add(10 * time.Minute)
 	if err := o.stateStore.StoreOAuthState(ctx, state, nil, expiresAt); err != nil {
 		return "", "", fmt.Errorf("failed to store OAuth state: %w", err)
 	}
-	
+
 	params := url.Values{
-		"client_id":     {o.config.ClientID},
-		"scope":         {"read:user user:email"},
-		"state":         {state},
-		"redirect_uri":  {o.config.BaseURL + "/v1/auth/github/callback"},
+		"client_id":    {o.config.ClientID},
+		"scope":        {"read:user user:email"},
+		"state":        {state},
+		"redirect_uri": {o.config.BaseURL + "/v1/auth/github/callback"},
 	}
-	
+
 	return "https://github.com/login/oauth/authorize?" + params.Encode(), state, nil
 }
 
@@ -252,22 +252,22 @@ func (o *OAuthService) CreateStateToken() string {
 		log.Error().Err(err).Msg("failed to generate random bytes for state token")
 		return ""
 	}
-	
+
 	// Create timestamp + random data
 	state := fmt.Sprintf("%d:%s", time.Now().Unix(), base64.URLEncoding.EncodeToString(randomBytes))
-	
+
 	// Sign with HMAC
 	h := hmac.New(sha256.New, []byte(o.config.Secret))
 	h.Write([]byte(state))
 	signature := base64.URLEncoding.EncodeToString(h.Sum(nil))
-	
+
 	return fmt.Sprintf("%s.%s", state, signature)
 }
 
 // VerifyStateToken validates a CSRF state token
 func (o *OAuthService) VerifyStateToken(token string) bool {
 	parts := []byte(token)
-	
+
 	// Find last dot separator
 	var lastDot int
 	for i := len(parts) - 1; i >= 0; i-- {
@@ -276,23 +276,23 @@ func (o *OAuthService) VerifyStateToken(token string) bool {
 			break
 		}
 	}
-	
+
 	if lastDot == 0 {
 		return false
 	}
-	
+
 	state := string(parts[:lastDot])
 	signature := string(parts[lastDot+1:])
-	
+
 	// Verify signature
 	h := hmac.New(sha256.New, []byte(o.config.Secret))
 	h.Write([]byte(state))
 	expectedSignature := base64.URLEncoding.EncodeToString(h.Sum(nil))
-	
+
 	if !hmac.Equal([]byte(signature), []byte(expectedSignature)) {
 		return false
 	}
-	
+
 	// Check timestamp (tokens valid for 10 minutes)
 	parts = []byte(state)
 	colonIdx := -1
@@ -302,22 +302,22 @@ func (o *OAuthService) VerifyStateToken(token string) bool {
 			break
 		}
 	}
-	
+
 	if colonIdx == -1 {
 		return false
 	}
-	
+
 	timestampStr := string(parts[:colonIdx])
 	var timestamp int64
 	if _, err := fmt.Sscanf(timestampStr, "%d", &timestamp); err != nil {
 		return false
 	}
-	
+
 	// Check if token is expired (10 minutes)
 	if time.Now().Unix()-timestamp > 600 {
 		return false
 	}
-	
+
 	return true
 }
 
@@ -328,19 +328,19 @@ func (o *OAuthService) ExchangeCodeForToken(ctx context.Context, code, state str
 	if err != nil {
 		return "", fmt.Errorf("failed to retrieve OAuth state: %w", err)
 	}
-	
+
 	// Clean up state after use
 	defer func() {
 		if err := o.stateStore.DeleteOAuthState(ctx, state); err != nil {
 			log.Warn().Err(err).Str("state", state).Msg("failed to delete OAuth state")
 		}
 	}()
-	
+
 	data := url.Values{
 		"client_id": {o.config.ClientID},
 		"code":      {code},
 	}
-	
+
 	// Add PKCE verifier or client secret based on mode
 	if o.config.Mode == "pkce" && encryptedVerifier != nil {
 		verifier, err := o.decryptVerifier(encryptedVerifier)
@@ -353,27 +353,27 @@ func (o *OAuthService) ExchangeCodeForToken(ctx context.Context, code, state str
 	} else {
 		return "", fmt.Errorf("unsupported OAuth mode: %s", o.config.Mode)
 	}
-	
-	req, err := http.NewRequestWithContext(ctx, "POST", "https://github.com/login/oauth/access_token", 
+
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://github.com/login/oauth/access_token",
 		strings.NewReader(data.Encode()))
 	if err != nil {
 		return "", fmt.Errorf("failed to create token request: %w", err)
 	}
-	
+
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
-	
+
 	resp, err := o.client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("token request failed: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return "", fmt.Errorf("token request failed with status %d: %s", resp.StatusCode, string(body))
 	}
-	
+
 	var tokenResp struct {
 		AccessToken string `json:"access_token"`
 		TokenType   string `json:"token_type"`
@@ -381,19 +381,19 @@ func (o *OAuthService) ExchangeCodeForToken(ctx context.Context, code, state str
 		Error       string `json:"error"`
 		ErrorDesc   string `json:"error_description"`
 	}
-	
+
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
 		return "", fmt.Errorf("failed to decode token response: %w", err)
 	}
-	
+
 	if tokenResp.Error != "" {
 		return "", fmt.Errorf("OAuth error: %s - %s", tokenResp.Error, tokenResp.ErrorDesc)
 	}
-	
+
 	if tokenResp.AccessToken == "" {
 		return "", fmt.Errorf("no access token in response")
 	}
-	
+
 	return tokenResp.AccessToken, nil
 }
 
@@ -403,26 +403,26 @@ func (o *OAuthService) FetchGitHubUser(ctx context.Context, accessToken string) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user request: %w", err)
 	}
-	
+
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
-	
+
 	resp, err := o.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("user request failed: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("user request failed with status %d: %s", resp.StatusCode, string(body))
 	}
-	
+
 	var user GitHubUser
 	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
 		return nil, fmt.Errorf("failed to decode user response: %w", err)
 	}
-	
+
 	return &user, nil
 }
 
@@ -433,12 +433,12 @@ func (o *OAuthService) AuthenticateUser(ctx context.Context, githubUser *GitHubU
 	if err != nil {
 		return nil, fmt.Errorf("failed to count users: %w", err)
 	}
-	
+
 	role := "viewer" // Default role
 	if userCount == 0 {
 		role = "admin" // First user becomes admin
 	}
-	
+
 	// Upsert user
 	user := User{
 		GitHubID:  githubUser.ID,
@@ -447,22 +447,22 @@ func (o *OAuthService) AuthenticateUser(ctx context.Context, githubUser *GitHubU
 		AvatarURL: githubUser.AvatarURL,
 		Role:      role,
 	}
-	
+
 	// For existing users, preserve their current role
 	if existingUser, err := o.userStore.GetUserByGitHubID(ctx, githubUser.ID); err == nil {
 		user.Role = existingUser.Role
 	}
-	
+
 	user, err = o.userStore.UpsertUser(ctx, user)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upsert user: %w", err)
 	}
-	
+
 	// Update last login
 	if err := o.userStore.UpdateUserLastLogin(ctx, user.ID); err != nil {
 		log.Warn().Err(err).Int64("user_id", user.ID).Msg("failed to update last login")
 	}
-	
+
 	return &user, nil
 }
 
@@ -482,21 +482,21 @@ func (o *OAuthService) CreateSessionCookie(user *User) (*http.Cookie, error) {
 		IssuedAt:  time.Now().Unix(),
 		ExpiresAt: time.Now().Add(24 * time.Hour).Unix(), // 24 hour sessions
 	}
-	
+
 	sessionJSON, err := json.Marshal(session)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal session: %w", err)
 	}
-	
+
 	// Sign session with HMAC
 	h := hmac.New(sha256.New, []byte(o.config.Secret))
 	h.Write(sessionJSON)
 	signature := base64.URLEncoding.EncodeToString(h.Sum(nil))
-	
-	sessionToken := fmt.Sprintf("%s.%s", 
-		base64.URLEncoding.EncodeToString(sessionJSON), 
+
+	sessionToken := fmt.Sprintf("%s.%s",
+		base64.URLEncoding.EncodeToString(sessionJSON),
 		signature)
-	
+
 	return &http.Cookie{
 		Name:     "glinr_session",
 		Value:    sessionToken,
@@ -513,9 +513,9 @@ func (o *OAuthService) VerifySessionCookie(cookieValue string) (*User, error) {
 	if cookieValue == "" {
 		return nil, fmt.Errorf("empty session cookie")
 	}
-	
+
 	parts := []byte(cookieValue)
-	
+
 	// Find last dot separator
 	var lastDot int
 	for i := len(parts) - 1; i >= 0; i-- {
@@ -524,29 +524,29 @@ func (o *OAuthService) VerifySessionCookie(cookieValue string) (*User, error) {
 			break
 		}
 	}
-	
+
 	if lastDot == 0 {
 		return nil, fmt.Errorf("invalid session format")
 	}
-	
+
 	sessionB64 := string(parts[:lastDot])
 	signature := string(parts[lastDot+1:])
-	
+
 	// Decode session
 	sessionJSON, err := base64.URLEncoding.DecodeString(sessionB64)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode session: %w", err)
 	}
-	
+
 	// Verify signature
 	h := hmac.New(sha256.New, []byte(o.config.Secret))
 	h.Write(sessionJSON)
 	expectedSignature := base64.URLEncoding.EncodeToString(h.Sum(nil))
-	
+
 	if !hmac.Equal([]byte(signature), []byte(expectedSignature)) {
 		return nil, fmt.Errorf("invalid session signature")
 	}
-	
+
 	// Parse session
 	var session struct {
 		UserID    int64  `json:"user_id"`
@@ -555,16 +555,16 @@ func (o *OAuthService) VerifySessionCookie(cookieValue string) (*User, error) {
 		IssuedAt  int64  `json:"iat"`
 		ExpiresAt int64  `json:"exp"`
 	}
-	
+
 	if err := json.Unmarshal(sessionJSON, &session); err != nil {
 		return nil, fmt.Errorf("failed to parse session: %w", err)
 	}
-	
+
 	// Check expiry
 	if time.Now().Unix() > session.ExpiresAt {
 		return nil, fmt.Errorf("session expired")
 	}
-	
+
 	return &User{
 		ID:    session.UserID,
 		Login: session.Login,

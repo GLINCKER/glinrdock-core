@@ -28,7 +28,7 @@ func (s *SimpleTokenStore) CreateToken(ctx context.Context, name, plain, role st
 	if !store.IsRoleValid(role) {
 		return store.Token{}, fmt.Errorf("invalid role: %s", role)
 	}
-	
+
 	s.nextID++
 	token := store.Token{
 		ID:   s.nextID,
@@ -56,10 +56,10 @@ func (s *SimpleTokenStore) DeleteTokenByName(ctx context.Context, name string) e
 func setupSimpleTokenRouter() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	
+
 	tokenStore := &SimpleTokenStore{nextID: 0}
 	handlers := &Handlers{tokenStore: tokenStore}
-	
+
 	// Mock auth middleware
 	r.Use(func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
@@ -80,7 +80,7 @@ func setupSimpleTokenRouter() *gin.Engine {
 		}
 		c.Next()
 	})
-	
+
 	// Token endpoints with admin-only middleware
 	tokens := r.Group("/tokens")
 	tokens.Use(func(c *gin.Context) {
@@ -92,17 +92,17 @@ func setupSimpleTokenRouter() *gin.Engine {
 		}
 		c.Next()
 	})
-	
+
 	tokens.POST("", handlers.CreateToken)
 	tokens.GET("", handlers.ListTokens)
 	tokens.DELETE("/:name", handlers.DeleteToken)
-	
+
 	return r
 }
 
 func TestTokenRBAC_AdminCanCreateTokens(t *testing.T) {
 	router := setupSimpleTokenRouter()
-	
+
 	tests := []struct {
 		role string
 		desc string
@@ -111,7 +111,7 @@ func TestTokenRBAC_AdminCanCreateTokens(t *testing.T) {
 		{store.RoleDeployer, "create deployer token"},
 		{store.RoleViewer, "create viewer token"},
 	}
-	
+
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			reqBody := CreateTokenRequest{
@@ -120,20 +120,20 @@ func TestTokenRBAC_AdminCanCreateTokens(t *testing.T) {
 				Role:  test.role,
 			}
 			bodyBytes, _ := json.Marshal(reqBody)
-			
+
 			req := httptest.NewRequest("POST", "/tokens", bytes.NewBuffer(bodyBytes))
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Authorization", "Bearer admin-token")
 			w := httptest.NewRecorder()
-			
+
 			router.ServeHTTP(w, req)
-			
+
 			assert.Equal(t, http.StatusCreated, w.Code, "Admin should be able to create %s tokens", test.role)
-			
+
 			var response map[string]interface{}
 			err := json.Unmarshal(w.Body.Bytes(), &response)
 			require.NoError(t, err)
-			
+
 			assert.Equal(t, test.role, response["role"])
 			assert.Equal(t, fmt.Sprintf("test-%s-token", test.role), response["name"])
 		})
@@ -142,13 +142,13 @@ func TestTokenRBAC_AdminCanCreateTokens(t *testing.T) {
 
 func TestTokenRBAC_NonAdminCannotAccessTokens(t *testing.T) {
 	router := setupSimpleTokenRouter()
-	
+
 	tests := []struct {
-		token   string
-		role    string
-		method  string
-		path    string
-		desc    string
+		token  string
+		role   string
+		method string
+		path   string
+		desc   string
 	}{
 		{"Bearer deployer-token", store.RoleDeployer, "POST", "/tokens", "deployer cannot create tokens"},
 		{"Bearer deployer-token", store.RoleDeployer, "GET", "/tokens", "deployer cannot list tokens"},
@@ -157,11 +157,11 @@ func TestTokenRBAC_NonAdminCannotAccessTokens(t *testing.T) {
 		{"Bearer viewer-token", store.RoleViewer, "GET", "/tokens", "viewer cannot list tokens"},
 		{"Bearer viewer-token", store.RoleViewer, "DELETE", "/tokens/test", "viewer cannot delete tokens"},
 	}
-	
+
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			var req *http.Request
-			
+
 			if test.method == "POST" {
 				reqBody := CreateTokenRequest{
 					Name:  "test-token",
@@ -174,12 +174,12 @@ func TestTokenRBAC_NonAdminCannotAccessTokens(t *testing.T) {
 			} else {
 				req = httptest.NewRequest(test.method, test.path, nil)
 			}
-			
+
 			req.Header.Set("Authorization", test.token)
 			w := httptest.NewRecorder()
-			
+
 			router.ServeHTTP(w, req)
-			
+
 			assert.Equal(t, http.StatusForbidden, w.Code, "%s should be forbidden", test.desc)
 			assert.Contains(t, w.Body.String(), "insufficient permissions")
 		})
@@ -188,32 +188,32 @@ func TestTokenRBAC_NonAdminCannotAccessTokens(t *testing.T) {
 
 func TestTokenRBAC_InvalidToken(t *testing.T) {
 	router := setupSimpleTokenRouter()
-	
+
 	req := httptest.NewRequest("GET", "/tokens", nil)
 	req.Header.Set("Authorization", "Bearer invalid-token")
 	w := httptest.NewRecorder()
-	
+
 	router.ServeHTTP(w, req)
-	
+
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 	assert.Contains(t, w.Body.String(), "unauthorized")
 }
 
 func TestTokenRBAC_NoToken(t *testing.T) {
 	router := setupSimpleTokenRouter()
-	
+
 	req := httptest.NewRequest("GET", "/tokens", nil)
 	w := httptest.NewRecorder()
-	
+
 	router.ServeHTTP(w, req)
-	
+
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 	assert.Contains(t, w.Body.String(), "unauthorized")
 }
 
 func TestTokenRBAC_RoleValidation(t *testing.T) {
 	router := setupSimpleTokenRouter()
-	
+
 	tests := []struct {
 		role      string
 		valid     bool
@@ -227,7 +227,7 @@ func TestTokenRBAC_RoleValidation(t *testing.T) {
 		{"ADMIN", false, "invalid role", "case sensitive role check"},
 		{"", false, "invalid role", "empty role is rejected"},
 	}
-	
+
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			reqBody := CreateTokenRequest{
@@ -236,14 +236,14 @@ func TestTokenRBAC_RoleValidation(t *testing.T) {
 				Role:  test.role,
 			}
 			bodyBytes, _ := json.Marshal(reqBody)
-			
+
 			req := httptest.NewRequest("POST", "/tokens", bytes.NewBuffer(bodyBytes))
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Authorization", "Bearer admin-token")
 			w := httptest.NewRecorder()
-			
+
 			router.ServeHTTP(w, req)
-			
+
 			if test.valid {
 				assert.Equal(t, http.StatusCreated, w.Code, "Valid role should be accepted")
 			} else {
@@ -256,7 +256,7 @@ func TestTokenRBAC_RoleValidation(t *testing.T) {
 
 func TestTokenRBAC_TokenListIncludesRoles(t *testing.T) {
 	router := setupSimpleTokenRouter()
-	
+
 	// Create tokens with different roles
 	roles := []string{store.RoleAdmin, store.RoleDeployer, store.RoleViewer}
 	for i, role := range roles {
@@ -266,39 +266,39 @@ func TestTokenRBAC_TokenListIncludesRoles(t *testing.T) {
 			Role:  role,
 		}
 		bodyBytes, _ := json.Marshal(reqBody)
-		
+
 		req := httptest.NewRequest("POST", "/tokens", bytes.NewBuffer(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer admin-token")
 		w := httptest.NewRecorder()
-		
+
 		router.ServeHTTP(w, req)
 		require.Equal(t, http.StatusCreated, w.Code)
 	}
-	
+
 	// List tokens and verify roles are included
 	req := httptest.NewRequest("GET", "/tokens", nil)
 	req.Header.Set("Authorization", "Bearer admin-token")
 	w := httptest.NewRecorder()
-	
+
 	router.ServeHTTP(w, req)
-	
+
 	assert.Equal(t, http.StatusOK, w.Code)
-	
+
 	var response map[string]interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
-	
+
 	tokens := response["tokens"].([]interface{})
 	assert.Len(t, tokens, 3)
-	
+
 	// Verify each token has the correct role
 	expectedRoles := map[string]string{
 		"token-0": store.RoleAdmin,
 		"token-1": store.RoleDeployer,
 		"token-2": store.RoleViewer,
 	}
-	
+
 	for _, tokenIntf := range tokens {
 		token := tokenIntf.(map[string]interface{})
 		name := token["name"].(string)

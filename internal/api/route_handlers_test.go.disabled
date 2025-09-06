@@ -60,7 +60,7 @@ func setupRouteTestServer(t *testing.T, routeStore RouteStore) *gin.Engine {
 	handlers := NewHandlers(dockerClient, nil, nil, nil, routeStore, mockEngine, nil)
 
 	r := gin.New()
-	
+
 	// Add routes without authentication middleware for testing
 	v1 := r.Group("/v1")
 	{
@@ -77,7 +77,7 @@ func setupRouteTestServer(t *testing.T, routeStore RouteStore) *gin.Engine {
 
 func TestCreateServiceRoute(t *testing.T) {
 	mockStore := &MockRouteStore{}
-	
+
 	routeSpec := store.RouteSpec{
 		Domain: "api.example.com",
 		Port:   8080,
@@ -157,7 +157,7 @@ func TestCreateServiceRouteValidation(t *testing.T) {
 
 func TestListServiceRoutes(t *testing.T) {
 	mockStore := &MockRouteStore{}
-	
+
 	expectedRoutes := []store.Route{
 		{ID: 1, ServiceID: 1, Domain: "api.example.com", Port: 8080, TLS: true},
 		{ID: 2, ServiceID: 1, Domain: "www.example.com", Port: 80, TLS: false},
@@ -185,7 +185,7 @@ func TestListServiceRoutes(t *testing.T) {
 
 func TestGetRoute(t *testing.T) {
 	mockStore := &MockRouteStore{}
-	
+
 	expectedRoute := store.Route{
 		ID:        1,
 		ServiceID: 1,
@@ -215,7 +215,7 @@ func TestGetRoute(t *testing.T) {
 
 func TestGetRouteNotFound(t *testing.T) {
 	mockStore := &MockRouteStore{}
-	
+
 	mockStore.On("GetRoute", mock.Anything, int64(999)).Return(store.Route{}, assert.AnError)
 
 	r := setupRouteTestServer(t, mockStore)
@@ -233,7 +233,7 @@ func TestGetRouteNotFound(t *testing.T) {
 
 func TestDeleteRoute(t *testing.T) {
 	mockStore := &MockRouteStore{}
-	
+
 	route := store.Route{ID: 1, ServiceID: 1, Domain: "api.example.com", Port: 8080}
 	mockStore.On("GetRoute", mock.Anything, int64(1)).Return(route, nil)
 	mockStore.On("DeleteRoute", mock.Anything, int64(1)).Return(nil)
@@ -257,7 +257,7 @@ func TestDeleteRoute(t *testing.T) {
 
 func TestListAllRoutes(t *testing.T) {
 	mockStore := &MockRouteStore{}
-	
+
 	expectedRoutes := []store.Route{
 		{ID: 1, ServiceID: 1, Domain: "api.example.com", Port: 8080, TLS: true},
 		{ID: 2, ServiceID: 2, Domain: "www.example.com", Port: 80, TLS: false},
@@ -296,6 +296,6 @@ func TestRegenerateNginxConfig(t *testing.T) {
 		assert.Contains(t, w.Body.String(), "nginx configuration not available")
 	})
 
-	// Test with nginx config would require more setup, 
+	// Test with nginx config would require more setup,
 	// so we'll just test the error case for now
 }

@@ -27,13 +27,13 @@ type storeInterface interface {
 
 // Manager handles nginx configuration and lifecycle
 type Manager struct {
-	nginxDirPath     string
-	confDirPath      string
-	certsDirPath     string
+	nginxDirPath      string
+	confDirPath       string
+	certsDirPath      string
 	acmeHTTP01DirPath string
-	enabled          bool
-	validator        *Validator
-	reloader         *Reloader
+	enabled           bool
+	validator         *Validator
+	reloader          *Reloader
 }
 
 // NewManager creates a new nginx manager instance
@@ -140,7 +140,7 @@ func (m *Manager) Apply(ctx context.Context, config string) error {
 	}
 
 	applyDuration := time.Since(startTime)
-	
+
 	if applyDuration > 300*time.Millisecond {
 		log.Warn().
 			Str("config_path", finalConfigPath).
@@ -152,7 +152,7 @@ func (m *Manager) Apply(ctx context.Context, config string) error {
 			Dur("apply_duration", applyDuration).
 			Msg("nginx configuration applied successfully")
 	}
-	
+
 	return nil
 }
 
@@ -279,7 +279,7 @@ func (m *Manager) reconcileOnce(ctx context.Context, store storeInterface, gener
 	for _, cert := range certificates {
 		certsMap[cert.Domain] = cert
 	}
-	
+
 	// Create RenderInput
 	renderInput := RenderInput{
 		Routes: routes,
@@ -346,7 +346,7 @@ func (m *Manager) reconcileWithDebounce(ctx context.Context, store storeInterfac
 	}
 
 	currentTime := time.Now()
-	
+
 	// If this is a new change, record the time
 	if *pendingChangeTime == nil {
 		*pendingChangeTime = &currentTime
@@ -511,7 +511,7 @@ func (m *Manager) CertificateUpdateHook(ctx context.Context, cert *store.Enhance
 			Str("domain", cert.Domain).
 			Str("status", cert.Status).
 			Msg("skipping inactive or incomplete certificate")
-		
+
 		// Remove certificate files if they exist
 		return m.RemoveCertificateFiles(ctx, cert.Domain)
 	}
@@ -543,7 +543,7 @@ func (m *Manager) CertificateUpdateHook(ctx context.Context, cert *store.Enhance
 		log.Debug().
 			Str("domain", cert.Domain).
 			Msg("triggering nginx configuration reconcile due to certificate update")
-		
+
 		// The actual reconcile will happen in the next reconcile loop iteration
 		// when it detects the updated certificate files
 	}()
@@ -551,7 +551,7 @@ func (m *Manager) CertificateUpdateHook(ctx context.Context, cert *store.Enhance
 	log.Info().
 		Str("domain", cert.Domain).
 		Msg("certificate update hook completed successfully")
-	
+
 	return nil
 }
 
@@ -578,22 +578,22 @@ func (m *Manager) ForceReconcile(ctx context.Context, store storeInterface, gene
 // validateConfigurationWithCertificates performs comprehensive validation including certificate checks
 func (m *Manager) validateConfigurationWithCertificates(ctx context.Context, configPath string) error {
 	log.Debug().Str("config_path", configPath).Msg("performing comprehensive nginx configuration validation")
-	
+
 	// First, run the standard nginx syntax validation
 	if err := m.validator.ValidateConfiguration(ctx, configPath); err != nil {
 		return fmt.Errorf("nginx syntax validation failed: %w", err)
 	}
-	
+
 	// Additional certificate-specific validation
 	if err := m.validateCertificateFiles(); err != nil {
 		return fmt.Errorf("certificate file validation failed: %w", err)
 	}
-	
+
 	// Validate ACME challenge directory exists and is accessible
 	if err := m.validateACMEChallengeDir(); err != nil {
 		return fmt.Errorf("ACME challenge directory validation failed: %w", err)
 	}
-	
+
 	log.Debug().Msg("comprehensive nginx configuration validation passed")
 	return nil
 }
@@ -601,28 +601,28 @@ func (m *Manager) validateConfigurationWithCertificates(ctx context.Context, con
 // validateCertificateFiles checks that referenced certificate files exist and are readable
 func (m *Manager) validateCertificateFiles() error {
 	log.Debug().Str("certs_dir", m.certsDirPath).Msg("validating certificate files")
-	
+
 	// Check if certificate directory exists
 	if _, err := os.Stat(m.certsDirPath); os.IsNotExist(err) {
 		log.Warn().Str("certs_dir", m.certsDirPath).Msg("certificate directory does not exist")
 		return nil // Not an error if no certificates are configured yet
 	}
-	
+
 	// Read certificate directory
 	entries, err := os.ReadDir(m.certsDirPath)
 	if err != nil {
 		return fmt.Errorf("failed to read certificate directory: %w", err)
 	}
-	
+
 	// Validate certificate pairs
 	certFiles := make(map[string]bool)
 	keyFiles := make(map[string]bool)
-	
+
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
 		}
-		
+
 		name := entry.Name()
 		if strings.HasSuffix(name, ".crt") {
 			domain := strings.TrimSuffix(name, ".crt")
@@ -632,26 +632,26 @@ func (m *Manager) validateCertificateFiles() error {
 			keyFiles[domain] = true
 		}
 	}
-	
+
 	// Check that every certificate has a corresponding private key
 	for domain := range certFiles {
 		if !keyFiles[domain] {
 			return fmt.Errorf("certificate file exists for domain %s but private key is missing", domain)
 		}
-		
+
 		// Verify files are readable
 		certPath := filepath.Join(m.certsDirPath, domain+".crt")
 		keyPath := filepath.Join(m.certsDirPath, domain+".key")
-		
+
 		if _, err := os.Stat(certPath); err != nil {
 			return fmt.Errorf("certificate file for domain %s is not accessible: %w", domain, err)
 		}
-		
+
 		if _, err := os.Stat(keyPath); err != nil {
 			return fmt.Errorf("private key file for domain %s is not accessible: %w", domain, err)
 		}
 	}
-	
+
 	log.Debug().Int("certificate_pairs", len(certFiles)).Msg("certificate file validation completed")
 	return nil
 }
@@ -659,23 +659,23 @@ func (m *Manager) validateCertificateFiles() error {
 // validateACMEChallengeDir ensures the ACME challenge directory exists and is accessible
 func (m *Manager) validateACMEChallengeDir() error {
 	log.Debug().Str("acme_dir", m.acmeHTTP01DirPath).Msg("validating ACME challenge directory")
-	
+
 	// Ensure ACME challenge directory exists
 	if err := os.MkdirAll(m.acmeHTTP01DirPath, 0755); err != nil {
 		return fmt.Errorf("failed to create ACME challenge directory: %w", err)
 	}
-	
+
 	// Test write access by creating a temporary file
 	testFile := filepath.Join(m.acmeHTTP01DirPath, ".write-test")
 	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
 		return fmt.Errorf("ACME challenge directory is not writable: %w", err)
 	}
-	
+
 	// Clean up test file
 	if err := os.Remove(testFile); err != nil {
 		log.Warn().Str("test_file", testFile).Err(err).Msg("failed to clean up test file")
 	}
-	
+
 	log.Debug().Msg("ACME challenge directory validation completed")
 	return nil
 }

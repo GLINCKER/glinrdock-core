@@ -35,7 +35,7 @@ func setupTestServer(t *testing.T) (*gin.Engine, *store.Store) {
 	r := gin.New()
 	// Create a test plan enforcer
 	testPlanEnforcer := plan.New(&config.PlanConfig{
-		Plan: config.PlanPremium, // Use premium to allow all features in tests
+		Plan:   config.PlanPremium, // Use premium to allow all features in tests
 		Limits: config.PlanLimits{MaxTokens: -1, MaxClients: -1, MaxUsers: -1},
 	})
 	SetupRoutes(r, handlers, []string{}, authService, nil, testPlanEnforcer)
@@ -45,7 +45,7 @@ func setupTestServer(t *testing.T) (*gin.Engine, *store.Store) {
 
 func TestTokenEndpoints(t *testing.T) {
 	t.Skip("Integration test - requires full store setup")
-	
+
 	r, testStore := setupTestServer(t)
 	ctx := context.Background()
 
@@ -121,7 +121,7 @@ func TestTokenEndpoints(t *testing.T) {
 
 func TestProjectEndpoints(t *testing.T) {
 	t.Skip("Integration test - requires full store setup")
-	
+
 	r, testStore := setupTestServer(t)
 	ctx := context.Background()
 

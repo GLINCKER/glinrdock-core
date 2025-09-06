@@ -53,7 +53,7 @@ func (h *Handlers) CreateProject(c *gin.Context) {
 	// Use webhook-enabled method if any webhook fields are provided
 	var project store.Project
 	var err error
-	
+
 	if req.RepoURL != nil || req.Branch != "" || req.ImageTarget != nil {
 		var branch *string
 		if req.Branch != "" {
@@ -63,7 +63,7 @@ func (h *Handlers) CreateProject(c *gin.Context) {
 	} else {
 		project, err = h.projectStore.CreateProject(ctx, req.Name)
 	}
-	
+
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -235,7 +235,7 @@ func (h *Handlers) UpdateProject(c *gin.Context) {
 	if req.Branch != "" {
 		branch = &req.Branch
 	}
-	
+
 	project, err := h.projectStore.UpdateProject(ctx, id, req.Name, req.RepoURL, branch, req.ImageTarget)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -254,7 +254,7 @@ func (h *Handlers) UpdateProject(c *gin.Context) {
 			"updated_by":   auth.CurrentRole(c),
 			"changes":      map[string]interface{}{},
 		}
-		
+
 		changes := make(map[string]interface{})
 		if originalProject.Name != req.Name {
 			changes["name"] = map[string]interface{}{
@@ -262,7 +262,7 @@ func (h *Handlers) UpdateProject(c *gin.Context) {
 				"to":   req.Name,
 			}
 		}
-		
+
 		origRepoURL := ""
 		if originalProject.RepoURL != nil {
 			origRepoURL = *originalProject.RepoURL
@@ -277,14 +277,14 @@ func (h *Handlers) UpdateProject(c *gin.Context) {
 				"to":   newRepoURL,
 			}
 		}
-		
+
 		if originalProject.Branch != req.Branch {
 			changes["branch"] = map[string]interface{}{
 				"from": originalProject.Branch,
 				"to":   req.Branch,
 			}
 		}
-		
+
 		origImageTarget := ""
 		if originalProject.ImageTarget != nil {
 			origImageTarget = *originalProject.ImageTarget
@@ -299,7 +299,7 @@ func (h *Handlers) UpdateProject(c *gin.Context) {
 				"to":   newImageTarget,
 			}
 		}
-		
+
 		meta["changes"] = changes
 		h.auditLogger.RecordProjectAction(ctx, actor, audit.ActionProjectUpdate, strconv.FormatInt(project.ID, 10), meta)
 	}

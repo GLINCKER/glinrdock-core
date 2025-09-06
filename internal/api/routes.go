@@ -50,13 +50,13 @@ func SetupRoutes(r *gin.Engine, handlers *Handlers, corsOrigins []string, authSe
 		{
 			auth.POST("/login", handlers.LoginHandler)
 			auth.POST("/logout", handlers.LogoutHandler)
-			
+
 			// OAuth endpoints (no rate limiting needed for GitHub redirects)
 			auth.GET("/github/login", handlers.GitHubLoginHandler)
 			auth.GET("/github/callback", handlers.GitHubCallbackHandler)
 			auth.POST("/oauth/logout", handlers.OAuthLogoutHandler)
 		}
-		
+
 		// Protected endpoints
 		protected := v1.Group("")
 		protected.Use(authService.Middleware())
@@ -65,7 +65,7 @@ func SetupRoutes(r *gin.Engine, handlers *Handlers, corsOrigins []string, authSe
 			// Auth endpoints (require authentication)
 			protected.GET("/auth/me", handlers.AuthMeHandler)
 			protected.GET("/auth/info", handlers.AuthInfoHandler)
-			
+
 			// Token management (admin only)
 			tokens := protected.Group("/tokens")
 			tokens.Use(authService.RequireAdminRole())
@@ -83,7 +83,7 @@ func SetupRoutes(r *gin.Engine, handlers *Handlers, corsOrigins []string, authSe
 				projects.GET("/:id", handlers.GetProject)
 				projects.PUT("/:id", authService.RequireRole(store.RoleDeployer), handlers.UpdateProject)
 				projects.DELETE("/:id", authService.RequireRole(store.RoleDeployer), handlers.DeleteProject)
-				
+
 				// Services within projects
 				projects.POST("/:id/services", authService.RequireRole(store.RoleDeployer), handlers.CreateService)
 				projects.GET("/:id/services", handlers.ListServices)
@@ -92,17 +92,17 @@ func SetupRoutes(r *gin.Engine, handlers *Handlers, corsOrigins []string, authSe
 				projects.POST("/:id/routes", authService.RequireRole(store.RoleDeployer), handlers.CreateServiceRoute)
 				projects.GET("/:id/routes", handlers.ListServiceRoutes)
 			}
-			
+
 			// Deployment templates and automation (deployer+ can deploy, all can view templates)
 			deployment := protected.Group("/deploy")
 			{
 				// Template management - all authenticated users can view templates
 				deployment.GET("/templates", handlers.deploymentHandlers.GetDeploymentTemplates)
 				deployment.GET("/templates/:id", handlers.deploymentHandlers.GetDeploymentTemplate)
-				
+
 				// Auto-detection for repositories - all authenticated users can analyze
 				deployment.POST("/detect", handlers.deploymentHandlers.AutoDetectProject)
-				
+
 				// Deployment execution - deployer+ only
 				deployment.POST("", authService.RequireRole(store.RoleDeployer), handlers.deploymentHandlers.DeployService)
 			}
@@ -116,38 +116,38 @@ func SetupRoutes(r *gin.Engine, handlers *Handlers, corsOrigins []string, authSe
 				services.POST("/adopt", authService.RequireRole(store.RoleDeployer), handlers.AdoptContainerHandler)
 				// Container cleanup (deployer+ can remove orphaned containers)
 				services.POST("/cleanup", authService.RequireRole(store.RoleDeployer), handlers.CleanupContainerHandler)
-				
+
 				services.GET("/:id", handlers.GetService)
 				services.DELETE("/:id", authService.RequireRole(store.RoleDeployer), handlers.DeleteService)
-				
+
 				// Service configuration (viewer can read, deployer+ can edit)
 				services.GET("/:id/config", handlers.GetServiceConfig)
 				services.PUT("/:id/config", authService.RequireRole(store.RoleDeployer), handlers.UpdateServiceConfig)
-				
+
 				// Service environment (viewer can read actual Docker environment)
 				services.GET("/:id/environment", handlers.GetServiceEnvironment)
-				
+
 				// Service lifecycle (admin, deployer only)
 				services.POST("/:id/start", authService.RequireRole(store.RoleDeployer), handlers.StartServiceHandler)
 				services.POST("/:id/stop", authService.RequireRole(store.RoleDeployer), handlers.StopServiceHandler)
 				services.POST("/:id/restart", authService.RequireRole(store.RoleDeployer), handlers.RestartServiceHandler)
-				
+
 				// Service observability (all authenticated users)
-				services.GET("/:id/logs", handlers.ServiceLogsHandler) // WebSocket streaming
+				services.GET("/:id/logs", handlers.ServiceLogsHandler)          // WebSocket streaming
 				services.GET("/:id/logs/tail", handlers.ServiceLogsTailHandler) // REST tail
 				services.GET("/:id/stats", handlers.ServiceStatsHandler)
-				
+
 				// Service networking (all authenticated users can read, deployer+ can edit links)
 				services.GET("/:id/network", handlers.GetServiceNetwork)
 				services.GET("/:id/links", handlers.GetServiceLinks)
 				services.POST("/:id/links", authService.RequireRole(store.RoleDeployer), handlers.UpdateServiceLinks)
-				
+
 				// Service health endpoints
 				services.POST("/:id/health-check", authService.RequireRole(store.RoleDeployer), handlers.SetServiceHealthCheck)
 				services.POST("/:id/health-check/run", handlers.RunHealthCheck)
 				services.GET("/:id/health-check/debug", handlers.DebugServiceHealth) // Debug endpoint for troubleshooting
 				services.POST("/:id/unlock", authService.RequireRole(store.RoleDeployer), handlers.UnlockService)
-				
+
 				// Service environment variables (viewer can read with masking, deployer+ can modify)
 				services.GET("/:id/env-vars", handlers.GetServiceEnvVars)
 				services.PUT("/:id/env-vars", authService.RequireRole(store.RoleDeployer), handlers.SetServiceEnvVar)
@@ -162,7 +162,7 @@ func SetupRoutes(r *gin.Engine, handlers *Handlers, corsOrigins []string, authSe
 				routes.PUT("/:id", authService.RequireRole(store.RoleDeployer), handlers.UpdateRoute)
 				routes.DELETE("/:id", authService.RequireRole(store.RoleDeployer), handlers.DeleteRoute)
 				routes.GET("/:id/config", handlers.PreviewRouteConfig) // All authenticated users can preview
-				routes.GET("", handlers.ListAllRoutes) // All authenticated users
+				routes.GET("", handlers.ListAllRoutes)                 // All authenticated users
 			}
 
 			// System management (admin only)
@@ -180,11 +180,11 @@ func SetupRoutes(r *gin.Engine, handlers *Handlers, corsOrigins []string, authSe
 				system.POST("/emergency-restart", handlers.EmergencyRestart)
 				system.GET("/logs", handlers.GetSystemLogs)
 				system.GET("/log-paths", handlers.GetLogPaths)
-				
+
 				// Backup management
 				system.POST("/backup", handlers.CreateBackup)
 				system.POST("/restore", handlers.RestoreBackup)
-				
+
 				// License management
 				system.POST("/license/activate", handlers.ActivateLicense)
 				system.POST("/license/deactivate", handlers.DeactivateLicense)
@@ -192,37 +192,37 @@ func SetupRoutes(r *gin.Engine, handlers *Handlers, corsOrigins []string, authSe
 
 			// Environment management (admin, deployer can manage; all users can read) - TODO: Re-enable when handlers are complete
 			/*
-			environments := protected.Group("/environments")
-			{
-				environments.GET("", handlers.ListEnvironments)
-				environments.POST("", authService.RequireRole(store.RoleDeployer), handlers.CreateEnvironment)
-				environments.GET("/:id", handlers.GetEnvironment)
-				environments.PUT("/:id", authService.RequireRole(store.RoleDeployer), handlers.UpdateEnvironment)
-				environments.DELETE("/:id", authService.RequireRole(store.RoleDeployer), handlers.DeleteEnvironment)
-				environments.POST("/:id/duplicate", authService.RequireRole(store.RoleDeployer), handlers.DuplicateEnvironment)
-				environments.POST("/:id/activate", authService.RequireRole(store.RoleDeployer), handlers.SetActiveEnvironment)
-				environments.GET("/:id/variables", handlers.GetEnvironmentVariables)
-				environments.GET("/:id/variables/merged", handlers.GetMergedEnvironmentVariables)
-				environments.PUT("/:id/variables/:key", authService.RequireRole(store.RoleDeployer), handlers.SetEnvironmentVariable)
-				environments.DELETE("/:id/variables/:key", authService.RequireRole(store.RoleDeployer), handlers.DeleteEnvironmentVariable)
-				environments.PUT("/:id/variables", authService.RequireRole(store.RoleDeployer), handlers.BulkUpdateEnvironmentVariables)
-			}
+				environments := protected.Group("/environments")
+				{
+					environments.GET("", handlers.ListEnvironments)
+					environments.POST("", authService.RequireRole(store.RoleDeployer), handlers.CreateEnvironment)
+					environments.GET("/:id", handlers.GetEnvironment)
+					environments.PUT("/:id", authService.RequireRole(store.RoleDeployer), handlers.UpdateEnvironment)
+					environments.DELETE("/:id", authService.RequireRole(store.RoleDeployer), handlers.DeleteEnvironment)
+					environments.POST("/:id/duplicate", authService.RequireRole(store.RoleDeployer), handlers.DuplicateEnvironment)
+					environments.POST("/:id/activate", authService.RequireRole(store.RoleDeployer), handlers.SetActiveEnvironment)
+					environments.GET("/:id/variables", handlers.GetEnvironmentVariables)
+					environments.GET("/:id/variables/merged", handlers.GetMergedEnvironmentVariables)
+					environments.PUT("/:id/variables/:key", authService.RequireRole(store.RoleDeployer), handlers.SetEnvironmentVariable)
+					environments.DELETE("/:id/variables/:key", authService.RequireRole(store.RoleDeployer), handlers.DeleteEnvironmentVariable)
+					environments.PUT("/:id/variables", authService.RequireRole(store.RoleDeployer), handlers.BulkUpdateEnvironmentVariables)
+				}
 			*/
 
 			// Registry management (admin can manage; deployer can list)
 			registries := protected.Group("/registries")
 			{
-				registries.GET("", handlers.ListRegistries) // All authenticated users can list
-				registries.GET("/types", handlers.GetValidRegistryTypes) // All authenticated users can get types
-				registries.POST("", authService.RequireAdminRole(), handlers.CreateRegistry) // Admin only
-				registries.GET("/:id", handlers.GetRegistry) // All authenticated users can view
-				registries.DELETE("/:id", authService.RequireAdminRole(), handlers.DeleteRegistry) // Admin only
+				registries.GET("", handlers.ListRegistries)                                                   // All authenticated users can list
+				registries.GET("/types", handlers.GetValidRegistryTypes)                                      // All authenticated users can get types
+				registries.POST("", authService.RequireAdminRole(), handlers.CreateRegistry)                  // Admin only
+				registries.GET("/:id", handlers.GetRegistry)                                                  // All authenticated users can view
+				registries.DELETE("/:id", authService.RequireAdminRole(), handlers.DeleteRegistry)            // Admin only
 				registries.POST("/:id/test", authService.RequireAdminRole(), handlers.TestRegistryConnection) // Admin only
 			}
 
 			// Audit log (admin only)
 			protected.GET("/audit", authService.RequireAdminRole(), handlers.GetAuditEntries)
-			
+
 			// Support bundle (admin only)
 			protected.POST("/support/bundle", authService.RequireAdminRole(), handlers.GenerateSupportBundle)
 
@@ -247,12 +247,12 @@ func SetupRoutes(r *gin.Engine, handlers *Handlers, corsOrigins []string, authSe
 					// Installation management
 					github.GET("/installations", handlers.githubAppHandlers.GetInstallations)
 					github.POST("/installations/sync", handlers.githubAppHandlers.SyncInstallations)
-					
+
 					// Repository management
 					github.GET("/repositories", handlers.githubAppHandlers.GetRepositories)
 					github.POST("/repos/:id/activate", handlers.githubAppHandlers.ActivateRepository)
 					github.DELETE("/repos/:id/activate", handlers.githubAppHandlers.DeactivateRepository)
-					
+
 					// Webhook debugging
 					github.GET("/webhook/events", handlers.githubAppHandlers.GetWebhookEvents)
 				}
@@ -336,13 +336,13 @@ func SetupRoutes(r *gin.Engine, handlers *Handlers, corsOrigins []string, authSe
 				cicd.POST("/services/:id/build", authService.RequireRole(store.RoleDeployer), handlers.TriggerBuild)
 				cicd.GET("/services/:id/builds", handlers.ListBuilds)
 				cicd.GET("/builds/:id", handlers.GetBuild)
-				
+
 				// Deployments
 				cicd.POST("/services/:id/deploy", authService.RequireRole(store.RoleDeployer), handlers.TriggerDeployment)
 				cicd.POST("/services/:id/rollback", authService.RequireRole(store.RoleDeployer), handlers.RollbackDeployment)
 				cicd.GET("/services/:id/deployments", handlers.ListDeployments)
 				cicd.GET("/deployments/:id", handlers.GetDeployment)
-				
+
 				// Jobs
 				cicd.GET("/jobs/:id", handlers.GetJob)
 			}
@@ -360,7 +360,6 @@ func SetupRoutes(r *gin.Engine, handlers *Handlers, corsOrigins []string, authSe
 				deployments.GET("/:id", handlers.GetDeployment)
 			}
 
-
 			// Search endpoints (all authenticated users)
 			if handlers.searchHandlers != nil {
 				search := protected.Group("/search")
@@ -374,7 +373,7 @@ func SetupRoutes(r *gin.Engine, handlers *Handlers, corsOrigins []string, authSe
 
 			// Metrics endpoint (all authenticated users)
 			protected.GET("/metrics", handlers.GetMetrics)
-			protected.GET("/metrics/historical", handlers.GetHistoricalMetrics) 
+			protected.GET("/metrics/historical", handlers.GetHistoricalMetrics)
 			protected.GET("/metrics/latest", handlers.GetLatestHistoricalMetrics)
 
 			// Help documentation endpoints (all authenticated users)
@@ -385,7 +384,7 @@ func SetupRoutes(r *gin.Engine, handlers *Handlers, corsOrigins []string, authSe
 					help.POST("/reindex", authService.RequireAdminRole(), handlers.helpHandlers.ReindexHelp)
 					// Specific routes for known document structures
 					help.GET("/guides/:slug", handlers.helpHandlers.GetHelpDocumentNested)
-					help.GET("/using/:slug", handlers.helpHandlers.GetHelpDocumentNested) 
+					help.GET("/using/:slug", handlers.helpHandlers.GetHelpDocumentNested)
 					help.GET("/integrations/:slug", handlers.helpHandlers.GetHelpDocumentNested)
 					// Single-level documents
 					help.GET("/:slug", handlers.helpHandlers.GetHelpDocument)
@@ -403,16 +402,16 @@ func SetupRoutes(r *gin.Engine, handlers *Handlers, corsOrigins []string, authSe
 		}
 
 		// Protected webhook management endpoints
-		protected.GET("/webhooks", handlers.ListWebhookDeliveries) // All authenticated users can view deliveries
+		protected.GET("/webhooks", handlers.ListWebhookDeliveries)  // All authenticated users can view deliveries
 		protected.GET("/webhooks/:id", handlers.GetWebhookDelivery) // All authenticated users can view delivery details
 	}
 
 	// Serve static files (always enabled for UI-Lite)
 	r.Static("/static", "./web/static")
-	
+
 	// Serve UI-Lite assets directly under /assets for the SPA
 	r.Static("/assets", "./web/static/ui-lite/assets")
-	
+
 	// Add UI-Lite SPA routes
 	r.GET("/app/*filepath", func(c *gin.Context) {
 		c.File("./web/static/ui-lite/index.html")
@@ -428,7 +427,7 @@ func SetupRoutes(r *gin.Engine, handlers *Handlers, corsOrigins []string, authSe
 		r.GET("/routes", webHandlers.AllRoutes)
 		r.GET("/system", webHandlers.SystemOverview)
 		r.GET("/services/:id", webHandlers.ServiceDetail)
-		
+
 		// API endpoints for HTMX requests
 		api := r.Group("/api")
 		{
@@ -437,7 +436,7 @@ func SetupRoutes(r *gin.Engine, handlers *Handlers, corsOrigins []string, authSe
 			api.GET("/services/:id/routes", webHandlers.RoutesList)
 			api.GET("/system-status", webHandlers.SystemStatus)
 		}
-		
+
 		// Form endpoints
 		r.GET("/projects/new", webHandlers.ShowProjectForm)
 		r.GET("/projects/:id/services/new", webHandlers.ShowServiceForm)

@@ -18,7 +18,7 @@ func setupTestStoreForSearch(t *testing.T) *Store {
 	require.NoError(t, err)
 
 	store := &Store{db: db}
-	
+
 	// Run migrations
 	ctx := context.Background()
 	err = store.Migrate(ctx)
@@ -41,15 +41,15 @@ func TestIndexPagesStatic(t *testing.T) {
 
 	// Verify pages were indexed
 	var count int
-	err = store.db.QueryRowContext(ctx, 
+	err = store.db.QueryRowContext(ctx,
 		"SELECT COUNT(*) FROM search_docs WHERE entity_type = 'page'").Scan(&count)
 	require.NoError(t, err)
 	assert.Greater(t, count, 10, "should have indexed multiple pages")
 
 	// Test specific pages exist
 	expectedPages := []struct {
-		title    string
-		urlPath  string
+		title   string
+		urlPath string
 	}{
 		{"Dashboard", "/app/"},
 		{"Settings", "/app/settings"},
@@ -78,7 +78,7 @@ func TestSearchSeedPages(t *testing.T) {
 
 	// Verify pages were indexed
 	var count int
-	err = store.db.QueryRowContext(ctx, 
+	err = store.db.QueryRowContext(ctx,
 		"SELECT COUNT(*) FROM search_docs WHERE entity_type = 'page'").Scan(&count)
 	require.NoError(t, err)
 	assert.Greater(t, count, 10, "should have seeded multiple pages")
@@ -89,7 +89,7 @@ func TestSearchSeedPages(t *testing.T) {
 
 	// Count should remain the same (pages replaced, not duplicated)
 	var newCount int
-	err = store.db.QueryRowContext(ctx, 
+	err = store.db.QueryRowContext(ctx,
 		"SELECT COUNT(*) FROM search_docs WHERE entity_type = 'page'").Scan(&newCount)
 	require.NoError(t, err)
 	assert.Equal(t, count, newCount, "repeated seeding should not create duplicates")
@@ -117,10 +117,10 @@ func TestSearchQueryWithPages(t *testing.T) {
 
 	hits, err := store.SearchQuery(ctx, "settings", filter)
 	require.NoError(t, err)
-	
+
 	// Should find at least one settings page
 	assert.Greater(t, len(hits), 0, "should find settings pages")
-	
+
 	// Verify the result structure
 	for _, hit := range hits {
 		assert.Equal(t, "page", hit.Type, "all results should be page type")
@@ -155,14 +155,14 @@ func TestSearchReindexIncludesPages(t *testing.T) {
 
 	// Verify pages were included in reindex
 	var count int
-	err = store.db.QueryRowContext(ctx, 
+	err = store.db.QueryRowContext(ctx,
 		"SELECT COUNT(*) FROM search_docs WHERE entity_type = 'page'").Scan(&count)
 	require.NoError(t, err)
 	assert.Greater(t, count, 10, "reindex should include pages")
 
 	// Test that we can search pages after reindex
 	filter := SearchFilter{
-		Type:       "page", 
+		Type:       "page",
 		Limit:      5,
 		Offset:     0,
 		AllowBasic: true,
@@ -170,7 +170,7 @@ func TestSearchReindexIncludesPages(t *testing.T) {
 
 	hits, err := store.SearchQuery(ctx, "quick", filter)
 	require.NoError(t, err)
-	
+
 	// Should find quickstart related pages
 	found := false
 	for _, hit := range hits {
@@ -186,14 +186,14 @@ func TestScanSearchHitsFieldMapping(t *testing.T) {
 	store := setupTestStoreForSearch(t)
 	ctx := context.Background()
 
-	// Seed pages  
+	// Seed pages
 	err := store.SearchSeedPages(ctx)
 	require.NoError(t, err)
 
 	// Test that scan mapping works correctly by doing a direct query
 	query := `SELECT entity_id, entity_type, title, subtitle, url_path, 1.0 AS score, project_id 
 	          FROM search_docs WHERE entity_type = 'page' LIMIT 1`
-	
+
 	rows, err := store.db.QueryContext(ctx, query)
 	require.NoError(t, err)
 	defer rows.Close()
@@ -237,7 +237,7 @@ func TestPageEntityTypeValidation(t *testing.T) {
 			pageCount++
 		}
 	}
-	
+
 	assert.Greater(t, pageCount, 0, "should find pages in mixed search")
 }
 
@@ -258,10 +258,10 @@ func TestSearchSuggest(t *testing.T) {
 
 	suggestions, err := store.SearchSuggest(ctx, "se", filter)
 	require.NoError(t, err)
-	
+
 	// Should find suggestions starting with "se"
 	assert.Greater(t, len(suggestions), 0, "should find suggestions for 'se'")
-	
+
 	// Check suggestion structure
 	for _, suggestion := range suggestions {
 		assert.NotEmpty(t, suggestion.Query, "suggestion should have query")
@@ -289,7 +289,7 @@ func TestSearchSuggestWithFilters(t *testing.T) {
 
 	suggestions, err := store.SearchSuggest(ctx, "se", filter)
 	require.NoError(t, err)
-	
+
 	// All suggestions should be pages
 	for _, suggestion := range suggestions {
 		assert.Equal(t, "page", suggestion.Type, "all suggestions should be page type")
@@ -384,7 +384,7 @@ func TestSearchWithProjectNameFilter(t *testing.T) {
 	// This should not crash even with non-existent project
 	hits, err := store.SearchQuery(ctx, "dashboard", filter)
 	require.NoError(t, err)
-	
+
 	// Should return empty results since project doesn't exist
 	assert.Empty(t, hits, "should return empty results for non-existent project")
 
@@ -415,7 +415,7 @@ func TestSearchWithStatusFilter(t *testing.T) {
 	// This should not crash and should apply status filter
 	hits, err := store.SearchQuery(ctx, "test", filter)
 	require.NoError(t, err)
-	
+
 	// Results should be empty or filtered (we don't have services with status tags in test data)
 	// The important thing is that it doesn't crash
 	assert.GreaterOrEqual(t, len(hits), 0, "should handle status filtering gracefully")
@@ -424,8 +424,7 @@ func TestSearchWithStatusFilter(t *testing.T) {
 	filter.Type = "page"
 	hits, err = store.SearchQuery(ctx, "dashboard", filter)
 	require.NoError(t, err)
-	
+
 	// Should find pages since status filter is ignored for non-service types
 	assert.GreaterOrEqual(t, len(hits), 0, "should ignore status filter for non-service types")
 }
-

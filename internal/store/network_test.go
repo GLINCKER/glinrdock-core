@@ -63,14 +63,14 @@ func TestGenerateServiceAliases(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := GenerateServiceAliases(tt.projectName, tt.serviceName)
 			if len(result) != len(tt.expected) {
-				t.Errorf("GenerateServiceAliases(%q, %q) returned %d aliases, expected %d", 
+				t.Errorf("GenerateServiceAliases(%q, %q) returned %d aliases, expected %d",
 					tt.projectName, tt.serviceName, len(result), len(tt.expected))
 				return
 			}
-			
+
 			for i, alias := range result {
 				if alias != tt.expected[i] {
-					t.Errorf("GenerateServiceAliases(%q, %q)[%d] = %q, expected %q", 
+					t.Errorf("GenerateServiceAliases(%q, %q)[%d] = %q, expected %q",
 						tt.projectName, tt.serviceName, i, alias, tt.expected[i])
 				}
 			}
@@ -109,15 +109,15 @@ func TestGenerateSlug(t *testing.T) {
 func TestStore_CreateProject_WithNetworkName(t *testing.T) {
 	store := setupTestStore(t)
 	defer store.Close()
-	
+
 	ctx := context.Background()
-	
+
 	// Create a project and verify network_name is set
 	project, err := store.CreateProject(ctx, "test-project")
 	if err != nil {
 		t.Fatalf("CreateProject failed: %v", err)
 	}
-	
+
 	if project.NetworkName == nil {
 		t.Error("Expected network_name to be set, got nil")
 	} else {
@@ -126,13 +126,13 @@ func TestStore_CreateProject_WithNetworkName(t *testing.T) {
 			t.Errorf("Expected network_name %q, got %q", expected, *project.NetworkName)
 		}
 	}
-	
+
 	// Verify the project can be retrieved with network_name
 	retrieved, err := store.GetProject(ctx, project.ID)
 	if err != nil {
 		t.Fatalf("GetProject failed: %v", err)
 	}
-	
+
 	if retrieved.NetworkName == nil {
 		t.Error("Expected retrieved project to have network_name set, got nil")
 	} else if *retrieved.NetworkName != *project.NetworkName {
@@ -143,42 +143,42 @@ func TestStore_CreateProject_WithNetworkName(t *testing.T) {
 func TestStore_GetServiceNetwork(t *testing.T) {
 	store := setupTestStore(t)
 	defer store.Close()
-	
+
 	ctx := context.Background()
-	
+
 	// Create a project
 	project, err := store.CreateProject(ctx, "test-project")
 	if err != nil {
 		t.Fatalf("CreateProject failed: %v", err)
 	}
-	
+
 	// Create a service with ports
 	spec := ServiceSpec{
 		Name:  "web-service",
 		Image: "nginx:latest",
 		Ports: []PortMap{{Host: 8080, Container: 80}},
 	}
-	
+
 	service, err := store.CreateService(ctx, project.ID, spec)
 	if err != nil {
 		t.Fatalf("CreateService failed: %v", err)
 	}
-	
+
 	// Get network information for the service
 	network, err := store.GetServiceNetwork(ctx, service.ID)
 	if err != nil {
 		t.Fatalf("GetServiceNetwork failed: %v", err)
 	}
-	
+
 	// Verify network information
 	if network.ProjectNetwork == "" {
 		t.Error("Expected project network name to be set")
 	}
-	
+
 	if len(network.Aliases) == 0 {
 		t.Error("Expected aliases to be set")
 	}
-	
+
 	if len(network.PortsInternal) == 0 {
 		t.Error("Expected internal ports to be populated")
 	} else {
@@ -190,4 +190,3 @@ func TestStore_GetServiceNetwork(t *testing.T) {
 		}
 	}
 }
-

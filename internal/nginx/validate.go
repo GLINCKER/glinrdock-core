@@ -12,8 +12,8 @@ import (
 
 // Validator handles nginx configuration validation
 type Validator struct {
-	nginxPath      string
-	useDocker      bool
+	nginxPath       string
+	useDocker       bool
 	dockerContainer string
 }
 
@@ -49,7 +49,7 @@ func (v *Validator) ValidateConfiguration(ctx context.Context, configPath string
 	// Run nginx configuration test
 	cmd := exec.CommandContext(ctx, v.nginxPath, "-t", "-c", configPath)
 	output, err := cmd.CombinedOutput()
-	
+
 	if err != nil {
 		log.Error().
 			Str("config_path", configPath).
@@ -63,7 +63,7 @@ func (v *Validator) ValidateConfiguration(ctx context.Context, configPath string
 		Str("config_path", configPath).
 		Str("output", string(output)).
 		Msg("nginx configuration validation passed")
-	
+
 	return nil
 }
 
@@ -97,7 +97,7 @@ func (v *Validator) validateWithDocker(ctx context.Context, configPath string) e
 	// Run nginx -t inside the docker container
 	cmd := exec.CommandContext(ctx, "docker", "exec", v.dockerContainer, "nginx", "-t")
 	output, err = cmd.CombinedOutput()
-	
+
 	if err != nil {
 		log.Error().
 			Str("container", v.dockerContainer).
@@ -111,7 +111,7 @@ func (v *Validator) validateWithDocker(ctx context.Context, configPath string) e
 		Str("container", v.dockerContainer).
 		Str("output", string(output)).
 		Msg("docker nginx configuration validation passed")
-	
+
 	return nil
 }
 
@@ -133,7 +133,7 @@ func (v *Validator) validateWithCustomCommand(ctx context.Context, nginxCmd, con
 
 	cmd := exec.CommandContext(ctx, parts[0], args...)
 	output, err := cmd.CombinedOutput()
-	
+
 	if err != nil {
 		log.Error().
 			Str("nginx_cmd", nginxCmd).
@@ -147,7 +147,7 @@ func (v *Validator) validateWithCustomCommand(ctx context.Context, nginxCmd, con
 		Str("nginx_cmd", nginxCmd).
 		Str("output", string(output)).
 		Msg("custom nginx command validation passed")
-	
+
 	return nil
 }
 

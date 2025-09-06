@@ -69,7 +69,7 @@ func TestEnvVarOperations(t *testing.T) {
 	t.Run("SetSecretEnvVar", func(t *testing.T) {
 		nonce := make([]byte, 12)
 		ciphertext := []byte("encrypted_data")
-		
+
 		err := store.SetEnvVar(ctx, service.ID, "SECRET_VAR", "", true, nonce, ciphertext)
 		if err != nil {
 			t.Fatalf("Failed to set secret env var: %v", err)
@@ -183,7 +183,7 @@ func TestEnvVarOperations(t *testing.T) {
 
 	t.Run("BulkDeleteEnvVars", func(t *testing.T) {
 		keys := []string{"BULK_PLAIN1", "BULK_SECRET1"}
-		
+
 		err := store.BulkDeleteEnvVars(ctx, service.ID, keys)
 		if err != nil {
 			t.Fatalf("Failed to bulk delete env vars: %v", err)
@@ -262,7 +262,7 @@ func TestEnvVarOperations(t *testing.T) {
 		// Test update changes UpdatedAt
 		time.Sleep(100 * time.Millisecond) // Sleep to ensure timestamp difference
 		originalUpdatedAt := envVar.UpdatedAt
-		
+
 		err = store.SetEnvVar(ctx, service.ID, "TIMESTAMP_TEST", "updated_value", false, nil, nil)
 		if err != nil {
 			t.Fatalf("Failed to update timestamp test var: %v", err)
@@ -276,14 +276,14 @@ func TestEnvVarOperations(t *testing.T) {
 		// CreatedAt should be unchanged (allow 1 second tolerance for time zone differences)
 		timeDiff := updatedVar.CreatedAt.Sub(envVar.CreatedAt)
 		if timeDiff > time.Second || timeDiff < -time.Second {
-			t.Errorf("CreatedAt changed significantly on update: original=%v, updated=%v, diff=%v", 
+			t.Errorf("CreatedAt changed significantly on update: original=%v, updated=%v, diff=%v",
 				envVar.CreatedAt, updatedVar.CreatedAt, timeDiff)
 		}
 
 		// UpdatedAt should be newer (with some tolerance)
 		updateDiff := updatedVar.UpdatedAt.Sub(originalUpdatedAt)
 		if updateDiff <= 0 {
-			t.Errorf("UpdatedAt should be newer after update: original=%v, updated=%v", 
+			t.Errorf("UpdatedAt should be newer after update: original=%v, updated=%v",
 				originalUpdatedAt, updatedVar.UpdatedAt)
 		}
 	})

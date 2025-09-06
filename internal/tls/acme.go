@@ -29,10 +29,10 @@ import (
 // ACMEService handles ACME certificate issuance using lego library
 type ACMEService struct {
 	db                  *sql.DB
-	config             *util.Config
+	config              *util.Config
 	verificationService *domains.VerificationService
 	http01ChallengeDir  string
-	nginxReloadHook    func() error
+	nginxReloadHook     func() error
 }
 
 // ACMEUser implements lego's registration.User interface
@@ -94,10 +94,10 @@ func (w *LegoClientWrapper) RegisterAccount(options registration.RegisterOptions
 func NewACMEService(db *sql.DB, config *util.Config, verificationService *domains.VerificationService) *ACMEService {
 	return &ACMEService{
 		db:                  db,
-		config:             config,
+		config:              config,
 		verificationService: verificationService,
 		http01ChallengeDir:  "/var/lib/glinr/acme-http01",
-		nginxReloadHook:    defaultNginxReloadHook,
+		nginxReloadHook:     defaultNginxReloadHook,
 	}
 }
 
@@ -193,17 +193,17 @@ func (s *ACMEService) getDNSProviderForDomain(domain string) (provider.DNSProvid
 	// Get domain info from database
 	var providerID sql.NullInt64
 	var autoManage bool
-	
+
 	query := `SELECT provider_id, auto_manage FROM domains WHERE domain = ?`
 	err := s.db.QueryRowContext(context.Background(), query, domain).Scan(&providerID, &autoManage)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if !autoManage || !providerID.Valid {
 		return nil, fmt.Errorf("domain is not auto-managed or has no provider")
 	}
-	
+
 	// Get provider details
 	var providerType, configJSON string
 	providerQuery := `SELECT type, config_json FROM dns_providers WHERE id = ?`
@@ -211,7 +211,7 @@ func (s *ACMEService) getDNSProviderForDomain(domain string) (provider.DNSProvid
 	if err != nil {
 		return nil, fmt.Errorf("failed to get DNS provider: %w", err)
 	}
-	
+
 	// Create provider instance
 	switch providerType {
 	case "cloudflare":
@@ -270,7 +270,7 @@ func (s *ACMEService) IssueCertificate(ctx context.Context, domain string) (*sto
 	if certBlock == nil {
 		return nil, fmt.Errorf("failed to decode certificate PEM")
 	}
-	
+
 	cert, err := x509.ParseCertificate(certBlock.Bytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse certificate: %w", err)
@@ -332,7 +332,7 @@ func (s *ACMEService) checkDomainVerification(ctx context.Context, domain string
 		LIMIT 1
 	`
 	err := s.db.QueryRowContext(ctx, verificationQuery, domain).Scan(&status)
-	
+
 	if err == nil && status.Valid && status.String == "verified" {
 		return nil // Domain is verified
 	}
@@ -341,10 +341,10 @@ func (s *ACMEService) checkDomainVerification(ctx context.Context, domain string
 	if s.config.ACMEDNS01Enabled {
 		var providerID sql.NullInt64
 		var autoManage bool
-		
+
 		domainQuery := `SELECT provider_id, auto_manage FROM domains WHERE domain = ?`
 		err := s.db.QueryRowContext(ctx, domainQuery, domain).Scan(&providerID, &autoManage)
-		
+
 		if err == nil && autoManage && providerID.Valid {
 			return nil // Can use DNS-01 auto-manage path
 		}
@@ -369,7 +369,7 @@ func (s *ACMEService) storeCertificate(ctx context.Context, cert *store.Enhanced
 			created_at, updated_at
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
-	
+
 	result, err := s.db.ExecContext(ctx, query,
 		cert.Domain,
 		cert.Type,
@@ -387,12 +387,12 @@ func (s *ACMEService) storeCertificate(ctx context.Context, cert *store.Enhanced
 	if err != nil {
 		return err
 	}
-	
+
 	id, err := result.LastInsertId()
 	if err != nil {
 		return err
 	}
-	
+
 	cert.ID = id
 	return nil
 }

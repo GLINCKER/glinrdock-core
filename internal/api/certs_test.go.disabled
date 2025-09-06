@@ -70,16 +70,16 @@ func setupCertHandlers() (*CertHandlers, *MockCertStore, *jobs.Queue, *MockProxy
 	certStore := &MockCertStore{}
 	jobQueue := jobs.NewQueue(1)
 	mockProxy := &MockProxyForCerts{}
-	
+
 	// Create a proxy.NginxConfig instance but we'll mock its methods
 	realProxy := &proxy.NginxConfig{}
-	
+
 	handlers := &CertHandlers{
 		certStore: certStore,
 		jobQueue:  jobQueue,
 		proxy:     realProxy,
 	}
-	
+
 	return handlers, certStore, jobQueue, mockProxy
 }
 
@@ -322,14 +322,14 @@ func TestCertHandlers_GetCert(t *testing.T) {
 func TestCertHandlers_ReloadNginx_Success(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	handlers, _, jobQueue, mockProxy := setupCertHandlers()
+	handlers, _, jobQueue, _ := setupCertHandlers()
 	defer jobQueue.Stop()
 
 	// Replace the real proxy with our mock for this test
 	originalProxy := handlers.proxy
 	mockNginxProxy := &MockProxyForCerts{}
 	mockNginxProxy.On("Reload").Return(nil)
-	
+
 	// We need to create a test that doesn't rely on the actual proxy
 	// Let's test the validation separately
 	r := gin.New()

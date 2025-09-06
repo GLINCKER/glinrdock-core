@@ -12,13 +12,13 @@ import (
 var (
 	// ErrTokenQuota is returned when token creation would exceed plan limits
 	ErrTokenQuota = errors.New("token quota exceeded")
-	
+
 	// ErrClientQuota is returned when client registration would exceed plan limits
 	ErrClientQuota = errors.New("client quota exceeded")
-	
+
 	// ErrUserQuota is returned when user creation would exceed plan limits
 	ErrUserQuota = errors.New("user quota exceeded")
-	
+
 	// ErrFeatureLocked is returned when trying to use a feature not available in current plan
 	ErrFeatureLocked = errors.New("feature locked")
 )
@@ -32,10 +32,10 @@ type Store interface {
 
 // Enforcer manages plan limits and feature access
 type Enforcer struct {
-	plan      config.Plan
-	limits    config.PlanLimits
-	license   *license.License
-	features  []string
+	plan     config.Plan
+	limits   config.PlanLimits
+	license  *license.License
+	features []string
 }
 
 // New creates a new plan enforcer
@@ -110,16 +110,16 @@ func (e *Enforcer) CheckTokenQuota(ctx context.Context, store Store) error {
 	if e.limits.IsUnlimited(e.limits.MaxTokens) {
 		return nil
 	}
-	
+
 	current, err := store.TokenCount(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to check token count: %w", err)
 	}
-	
+
 	if current >= e.limits.MaxTokens {
 		return fmt.Errorf("%w: %d/%d tokens used", ErrTokenQuota, current, e.limits.MaxTokens)
 	}
-	
+
 	return nil
 }
 
@@ -128,16 +128,16 @@ func (e *Enforcer) CheckClientQuota(ctx context.Context, store Store) error {
 	if e.limits.IsUnlimited(e.limits.MaxClients) {
 		return nil
 	}
-	
+
 	current, err := store.CountActiveClients(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to check client count: %w", err)
 	}
-	
+
 	if current >= e.limits.MaxClients {
 		return fmt.Errorf("%w: %d/%d clients used", ErrClientQuota, current, e.limits.MaxClients)
 	}
-	
+
 	return nil
 }
 
@@ -148,20 +148,20 @@ func (e *Enforcer) CheckUserQuota(ctx context.Context, store Store) error {
 	if e.plan == config.PlanFree {
 		return fmt.Errorf("%w: user management not available in free plan", ErrFeatureLocked)
 	}
-	
+
 	if e.limits.IsUnlimited(e.limits.MaxUsers) {
 		return nil
 	}
-	
+
 	current, err := store.UserCount(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to check user count: %w", err)
 	}
-	
+
 	if current >= e.limits.MaxUsers {
 		return fmt.Errorf("%w: %d/%d users used", ErrUserQuota, current, e.limits.MaxUsers)
 	}
-	
+
 	return nil
 }
 
@@ -182,28 +182,28 @@ func (e *Enforcer) FeatureEnabled(feature string) bool {
 	switch feature {
 	case "smtp_alerts":
 		return e.plan == config.PlanPro || e.plan == config.PlanPremium
-		
+
 	case "ssl_certs":
 		return e.plan == config.PlanPro || e.plan == config.PlanPremium
-		
+
 	case "oauth":
 		return e.plan == config.PlanPremium
-		
+
 	case "multi_env":
 		return e.plan == config.PlanPremium
-		
+
 	case "sso":
 		return e.plan == config.PlanPremium
-		
+
 	case "audit_logs":
 		return e.plan == config.PlanPremium
-		
+
 	case "ci_integrations":
 		return e.plan == config.PlanPro || e.plan == config.PlanPremium
-		
+
 	case "advanced_dashboards":
 		return e.plan == config.PlanPremium
-		
+
 	default:
 		return e.isCoreFeature(feature)
 	}
@@ -253,10 +253,10 @@ func (e *Enforcer) GetFeatures() []string {
 
 	// For plan-based enforcement, return features based on plan
 	var features []string
-	
+
 	// Core features always included
 	features = append(features, "projects", "services", "routes", "logs", "basic_metrics", "lockdown", "emergency_restart")
-	
+
 	// Plan-specific features
 	switch e.plan {
 	case config.PlanPremium:
@@ -265,31 +265,31 @@ func (e *Enforcer) GetFeatures() []string {
 	case config.PlanPro:
 		features = append(features, "smtp_alerts", "ci_integrations", "ssl_certs")
 	}
-	
+
 	return features
 }
 
 // GetUsage retrieves current usage statistics
 func (e *Enforcer) GetUsage(ctx context.Context, store Store) (Usage, error) {
 	usage := Usage{}
-	
+
 	// Get token count
 	tokenCount, err := store.TokenCount(ctx)
 	if err != nil {
 		return usage, fmt.Errorf("failed to get token count: %w", err)
 	}
 	usage.Tokens = tokenCount
-	
+
 	// Get client count
 	clientCount, err := store.CountActiveClients(ctx)
 	if err != nil {
 		return usage, fmt.Errorf("failed to get client count: %w", err)
 	}
 	usage.Clients = clientCount
-	
+
 	// Get user count (future implementation, return 1 for now representing admin)
 	usage.Users = 1
-	
+
 	return usage, nil
 }
 
@@ -326,7 +326,7 @@ func NewQuotaError(errType string, current, limit int, plan config.Plan) *QuotaE
 	default:
 		upgradeHint = "Contact support for assistance"
 	}
-	
+
 	return &QuotaError{
 		Type:        errType,
 		Message:     fmt.Sprintf("%s quota exceeded: %d/%d used", errType, current, limit),

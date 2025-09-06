@@ -23,7 +23,7 @@ type NginxHandlers struct {
 
 // NginxStatusResponse represents nginx health status
 type NginxStatusResponse struct {
-	Status        string    `json:"status"`
+	Status        string     `json:"status"`
 	LastApplyTime *time.Time `json:"last_apply_time,omitempty"`
 	LastError     *string    `json:"last_error,omitempty"`
 	ConfigHash    *string    `json:"config_hash,omitempty"`
@@ -31,10 +31,10 @@ type NginxStatusResponse struct {
 
 // NginxConfigResponse represents the current nginx config
 type NginxConfigResponse struct {
-	Config     string `json:"config"`
-	Hash       string `json:"hash"`
-	GeneratedAt time.Time `json:"generated_at"`
-	Routes     []store.RouteWithService `json:"routes"`
+	Config      string                   `json:"config"`
+	Hash        string                   `json:"hash"`
+	GeneratedAt time.Time                `json:"generated_at"`
+	Routes      []store.RouteWithService `json:"routes"`
 }
 
 // ValidateResponse represents validation result
@@ -150,7 +150,7 @@ func (h *NginxHandlers) GetNginxStatus(c *gin.Context) {
 }
 
 // GetCurrentConfig returns currently active nginx configuration
-// @Summary Get current nginx configuration  
+// @Summary Get current nginx configuration
 // @Description Returns the currently active nginx configuration rendered from database
 // @Tags nginx
 // @Security AdminAuth
@@ -191,7 +191,7 @@ func (h *NginxHandlers) GetCurrentConfig(c *gin.Context) {
 		}
 	}
 
-	// Get certificates  
+	// Get certificates
 	certificates, err := h.store.ListCertificates(ctx)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to get certificates for nginx config")

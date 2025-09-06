@@ -99,7 +99,7 @@ func TestIsRoleValid(t *testing.T) {
 		{RoleViewer, true},
 		{"invalid", false},
 		{"", false},
-		{"ADMIN", false}, // Case sensitive
+		{"ADMIN", false},  // Case sensitive
 		{"admin ", false}, // No spaces
 	}
 
@@ -121,12 +121,12 @@ func TestCanAccessResource(t *testing.T) {
 		{RoleAdmin, RoleAdmin, true, "admin accessing admin"},
 		{RoleAdmin, RoleDeployer, true, "admin accessing deployer"},
 		{RoleAdmin, RoleViewer, true, "admin accessing viewer"},
-		
+
 		// Deployer can access deployer and viewer
 		{RoleDeployer, RoleAdmin, false, "deployer accessing admin"},
 		{RoleDeployer, RoleDeployer, true, "deployer accessing deployer"},
 		{RoleDeployer, RoleViewer, true, "deployer accessing viewer"},
-		
+
 		// Viewer can only access viewer
 		{RoleViewer, RoleAdmin, false, "viewer accessing admin"},
 		{RoleViewer, RoleDeployer, false, "viewer accessing deployer"},
@@ -152,12 +152,12 @@ func TestCanCreateRole(t *testing.T) {
 		{RoleAdmin, RoleDeployer, true, "admin creating deployer"},
 		{RoleAdmin, RoleViewer, true, "admin creating viewer"},
 		{RoleAdmin, "invalid", false, "admin creating invalid role"},
-		
+
 		// Non-admin cannot create tokens
 		{RoleDeployer, RoleAdmin, false, "deployer creating admin"},
 		{RoleDeployer, RoleDeployer, false, "deployer creating deployer"},
 		{RoleDeployer, RoleViewer, false, "deployer creating viewer"},
-		
+
 		{RoleViewer, RoleAdmin, false, "viewer creating admin"},
 		{RoleViewer, RoleDeployer, false, "viewer creating deployer"},
 		{RoleViewer, RoleViewer, false, "viewer creating viewer"},

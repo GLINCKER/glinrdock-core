@@ -183,12 +183,12 @@ func TestAuthService_BootstrapAdminToken(t *testing.T) {
 func setupTestRouter(authService *AuthService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	
+
 	// Public endpoint
 	r.GET("/public", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "public"})
 	})
-	
+
 	// Protected routes
 	protected := r.Group("/protected")
 	protected.Use(authService.Middleware())
@@ -197,18 +197,18 @@ func setupTestRouter(authService *AuthService) *gin.Engine {
 		protected.GET("/viewer", func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"message": "viewer access", "role": CurrentRole(c)})
 		})
-		
+
 		// Deployer+ only
 		protected.POST("/deploy", authService.RequireRole(store.RoleDeployer), func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"message": "deploy access", "role": CurrentRole(c)})
 		})
-		
+
 		// Admin only
 		protected.POST("/admin", authService.RequireAdminRole(), func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"message": "admin access", "role": CurrentRole(c)})
 		})
 	}
-	
+
 	return r
 }
 
@@ -224,7 +224,7 @@ func TestAuthService_RequireRole_AdminAccess(t *testing.T) {
 		{store.RoleAdmin, "/protected/deploy", "POST", http.StatusOK, "admin accessing deployer endpoint"},
 		{store.RoleAdmin, "/protected/admin", "POST", http.StatusOK, "admin accessing admin endpoint"},
 	}
-	
+
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			mockStore := &MockStore{}
@@ -232,20 +232,20 @@ func TestAuthService_RequireRole_AdminAccess(t *testing.T) {
 				Name: "admin-token",
 				Role: test.userRole,
 			}
-			
+
 			mockStore.On("VerifyToken", mock.Anything, "admin-token").Return("admin-token", nil)
 			mockStore.On("GetTokenByName", mock.Anything, "admin-token").Return(token, nil)
 			mockStore.On("TouchToken", mock.Anything, "admin-token").Return(nil)
-			
+
 			authService := NewAuthService(mockStore)
 			router := setupTestRouter(authService)
-			
+
 			req := httptest.NewRequest(test.method, test.endpoint, nil)
 			req.Header.Set("Authorization", "Bearer admin-token")
 			w := httptest.NewRecorder()
-			
+
 			router.ServeHTTP(w, req)
-			
+
 			assert.Equal(t, test.expectCode, w.Code)
 			mockStore.AssertExpectations(t)
 		})
@@ -263,7 +263,7 @@ func TestAuthService_RequireRole_DeployerAccess(t *testing.T) {
 		{"/protected/deploy", "POST", http.StatusOK, "deployer accessing deployer endpoint"},
 		{"/protected/admin", "POST", http.StatusForbidden, "deployer accessing admin endpoint"},
 	}
-	
+
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			mockStore := &MockStore{}
@@ -271,20 +271,20 @@ func TestAuthService_RequireRole_DeployerAccess(t *testing.T) {
 				Name: "deployer-token",
 				Role: store.RoleDeployer,
 			}
-			
+
 			mockStore.On("VerifyToken", mock.Anything, "deployer-token").Return("deployer-token", nil)
 			mockStore.On("GetTokenByName", mock.Anything, "deployer-token").Return(token, nil)
 			mockStore.On("TouchToken", mock.Anything, "deployer-token").Return(nil)
-			
+
 			authService := NewAuthService(mockStore)
 			router := setupTestRouter(authService)
-			
+
 			req := httptest.NewRequest(test.method, test.endpoint, nil)
 			req.Header.Set("Authorization", "Bearer deployer-token")
 			w := httptest.NewRecorder()
-			
+
 			router.ServeHTTP(w, req)
-			
+
 			assert.Equal(t, test.expectCode, w.Code)
 			if test.expectCode == http.StatusForbidden {
 				assert.Contains(t, w.Body.String(), "insufficient permissions")
@@ -305,7 +305,7 @@ func TestAuthService_RequireRole_ViewerAccess(t *testing.T) {
 		{"/protected/deploy", "POST", http.StatusForbidden, "viewer accessing deployer endpoint"},
 		{"/protected/admin", "POST", http.StatusForbidden, "viewer accessing admin endpoint"},
 	}
-	
+
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			mockStore := &MockStore{}
@@ -313,20 +313,20 @@ func TestAuthService_RequireRole_ViewerAccess(t *testing.T) {
 				Name: "viewer-token",
 				Role: store.RoleViewer,
 			}
-			
+
 			mockStore.On("VerifyToken", mock.Anything, "viewer-token").Return("viewer-token", nil)
 			mockStore.On("GetTokenByName", mock.Anything, "viewer-token").Return(token, nil)
 			mockStore.On("TouchToken", mock.Anything, "viewer-token").Return(nil)
-			
+
 			authService := NewAuthService(mockStore)
 			router := setupTestRouter(authService)
-			
+
 			req := httptest.NewRequest(test.method, test.endpoint, nil)
 			req.Header.Set("Authorization", "Bearer viewer-token")
 			w := httptest.NewRecorder()
-			
+
 			router.ServeHTTP(w, req)
-			
+
 			assert.Equal(t, test.expectCode, w.Code)
 			if test.expectCode == http.StatusForbidden {
 				assert.Contains(t, w.Body.String(), "insufficient permissions")
@@ -338,18 +338,18 @@ func TestAuthService_RequireRole_ViewerAccess(t *testing.T) {
 
 func TestCurrentRole(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	
+
 	t.Run("returns role when set", func(t *testing.T) {
 		c, _ := gin.CreateTestContext(httptest.NewRecorder())
 		c.Set("token_role", store.RoleDeployer)
-		
+
 		role := CurrentRole(c)
 		assert.Equal(t, store.RoleDeployer, role)
 	})
-	
+
 	t.Run("returns empty string when not set", func(t *testing.T) {
 		c, _ := gin.CreateTestContext(httptest.NewRecorder())
-		
+
 		role := CurrentRole(c)
 		assert.Equal(t, "", role)
 	})
@@ -357,18 +357,18 @@ func TestCurrentRole(t *testing.T) {
 
 func TestCurrentTokenName(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	
+
 	t.Run("returns token name when set", func(t *testing.T) {
 		c, _ := gin.CreateTestContext(httptest.NewRecorder())
 		c.Set("token_name", "test-token")
-		
+
 		name := CurrentTokenName(c)
 		assert.Equal(t, "test-token", name)
 	})
-	
+
 	t.Run("returns empty string when not set", func(t *testing.T) {
 		c, _ := gin.CreateTestContext(httptest.NewRecorder())
-		
+
 		name := CurrentTokenName(c)
 		assert.Equal(t, "", name)
 	})
@@ -385,22 +385,22 @@ func TestHasPermission(t *testing.T) {
 		{store.RoleAdmin, store.RoleAdmin, true, "admin accessing admin"},
 		{store.RoleAdmin, store.RoleDeployer, true, "admin accessing deployer"},
 		{store.RoleAdmin, store.RoleViewer, true, "admin accessing viewer"},
-		
+
 		// Deployer tests
 		{store.RoleDeployer, store.RoleAdmin, false, "deployer accessing admin"},
 		{store.RoleDeployer, store.RoleDeployer, true, "deployer accessing deployer"},
 		{store.RoleDeployer, store.RoleViewer, true, "deployer accessing viewer"},
-		
+
 		// Viewer tests
 		{store.RoleViewer, store.RoleAdmin, false, "viewer accessing admin"},
 		{store.RoleViewer, store.RoleDeployer, false, "viewer accessing deployer"},
 		{store.RoleViewer, store.RoleViewer, true, "viewer accessing viewer"},
-		
+
 		// Invalid role tests
 		{"invalid", store.RoleAdmin, false, "invalid role accessing admin"},
 		{"invalid", store.RoleViewer, false, "invalid role accessing viewer"},
 	}
-	
+
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			result := hasPermission(test.userRole, test.minRole)
@@ -412,15 +412,15 @@ func TestHasPermission(t *testing.T) {
 func TestAuthService_RequireRole_NoAuthContext(t *testing.T) {
 	mockStore := &MockStore{}
 	authService := NewAuthService(mockStore)
-	
+
 	middleware := authService.RequireRole(store.RoleViewer)
-	
+
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request, _ = http.NewRequest("GET", "/test", nil)
-	
+
 	middleware(c)
-	
+
 	assert.True(t, c.IsAborted())
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 	assert.Contains(t, w.Body.String(), "authentication required")

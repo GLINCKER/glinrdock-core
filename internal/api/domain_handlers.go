@@ -44,12 +44,12 @@ type DomainResponse struct {
 	CertificateID         *int64     `json:"certificate_id"`
 	CreatedAt             time.Time  `json:"created_at"`
 	UpdatedAt             time.Time  `json:"updated_at"`
-	
+
 	// UI-friendly fields
-	NextAction     string                 `json:"next_action"`
-	LastChecked    *time.Time            `json:"last_checked"`
-	ProviderHints  map[string]interface{} `json:"provider_hints,omitempty"`
-	Instructions   *DomainInstructions    `json:"instructions,omitempty"`
+	NextAction    string                 `json:"next_action"`
+	LastChecked   *time.Time             `json:"last_checked"`
+	ProviderHints map[string]interface{} `json:"provider_hints,omitempty"`
+	Instructions  *DomainInstructions    `json:"instructions,omitempty"`
 }
 
 // DomainInstructions contains DNS setup instructions for the user
@@ -77,13 +77,13 @@ type DomainListResponse struct {
 func NewDomainHandlers(store *store.Store, config *util.Config, auditLogger *audit.Logger) *DomainHandlers {
 	inspector := dns.NewInspector()
 	zoneDetector := dns.NewZoneDetectorWithInspector(inspector)
-	
+
 	// Get Cloudflare token from config if available
 	cloudflareToken := ""
 	if config != nil && config.CFAPIToken != "" {
 		cloudflareToken = config.CFAPIToken
 	}
-	
+
 	return &DomainHandlers{
 		store:           store,
 		auditLogger:     auditLogger,
@@ -122,13 +122,13 @@ func (h *DomainHandlers) CreateDomain(c *gin.Context) {
 	zoneInfo, err := h.zoneDetector.GetZoneInfo(ctx, req.Name)
 	var provider *string
 	var zoneID *string
-	
+
 	if err != nil {
 		log.Warn().Err(err).Str("domain", req.Name).Msg("failed to detect zone info")
 		// Continue without provider info - user can configure manually
 	} else {
 		provider = &zoneInfo.Provider
-		
+
 		// If Cloudflare and we have credentials, get zone ID
 		if zoneInfo.Provider == dns.ProviderCloudflare && h.cloudflareToken != "" {
 			client := cloudflare.NewClient(cloudflare.Config{APIToken: h.cloudflareToken})
@@ -402,7 +402,7 @@ func (h *DomainHandlers) ActivateDomain(c *gin.Context) {
 	// TODO: Implement certificate issuance (Prompt 6)
 	// For now, we'll just set the status to active
 	// In the future, this will trigger the certificate issuance process
-	
+
 	err = h.store.UpdateDomainStatus(ctx, domainID, store.DomainStatusActive, nil)
 	if err != nil {
 		log.Error().Err(err).Int64("domain_id", domainID).Msg("failed to update domain status to active")
@@ -620,4 +620,3 @@ func (h *DomainHandlers) canAutoConfig(domain *store.Domain) bool {
 		h.cloudflareToken != "" &&
 		domain.ZoneID != nil
 }
-

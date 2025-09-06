@@ -4,11 +4,11 @@ import (
 	"net/http"
 	"strconv"
 	"time"
-	
-	"github.com/gin-gonic/gin"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"github.com/GLINCKER/glinrdock/internal/metrics"
 	"github.com/GLINCKER/glinrdock/internal/store"
+	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type MetricsHandlers struct {
@@ -31,7 +31,7 @@ func (h *MetricsHandlers) GetMetrics(c *gin.Context) {
 			EnableOpenMetrics: true,
 		},
 	)
-	
+
 	// Use the promhttp handler to generate the response
 	handler.ServeHTTP(c.Writer, c.Request)
 }
@@ -44,23 +44,23 @@ func (h *MetricsHandlers) GetHistoricalMetrics(c *gin.Context) {
 	if err != nil || limit < 1 || limit > 1000 {
 		limit = 50
 	}
-	
+
 	// Parse duration (defaults to last 24 hours)
 	durationStr := c.DefaultQuery("duration", "24h")
 	duration, err := time.ParseDuration(durationStr)
 	if err != nil {
 		duration = 24 * time.Hour
 	}
-	
+
 	since := time.Now().UTC().Add(-duration)
-	
+
 	// Get historical metrics
 	metrics, err := h.store.GetHistoricalMetrics(c.Request.Context(), since, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"metrics":  metrics,
 		"count":    len(metrics),
@@ -77,7 +77,7 @@ func (h *MetricsHandlers) GetLatestHistoricalMetrics(c *gin.Context) {
 	if err != nil || limit < 1 || limit > 1000 {
 		limit = 50
 	}
-	
+
 	// Check if duration is specified for time-based filtering
 	durationStr := c.Query("duration")
 	if durationStr != "" {
@@ -86,7 +86,7 @@ func (h *MetricsHandlers) GetLatestHistoricalMetrics(c *gin.Context) {
 		if err != nil {
 			duration = 1 * time.Hour // Default to 1 hour
 		}
-		
+
 		since := time.Now().UTC().Add(-duration)
 		// Use a high limit for time-based queries to get all data in the range
 		timeBasedLimit := 10000 // Allow up to 10k records for time-based queries
@@ -95,7 +95,7 @@ func (h *MetricsHandlers) GetLatestHistoricalMetrics(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		
+
 		c.JSON(http.StatusOK, gin.H{
 			"metrics":  metrics,
 			"count":    len(metrics),
@@ -104,14 +104,14 @@ func (h *MetricsHandlers) GetLatestHistoricalMetrics(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Get latest metrics by count
 	metrics, err := h.store.GetLatestHistoricalMetrics(c.Request.Context(), limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"metrics": metrics,
 		"count":   len(metrics),

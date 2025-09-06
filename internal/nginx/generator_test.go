@@ -119,9 +119,9 @@ func TestGenerator_Render(t *testing.T) {
 				},
 				Certs: map[string]store.EnhancedCertificate{
 					"secure.example.com": {
-						ID:       1,
-						Domain:   "secure.example.com",
-						PEMCert:  stringPtr("cert-data"),
+						ID:        1,
+						Domain:    "secure.example.com",
+						PEMCert:   stringPtr("cert-data"),
 						PEMKeyEnc: stringPtr("key-data"),
 					},
 				},

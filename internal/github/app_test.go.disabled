@@ -35,46 +35,46 @@ func generateTestKeyPair() (string, error) {
 
 func TestNewGitHubAppService(t *testing.T) {
 	tests := []struct {
-		name      string
-		appID     string
-		privateKey string
+		name          string
+		appID         string
+		privateKey    string
 		webhookSecret string
-		wantError bool
+		wantError     bool
 	}{
 		{
-			name:      "valid configuration",
-			appID:     "12345",
-			privateKey: mustGenerateTestKey(),
+			name:          "valid configuration",
+			appID:         "12345",
+			privateKey:    mustGenerateTestKey(),
 			webhookSecret: "test-secret",
-			wantError: false,
+			wantError:     false,
 		},
 		{
-			name:      "invalid app ID",
-			appID:     "invalid",
-			privateKey: mustGenerateTestKey(),
+			name:          "invalid app ID",
+			appID:         "invalid",
+			privateKey:    mustGenerateTestKey(),
 			webhookSecret: "test-secret",
-			wantError: true,
+			wantError:     true,
 		},
 		{
-			name:      "invalid private key",
-			appID:     "12345",
-			privateKey: "invalid-key",
+			name:          "invalid private key",
+			appID:         "12345",
+			privateKey:    "invalid-key",
 			webhookSecret: "test-secret",
-			wantError: true,
+			wantError:     true,
 		},
 		{
-			name:      "empty webhook secret",
-			appID:     "12345",
-			privateKey: mustGenerateTestKey(),
+			name:          "empty webhook secret",
+			appID:         "12345",
+			privateKey:    mustGenerateTestKey(),
 			webhookSecret: "",
-			wantError: true,
+			wantError:     true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			service, err := NewGitHubAppService(tt.appID, tt.privateKey)
-			
+
 			if tt.wantError {
 				assert.Error(t, err)
 				assert.Nil(t, service)
@@ -89,7 +89,7 @@ func TestNewGitHubAppService(t *testing.T) {
 
 func TestGitHubAppService_IsConfigured(t *testing.T) {
 	// Test configured service
-	service, err := NewGitHubAppService("12345", mustGenerateTestKey(), "secret")
+	service, err := NewGitHubAppService("12345", mustGenerateTestKey())
 	require.NoError(t, err)
 	assert.True(t, service.IsConfigured())
 
@@ -100,7 +100,7 @@ func TestGitHubAppService_IsConfigured(t *testing.T) {
 
 func TestGitHubAppService_GenerateJWT(t *testing.T) {
 	privateKeyPEM := mustGenerateTestKey()
-	service, err := NewGitHubAppService("12345", privateKeyPEM, "secret")
+	service, err := NewGitHubAppService("12345", privateKeyPEM)
 	require.NoError(t, err)
 
 	token, err := service.GenerateJWT()
@@ -138,15 +138,15 @@ func TestGitHubAppService_GenerateJWT(t *testing.T) {
 	// Verify claims
 	claims, ok := parsedToken.Claims.(jwt.MapClaims)
 	require.True(t, ok)
-	
+
 	assert.Equal(t, "12345", claims["iss"])
-	
+
 	// Verify timing claims
 	iat, ok := claims["iat"].(float64)
 	require.True(t, ok)
 	exp, ok := claims["exp"].(float64)
 	require.True(t, ok)
-	
+
 	now := time.Now().Unix()
 	assert.True(t, iat <= float64(now)+1) // Allow 1 second tolerance
 	assert.True(t, exp > float64(now))
@@ -160,7 +160,7 @@ func TestGitHubAppService_GetInstallationToken(t *testing.T) {
 			// Verify Authorization header contains JWT
 			auth := r.Header.Get("Authorization")
 			assert.True(t, strings.HasPrefix(auth, "Bearer "))
-			
+
 			// Return mock installation token
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
@@ -175,15 +175,15 @@ func TestGitHubAppService_GetInstallationToken(t *testing.T) {
 	defer server.Close()
 
 	// Create service with test server URL
-	service, err := NewGitHubAppService("12345", mustGenerateTestKey(), "secret")
+	service, err := NewGitHubAppService("12345", mustGenerateTestKey())
 	require.NoError(t, err)
-	
+
 	// Override the GitHub API base URL for testing
 	service.apiBaseURL = server.URL
 
 	ctx := context.Background()
 	token, err := service.GetInstallationToken(ctx, 12345)
-	
+
 	require.NoError(t, err)
 	assert.Equal(t, "ghs_test_installation_token", token)
 }
@@ -195,7 +195,7 @@ func TestGitHubAppService_GetInstallations(t *testing.T) {
 			// Verify Authorization header contains JWT
 			auth := r.Header.Get("Authorization")
 			assert.True(t, strings.HasPrefix(auth, "Bearer "))
-			
+
 			// Return mock installations
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
@@ -220,17 +220,17 @@ func TestGitHubAppService_GetInstallations(t *testing.T) {
 	}))
 	defer server.Close()
 
-	service, err := NewGitHubAppService("12345", mustGenerateTestKey(), "secret")
+	service, err := NewGitHubAppService("12345", mustGenerateTestKey())
 	require.NoError(t, err)
-	
+
 	service.apiBaseURL = server.URL
 
 	ctx := context.Background()
 	installations, err := service.GetInstallations(ctx)
-	
+
 	require.NoError(t, err)
 	require.Len(t, installations, 1)
-	
+
 	installation := installations[0]
 	assert.Equal(t, int64(12345), installation.ID)
 	assert.Equal(t, "testorg", installation.Account.Login)
@@ -249,12 +249,12 @@ func TestGitHubAppService_GetInstallationRepositories(t *testing.T) {
 			}`))
 			return
 		}
-		
+
 		if r.URL.Path == "/installation/repositories" && r.Method == "GET" {
 			// Verify Authorization header contains installation token
 			auth := r.Header.Get("Authorization")
 			assert.Equal(t, "token ghs_test_installation_token", auth)
-			
+
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{
@@ -279,17 +279,17 @@ func TestGitHubAppService_GetInstallationRepositories(t *testing.T) {
 	}))
 	defer server.Close()
 
-	service, err := NewGitHubAppService("12345", mustGenerateTestKey(), "secret")
+	service, err := NewGitHubAppService("12345", mustGenerateTestKey())
 	require.NoError(t, err)
-	
+
 	service.apiBaseURL = server.URL
 
 	ctx := context.Background()
 	repositories, err := service.GetInstallationRepositories(ctx, 12345)
-	
+
 	require.NoError(t, err)
 	require.Len(t, repositories, 1)
-	
+
 	repo := repositories[0]
 	assert.Equal(t, int64(54321), repo.ID)
 	assert.Equal(t, "test-repo", repo.Name)
@@ -340,7 +340,7 @@ func TestGitHubAppService_ValidateWebhookSignature(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := service.ValidateWebhookSignature(tt.payload, tt.signature)
-			
+
 			if tt.wantError {
 				assert.Error(t, err)
 			} else {
@@ -365,9 +365,9 @@ func TestGitHubAppService_ErrorCases(t *testing.T) {
 		}))
 		defer server.Close()
 
-		service, err := NewGitHubAppService("12345", mustGenerateTestKey(), "secret")
+		service, err := NewGitHubAppService("12345", mustGenerateTestKey())
 		require.NoError(t, err)
-		
+
 		service.apiBaseURL = server.URL
 
 		ctx := context.Background()
@@ -393,9 +393,9 @@ func TestGitHubAppService_ErrorCases(t *testing.T) {
 		}))
 		defer server.Close()
 
-		service, err := NewGitHubAppService("12345", mustGenerateTestKey(), "secret")
+		service, err := NewGitHubAppService("12345", mustGenerateTestKey())
 		require.NoError(t, err)
-		
+
 		service.apiBaseURL = server.URL
 
 		ctx := context.Background()

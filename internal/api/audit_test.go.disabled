@@ -81,12 +81,12 @@ func setupAuditTestServer(t *testing.T) (*gin.Engine, *MockAuditStore, *Handlers
 		mockStore,
 		mockStore,
 		mockEngine,
-		nil,    // nginxConfig
-		nil,    // cicdHandlers
-		nil,    // certHandlers
-		nil,    // metricsHandlers
+		nil, // nginxConfig
+		nil, // cicdHandlers
+		nil, // certHandlers
+		nil, // metricsHandlers
 		planEnforcer,
-		nil,    // licenseManager
+		nil, // licenseManager
 		auditLogger,
 		&config.PlanConfig{Plan: config.PlanPremium},
 	)
@@ -112,7 +112,7 @@ func TestAuditTokenOperations(t *testing.T) {
 	// Test token creation produces audit entry
 	t.Run("token create produces audit entry", func(t *testing.T) {
 		auditStore.ClearEntries()
-		
+
 		// Create token request
 		tokenReq := CreateTokenRequest{
 			Name:  "test-token",
@@ -188,7 +188,7 @@ func TestAuditSystemOperations(t *testing.T) {
 			lastEntry := auditStore.GetLastEntry()
 			assert.Equal(t, audit.ActionSystemLockdown, lastEntry.Action, "Audit action should be system_lockdown")
 			assert.Equal(t, "system", lastEntry.TargetType, "Target type should be system")
-			
+
 			// Check metadata contains reason
 			reason, exists := lastEntry.Meta["reason"]
 			assert.True(t, exists, "Audit metadata should contain reason")
@@ -213,7 +213,7 @@ func TestAuditSystemOperations(t *testing.T) {
 			lastEntry := auditStore.GetLastEntry()
 			assert.Equal(t, audit.ActionSystemRestart, lastEntry.Action, "Audit action should be system_restart")
 			assert.Equal(t, "system", lastEntry.TargetType, "Target type should be system")
-			
+
 			// Check metadata contains restart info
 			restartReason, exists := lastEntry.Meta["restart_reason"]
 			assert.True(t, exists, "Audit metadata should contain restart_reason")
@@ -240,7 +240,7 @@ func TestAuditServiceOperations(t *testing.T) {
 		// The request will likely fail due to mock limitations, but audit should be recorded if handler runs
 		// Note: Some audit entries might not be created if the handler fails early due to service not found
 		// This is expected behavior - audit is recorded when the actual operation is attempted
-		
+
 		if auditStore.GetEntriesCount() > 0 {
 			lastEntry := auditStore.GetLastEntry()
 			assert.Equal(t, audit.ActionServiceStart, lastEntry.Action, "Audit action should be service_start")
@@ -351,7 +351,7 @@ func TestAuditMetadataContent(t *testing.T) {
 	// Test token action metadata
 	t.Run("token action metadata", func(t *testing.T) {
 		auditStore.ClearEntries()
-		
+
 		tokenName := "test-token"
 		meta := map[string]interface{}{
 			"role":       "deployer",
@@ -363,7 +363,7 @@ func TestAuditMetadataContent(t *testing.T) {
 
 		entry := auditStore.GetLastEntry()
 		require.NotNil(t, entry, "Should have audit entry")
-		
+
 		assert.Equal(t, tokenName, entry.Meta["token_name"], "Should include token name in metadata")
 		assert.Equal(t, "deployer", entry.Meta["role"], "Should include role in metadata")
 		assert.Equal(t, "admin", entry.Meta["created_by"], "Should include creator in metadata")
@@ -373,7 +373,7 @@ func TestAuditMetadataContent(t *testing.T) {
 	// Test service action metadata
 	t.Run("service action metadata", func(t *testing.T) {
 		auditStore.ClearEntries()
-		
+
 		serviceID := "456"
 		meta := map[string]interface{}{
 			"service_name":   "web-app",
@@ -386,7 +386,7 @@ func TestAuditMetadataContent(t *testing.T) {
 
 		entry := auditStore.GetLastEntry()
 		require.NotNil(t, entry, "Should have audit entry")
-		
+
 		assert.Equal(t, "web-app", entry.Meta["service_name"], "Should include service name in metadata")
 		assert.Equal(t, int64(789), entry.Meta["project_id"], "Should include project ID in metadata")
 		assert.Equal(t, "glinr_789_web-app", entry.Meta["container_name"], "Should include container name in metadata")
@@ -396,7 +396,7 @@ func TestAuditMetadataContent(t *testing.T) {
 	// Test system action metadata
 	t.Run("system action metadata", func(t *testing.T) {
 		auditStore.ClearEntries()
-		
+
 		meta := map[string]interface{}{
 			"reason":         "Security update",
 			"initiated_by":   "admin-user",
@@ -407,7 +407,7 @@ func TestAuditMetadataContent(t *testing.T) {
 
 		entry := auditStore.GetLastEntry()
 		require.NotNil(t, entry, "Should have audit entry")
-		
+
 		assert.Equal(t, "Security update", entry.Meta["reason"], "Should include reason in metadata")
 		assert.Equal(t, "admin-user", entry.Meta["initiated_by"], "Should include initiator in metadata")
 		assert.Equal(t, "emergency_restart", entry.Meta["restart_reason"], "Should include restart reason in metadata")

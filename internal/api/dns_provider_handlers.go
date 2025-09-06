@@ -20,26 +20,26 @@ type DNSProviderHandlers struct {
 
 // CreateDNSProviderRequest represents a request to create a DNS provider
 type CreateDNSProviderRequest struct {
-	Name     string            `json:"name" binding:"required"`
-	Type     string            `json:"type" binding:"required"`
-	Label    string            `json:"label" binding:"required"`
-	Email    *string           `json:"email,omitempty"`
-	APIToken *string           `json:"api_token,omitempty"`
-	Config   map[string]any    `json:"config" binding:"required"`
-	Settings map[string]any    `json:"settings,omitempty"`
+	Name     string         `json:"name" binding:"required"`
+	Type     string         `json:"type" binding:"required"`
+	Label    string         `json:"label" binding:"required"`
+	Email    *string        `json:"email,omitempty"`
+	APIToken *string        `json:"api_token,omitempty"`
+	Config   map[string]any `json:"config" binding:"required"`
+	Settings map[string]any `json:"settings,omitempty"`
 }
 
 // ProviderResponse represents a DNS provider in API responses
 type ProviderResponse struct {
-	ID        int64             `json:"id"`
-	Name      string            `json:"name"`
-	Type      string            `json:"type"`
-	Label     *string           `json:"label"`
-	Email     *string           `json:"email"`
-	Settings  map[string]any    `json:"settings,omitempty"`
-	Active    *bool             `json:"active"`
-	CreatedAt time.Time         `json:"created_at"`
-	UpdatedAt time.Time         `json:"updated_at"`
+	ID        int64          `json:"id"`
+	Name      string         `json:"name"`
+	Type      string         `json:"type"`
+	Label     *string        `json:"label"`
+	Email     *string        `json:"email"`
+	Settings  map[string]any `json:"settings,omitempty"`
+	Active    *bool          `json:"active"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
 	// Include provider-specific hints
 	ProviderHints *ProviderHints `json:"provider_hints,omitempty"`
 }

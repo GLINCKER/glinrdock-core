@@ -21,7 +21,7 @@ type DNSInspector interface {
 
 // Inspector provides DNS query functionality without external dependencies
 type Inspector struct {
-	timeout time.Duration
+	timeout  time.Duration
 	resolver *net.Resolver
 }
 
@@ -172,7 +172,7 @@ func (i *Inspector) LookupCNAME(ctx context.Context, name string) (string, error
 
 	// Remove trailing dot
 	cname = strings.TrimSuffix(cname, ".")
-	
+
 	// If CNAME is the same as the original name, no CNAME exists
 	if cname == name {
 		return "", nil

@@ -8,53 +8,53 @@ import (
 )
 
 var (
-	DefaultCollector   *Collector
+	DefaultCollector        *Collector
 	DefaultHistoryCollector *HistoryCollector
-	once               sync.Once
-	historyOnce        sync.Once
+	once                    sync.Once
+	historyOnce             sync.Once
 )
 
 type Collector struct {
-	registry    *prometheus.Registry
-	startTime   time.Time
-	
+	registry  *prometheus.Registry
+	startTime time.Time
+
 	// Gauge metrics
-	uptimeSeconds       prometheus.Gauge
-	servicesRunning     prometheus.Gauge
-	jobsActive          prometheus.Gauge
-	
+	uptimeSeconds   prometheus.Gauge
+	servicesRunning prometheus.Gauge
+	jobsActive      prometheus.Gauge
+
 	// Counter metrics
-	buildsTotal         *prometheus.CounterVec
-	deploymentsTotal    *prometheus.CounterVec
-	searchQueriesTotal  *prometheus.CounterVec
-	searchSuggestTotal  *prometheus.CounterVec
-	searchSlowQueries   prometheus.Counter
-	
+	buildsTotal        *prometheus.CounterVec
+	deploymentsTotal   *prometheus.CounterVec
+	searchQueriesTotal *prometheus.CounterVec
+	searchSuggestTotal *prometheus.CounterVec
+	searchSlowQueries  prometheus.Counter
+
 	// Histogram metrics
-	buildDuration       prometheus.Histogram
-	deployDuration      prometheus.Histogram
+	buildDuration  prometheus.Histogram
+	deployDuration prometheus.Histogram
 }
 
 func NewCollector() *Collector {
 	registry := prometheus.NewRegistry()
 	startTime := time.Now()
-	
+
 	// Create metrics
 	uptimeSeconds := prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "glinrdock_uptime_seconds",
 		Help: "Number of seconds since glinrdock server started",
 	})
-	
+
 	servicesRunning := prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "glinrdock_services_running_total", 
+		Name: "glinrdock_services_running_total",
 		Help: "Total number of currently running containers",
 	})
-	
+
 	jobsActive := prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "glinrdock_jobs_active",
 		Help: "Number of active background jobs in the queue",
 	})
-	
+
 	buildsTotal := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "glinrdock_builds_total",
@@ -62,7 +62,7 @@ func NewCollector() *Collector {
 		},
 		[]string{"status"},
 	)
-	
+
 	deploymentsTotal := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "glinrdock_deployments_total",
@@ -70,19 +70,19 @@ func NewCollector() *Collector {
 		},
 		[]string{"status"},
 	)
-	
+
 	buildDuration := prometheus.NewHistogram(prometheus.HistogramOpts{
-		Name: "glinrdock_build_duration_seconds",
-		Help: "Duration of build operations in seconds",
+		Name:    "glinrdock_build_duration_seconds",
+		Help:    "Duration of build operations in seconds",
 		Buckets: prometheus.ExponentialBuckets(1, 2, 12), // 1s to ~1hr
 	})
-	
+
 	deployDuration := prometheus.NewHistogram(prometheus.HistogramOpts{
-		Name: "glinrdock_deploy_duration_seconds", 
-		Help: "Duration of deployment operations in seconds",
+		Name:    "glinrdock_deploy_duration_seconds",
+		Help:    "Duration of deployment operations in seconds",
 		Buckets: prometheus.DefBuckets, // 0.005 to 10s
 	})
-	
+
 	searchQueriesTotal := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "glinrdock_search_queries_total",
@@ -90,7 +90,7 @@ func NewCollector() *Collector {
 		},
 		[]string{"type", "status"},
 	)
-	
+
 	searchSuggestTotal := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "glinrdock_search_suggest_total",
@@ -98,12 +98,12 @@ func NewCollector() *Collector {
 		},
 		[]string{"type", "status"},
 	)
-	
+
 	searchSlowQueries := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "glinrdock_search_slow_queries_total",
 		Help: "Total number of slow search queries (>100ms)",
 	})
-	
+
 	// Register metrics
 	registry.MustRegister(
 		uptimeSeconds,
@@ -117,7 +117,7 @@ func NewCollector() *Collector {
 		searchSuggestTotal,
 		searchSlowQueries,
 	)
-	
+
 	collector := &Collector{
 		registry:           registry,
 		startTime:          startTime,
@@ -132,10 +132,10 @@ func NewCollector() *Collector {
 		searchSuggestTotal: searchSuggestTotal,
 		searchSlowQueries:  searchSlowQueries,
 	}
-	
+
 	// Start uptime updater
 	go collector.updateUptime()
-	
+
 	return collector
 }
 
@@ -161,7 +161,7 @@ func (c *Collector) Registry() *prometheus.Registry {
 func (c *Collector) updateUptime() {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
-	
+
 	for range ticker.C {
 		uptime := time.Since(c.startTime).Seconds()
 		c.uptimeSeconds.Set(uptime)
@@ -192,7 +192,7 @@ func (c *Collector) RecordBuild(success bool, duration time.Duration) {
 	c.buildDuration.Observe(duration.Seconds())
 }
 
-// Deployment metrics  
+// Deployment metrics
 func (c *Collector) RecordDeployment(success bool, duration time.Duration) {
 	status := "success"
 	if !success {
@@ -208,15 +208,15 @@ func (c *Collector) RecordSearchQuery(entityType string, success bool, duration 
 	if !success {
 		status = "failed"
 	}
-	
+
 	// Use "all" if entityType is empty
 	queryType := entityType
 	if queryType == "" {
 		queryType = "all"
 	}
-	
+
 	c.searchQueriesTotal.WithLabelValues(queryType, status).Inc()
-	
+
 	// Track slow queries (>100ms)
 	if duration.Milliseconds() > 100 {
 		c.searchSlowQueries.Inc()
@@ -228,13 +228,13 @@ func (c *Collector) RecordSearchSuggest(entityType string, success bool, duratio
 	if !success {
 		status = "failed"
 	}
-	
+
 	// Use "all" if entityType is empty
 	queryType := entityType
 	if queryType == "" {
 		queryType = "all"
 	}
-	
+
 	c.searchSuggestTotal.WithLabelValues(queryType, status).Inc()
 }
 

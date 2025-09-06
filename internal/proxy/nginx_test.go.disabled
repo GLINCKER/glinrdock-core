@@ -36,10 +36,10 @@ func TestNginxConfig_GenerateConfig(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	configPath := tempDir + "/nginx.conf"
-	
+
 	// Create mock store
 	mockStore := &MockRouteStore{}
-	
+
 	// Setup test data
 	routes := []store.Route{
 		{
@@ -126,7 +126,7 @@ func TestNginxConfig_GenerateConfigEmptyRoutes(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	configPath := tempDir + "/nginx.conf"
-	
+
 	// Create mock store with no routes
 	mockStore := &MockRouteStore{}
 	mockStore.On("GetAllRoutes", mock.Anything).Return([]store.Route{}, nil)
@@ -163,10 +163,10 @@ func TestNginxConfig_GenerateConfigMissingService(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	configPath := tempDir + "/nginx.conf"
-	
+
 	// Create mock store
 	mockStore := &MockRouteStore{}
-	
+
 	// Setup route with missing service
 	routes := []store.Route{
 		{ID: 1, ServiceID: 999, Domain: "missing.example.com", Port: 80, TLS: false},
@@ -202,18 +202,18 @@ func TestNginxConfig_ValidateConfig(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	configPath := tempDir + "/nginx.conf"
-	
+
 	// Create nginx config with mock validation command
 	mockStore := &MockRouteStore{}
 	nginxConfig := NewNginxConfig(configPath, tempDir, mockStore)
-	
+
 	// Mock successful validation command (using 'true' command)
 	nginxConfig.ValidateCmd = []string{"true"}
 
 	err = nginxConfig.ValidateConfig()
 	assert.NoError(t, err)
 
-	// Mock failed validation command (using 'false' command) 
+	// Mock failed validation command (using 'false' command)
 	nginxConfig.ValidateCmd = []string{"false"}
 
 	err = nginxConfig.ValidateConfig()
@@ -254,7 +254,7 @@ func TestNginxConfig_ReloadNginx(t *testing.T) {
 	// Create nginx config with mock reload command
 	mockStore := &MockRouteStore{}
 	nginxConfig := NewNginxConfig("/tmp/nginx.conf", "/tmp", mockStore)
-	
+
 	// Mock successful reload command (using 'true' command)
 	nginxConfig.ReloadCmd = []string{"true"}
 
@@ -276,12 +276,12 @@ func TestNginxConfig_UpdateAndReload(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	configPath := tempDir + "/nginx.conf"
-	
+
 	// Create mock store with simple route
 	mockStore := &MockRouteStore{}
 	route := store.Route{ID: 1, ServiceID: 1, Domain: "test.com", Port: 80, TLS: false}
 	service := store.Service{ID: 1, ProjectID: 1, Name: "test", Image: "nginx"}
-	
+
 	mockStore.On("GetAllRoutes", mock.Anything).Return([]store.Route{route}, nil)
 	mockStore.On("GetService", mock.Anything, int64(1)).Return(service, nil)
 
@@ -297,7 +297,7 @@ func TestNginxConfig_UpdateAndReload(t *testing.T) {
 	// Verify final config file exists and contains expected content
 	content, err := os.ReadFile(configPath)
 	require.NoError(t, err)
-	
+
 	configStr := string(content)
 	assert.Contains(t, configStr, "server_name test.com")
 	assert.Contains(t, configStr, "upstream glinr_1_test")
@@ -316,7 +316,7 @@ func TestNginxConfig_UpdateAndReloadValidationFailure(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	configPath := tempDir + "/nginx.conf"
-	
+
 	// Create mock store
 	mockStore := &MockRouteStore{}
 	mockStore.On("GetAllRoutes", mock.Anything).Return([]store.Route{}, nil)
@@ -400,10 +400,10 @@ func TestTemplateRendering(t *testing.T) {
 				Routes:    tc.routes,
 				Generated: time.Now(),
 			}
-			
+
 			tmpl, err := template.New("nginx").Parse(nginxTemplate)
 			require.NoError(t, err)
-			
+
 			var buf bytes.Buffer
 			err = tmpl.Execute(&buf, data)
 			require.NoError(t, err)
@@ -413,7 +413,7 @@ func TestTemplateRendering(t *testing.T) {
 			for _, contains := range tc.contains {
 				assert.Contains(t, config, contains)
 			}
-			
+
 			for _, excludes := range tc.excludes {
 				assert.NotContains(t, config, excludes)
 			}

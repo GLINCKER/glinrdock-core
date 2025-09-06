@@ -15,11 +15,11 @@ import (
 	"github.com/GLINCKER/glinrdock/internal/dockerx"
 	"github.com/GLINCKER/glinrdock/internal/health"
 	"github.com/GLINCKER/glinrdock/internal/store"
-	"github.com/gin-gonic/gin"
-	"github.com/rs/zerolog/log"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
+	"github.com/gin-gonic/gin"
+	"github.com/rs/zerolog/log"
 )
 
 // ServiceStore interface for service operations
@@ -54,7 +54,7 @@ type DockerEngine interface {
 	Logs(ctx context.Context, id string, follow bool) (io.ReadCloser, error)
 	Stats(ctx context.Context, id string) (<-chan dockerx.ContainerStats, <-chan error)
 	Inspect(ctx context.Context, containerID string) (dockerx.ContainerStatus, error)
-	
+
 	// Network operations
 	EnsureNetwork(ctx context.Context, networkName string, labels map[string]string) error
 	ConnectNetwork(ctx context.Context, networkName, containerID string, aliases []string) error
@@ -171,7 +171,7 @@ func (h *Handlers) CreateService(c *gin.Context) {
 	if h.auditLogger != nil {
 		ctx := c.Request.Context()
 		actor := audit.GetActorFromContext(ctx)
-		
+
 		h.auditLogger.RecordProjectAction(ctx, actor, audit.ActionProjectNetworkEnsure, strconv.FormatInt(projectID, 10), map[string]interface{}{
 			"network_name": networkName,
 		})
@@ -237,7 +237,7 @@ func (h *Handlers) ListServices(c *gin.Context) {
 				} else {
 					containerIdentifier = fmt.Sprintf("glinr_%d_%s", services[i].ProjectID, services[i].Name)
 				}
-				
+
 				if status, err := h.dockerEngine.Inspect(ctx, containerIdentifier); err == nil {
 					// Map Docker states to our status format
 					switch status.State {
@@ -264,33 +264,33 @@ func (h *Handlers) ListServices(c *gin.Context) {
 
 // ServiceDetailResponse represents the enhanced service detail response
 type ServiceDetailResponse struct {
-	ID                int64                 `json:"id"`
-	ProjectID         int64                 `json:"project_id"`
-	Name              string                `json:"name"`
-	Description       *string               `json:"description,omitempty"`
-	Image             string                `json:"image"`
-	Status            string                `json:"status"`
-	CreatedAt         time.Time             `json:"created_at"`
-	UpdatedAt         *time.Time            `json:"updated_at,omitempty"`
-	Ports             []store.PortMap       `json:"ports"`
-	Volumes           []VolumeMap           `json:"volumes,omitempty"`
-	EnvSummaryCount   int                   `json:"env_summary_count"`
-	LastDeployAt      *time.Time            `json:"last_deploy_at,omitempty"`
-	ContainerID       *string               `json:"container_id,omitempty"`
-	StateReason       *string               `json:"state_reason,omitempty"`
-	StartedAt         *time.Time            `json:"started_at,omitempty"`
-	Network           *store.ServiceNetwork `json:"network,omitempty"`      // Network information
-	Aliases           []string              `json:"aliases,omitempty"`      // DNS aliases
-	
+	ID              int64                 `json:"id"`
+	ProjectID       int64                 `json:"project_id"`
+	Name            string                `json:"name"`
+	Description     *string               `json:"description,omitempty"`
+	Image           string                `json:"image"`
+	Status          string                `json:"status"`
+	CreatedAt       time.Time             `json:"created_at"`
+	UpdatedAt       *time.Time            `json:"updated_at,omitempty"`
+	Ports           []store.PortMap       `json:"ports"`
+	Volumes         []VolumeMap           `json:"volumes,omitempty"`
+	EnvSummaryCount int                   `json:"env_summary_count"`
+	LastDeployAt    *time.Time            `json:"last_deploy_at,omitempty"`
+	ContainerID     *string               `json:"container_id,omitempty"`
+	StateReason     *string               `json:"state_reason,omitempty"`
+	StartedAt       *time.Time            `json:"started_at,omitempty"`
+	Network         *store.ServiceNetwork `json:"network,omitempty"` // Network information
+	Aliases         []string              `json:"aliases,omitempty"` // DNS aliases
+
 	// Health and crash loop fields
-	DesiredState      string                `json:"desired_state"`
-	LastExitCode      *int                  `json:"last_exit_code,omitempty"`
-	RestartCount      int                   `json:"restart_count"`
-	RestartWindowAt   *time.Time            `json:"restart_window_at,omitempty"`
-	CrashLooping      bool                  `json:"crash_looping"`
-	HealthStatus      string                `json:"health_status"`
-	HealthPath        *string               `json:"health_path,omitempty"`
-	LastProbeAt       *time.Time            `json:"last_probe_at,omitempty"`
+	DesiredState    string     `json:"desired_state"`
+	LastExitCode    *int       `json:"last_exit_code,omitempty"`
+	RestartCount    int        `json:"restart_count"`
+	RestartWindowAt *time.Time `json:"restart_window_at,omitempty"`
+	CrashLooping    bool       `json:"crash_looping"`
+	HealthStatus    string     `json:"health_status"`
+	HealthPath      *string    `json:"health_path,omitempty"`
+	LastProbeAt     *time.Time `json:"last_probe_at,omitempty"`
 }
 
 // VolumeMap represents a volume mapping from host to container
@@ -333,16 +333,16 @@ func (h *Handlers) GetService(c *gin.Context) {
 		Ports:           service.Ports,
 		Volumes:         []VolumeMap{}, // TODO: Add volume support to service spec
 		EnvSummaryCount: len(service.Env),
-		
+
 		// Health and crash loop fields
-		DesiredState:     service.DesiredState,
-		LastExitCode:     service.LastExitCode,
-		RestartCount:     service.RestartCount,
-		RestartWindowAt:  service.RestartWindowAt,
-		CrashLooping:     service.CrashLooping,
-		HealthStatus:     service.HealthStatus,
-		HealthPath:       service.HealthPath,
-		LastProbeAt:      service.LastProbeAt,
+		DesiredState:    service.DesiredState,
+		LastExitCode:    service.LastExitCode,
+		RestartCount:    service.RestartCount,
+		RestartWindowAt: service.RestartWindowAt,
+		CrashLooping:    service.CrashLooping,
+		HealthStatus:    service.HealthStatus,
+		HealthPath:      service.HealthPath,
+		LastProbeAt:     service.LastProbeAt,
 	}
 
 	// Populate status and container details from event cache or Docker inspect
@@ -352,7 +352,7 @@ func (h *Handlers) GetService(c *gin.Context) {
 	} else {
 		containerIdentifier = fmt.Sprintf("glinr_%d_%s", service.ProjectID, service.Name)
 	}
-	
+
 	if h.eventCache != nil {
 		if state, exists := h.eventCache.GetServiceState(service.ID); exists {
 			response.Status = state.Status
@@ -373,7 +373,7 @@ func (h *Handlers) GetService(c *gin.Context) {
 				default:
 					response.Status = "stopped"
 				}
-				
+
 				// Set container ID if available
 				if status.ID != "" {
 					shortID := status.ID
@@ -382,12 +382,12 @@ func (h *Handlers) GetService(c *gin.Context) {
 					}
 					response.ContainerID = &shortID
 				}
-				
+
 				// Set started at time if available
 				if status.StartedAt != nil {
 					response.StartedAt = status.StartedAt
 				}
-				
+
 				// Set state reason from status if available
 				if status.Status != "" && status.Status != status.State {
 					response.StateReason = &status.Status
@@ -486,14 +486,14 @@ func (h *Handlers) DeleteService(c *gin.Context) {
 
 // ServiceConfig represents service configuration for editing
 type ServiceConfig struct {
-	ID          int64               `json:"id"`
-	ProjectID   int64               `json:"project_id"`
-	Name        string              `json:"name"`
-	Description *string             `json:"description,omitempty"`
-	Image       string              `json:"image"`
-	Env         []store.EnvVar      `json:"env"`
-	Ports       []store.PortMap     `json:"ports"`
-	Volumes     []store.VolumeMap   `json:"volumes"`
+	ID          int64             `json:"id"`
+	ProjectID   int64             `json:"project_id"`
+	Name        string            `json:"name"`
+	Description *string           `json:"description,omitempty"`
+	Image       string            `json:"image"`
+	Env         []store.EnvVar    `json:"env"`
+	Ports       []store.PortMap   `json:"ports"`
+	Volumes     []store.VolumeMap `json:"volumes"`
 }
 
 // GetServiceConfig returns service configuration with environment variable masking
@@ -525,17 +525,17 @@ func (h *Handlers) GetServiceConfig(c *gin.Context) {
 			Key:   key,
 			Value: value,
 		}
-		
+
 		// Check if this is a secret environment variable
 		lowerKey := strings.ToLower(key)
-		if strings.Contains(lowerKey, "password") || 
-		   strings.Contains(lowerKey, "secret") || 
-		   strings.Contains(lowerKey, "token") || 
-		   strings.Contains(lowerKey, "key") {
+		if strings.Contains(lowerKey, "password") ||
+			strings.Contains(lowerKey, "secret") ||
+			strings.Contains(lowerKey, "token") ||
+			strings.Contains(lowerKey, "key") {
 			envVar.IsSecret = true
 			envVar.Value = "******" // Mask the value
 		}
-		
+
 		envVars = append(envVars, envVar)
 	}
 
@@ -613,7 +613,7 @@ func (h *Handlers) GetServiceEnvironment(c *gin.Context) {
 	for _, env := range containerStatus.Env {
 		if parts := strings.SplitN(env, "=", 2); len(parts) == 2 {
 			key, value := parts[0], parts[1]
-			
+
 			// Classify environment variables
 			if isSystemEnvironmentVariable(key) {
 				systemEnv[key] = value
@@ -637,7 +637,7 @@ func (h *Handlers) GetServiceEnvironment(c *gin.Context) {
 func isSystemEnvironmentVariable(key string) bool {
 	systemVars := []string{
 		"PATH", "HOME", "USER", "SHELL", "TERM", "LANG", "LC_", "TZ",
-		"HOSTNAME", "PWD", "OLDPWD", "SHLVL", 
+		"HOSTNAME", "PWD", "OLDPWD", "SHLVL",
 		"NGINX_VERSION", "NJS_VERSION", "NJS_RELEASE", "PKG_RELEASE", "DYNPKG_RELEASE",
 		"APACHE_", "HTTPD_", "PHP_", "MYSQL_", "POSTGRES_", "REDIS_",
 		"NODE_VERSION", "NPM_VERSION", "YARN_VERSION",
@@ -646,13 +646,13 @@ func isSystemEnvironmentVariable(key string) bool {
 		"GOPATH", "GOROOT", "GOOS", "GOARCH",
 		"DEBIAN_FRONTEND", "APT_", "DPKG_",
 	}
-	
+
 	for _, sysVar := range systemVars {
 		if strings.HasPrefix(key, sysVar) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -753,7 +753,7 @@ func (h *Handlers) UpdateServiceConfig(c *gin.Context) {
 	portsChanged := !arePortMapsEqual(existingService.Ports, updateReq.Ports)
 	volumesChanged := !areVolumeMapsEqual(existingService.Volumes, updateReq.Volumes)
 	envChanged := !areEnvMapsEqual(existingService.Env, envMap)
-	
+
 	needsRecreation := nameChanged || imageChanged || portsChanged || volumesChanged || envChanged
 
 	if needsRecreation {
@@ -844,11 +844,11 @@ func validateServiceConfig(config ServiceConfigUpdate) error {
 			return fmt.Errorf("volume paths cannot be empty")
 		}
 		// Basic security check - prevent dangerous host paths
-		if strings.HasPrefix(volume.Host, "/") && 
-		   (strings.HasPrefix(volume.Host, "/etc") || 
-		    strings.HasPrefix(volume.Host, "/sys") || 
-		    strings.HasPrefix(volume.Host, "/proc") ||
-		    strings.HasPrefix(volume.Host, "/dev")) {
+		if strings.HasPrefix(volume.Host, "/") &&
+			(strings.HasPrefix(volume.Host, "/etc") ||
+				strings.HasPrefix(volume.Host, "/sys") ||
+				strings.HasPrefix(volume.Host, "/proc") ||
+				strings.HasPrefix(volume.Host, "/dev")) {
 			return fmt.Errorf("host path not allowed for security reasons: %s", volume.Host)
 		}
 	}
@@ -893,7 +893,7 @@ func (h *Handlers) UpdateServiceLinks(c *gin.Context) {
 	var request struct {
 		Targets []int64 `json:"targets" binding:"required"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -1021,11 +1021,11 @@ func (h *Handlers) SetServiceHealthCheck(c *gin.Context) {
 // TriggerDirectBuild handles POST /v1/builds - for Spring Boot quickstart wizard
 func (h *Handlers) TriggerDirectBuild(c *gin.Context) {
 	var spec struct {
-		RepoURL     string            `json:"repo_url" binding:"required"`
-		Branch      string            `json:"branch"`
-		Dockerfile  string            `json:"dockerfile"`
-		Context     string            `json:"context"`
-		BuildArgs   map[string]string `json:"build_args"`
+		RepoURL    string            `json:"repo_url" binding:"required"`
+		Branch     string            `json:"branch"`
+		Dockerfile string            `json:"dockerfile"`
+		Context    string            `json:"context"`
+		BuildArgs  map[string]string `json:"build_args"`
 	}
 
 	if err := c.ShouldBindJSON(&spec); err != nil {
@@ -1047,7 +1047,7 @@ func (h *Handlers) TriggerDirectBuild(c *gin.Context) {
 	// For now, simulate build process by returning success immediately
 	// In a real implementation, this would queue a build job
 	buildID := fmt.Sprintf("build_%d", time.Now().Unix())
-	
+
 	log.Info().
 		Str("repo_url", spec.RepoURL).
 		Str("branch", spec.Branch).
@@ -1074,7 +1074,7 @@ func (h *Handlers) TriggerDirectDeployment(c *gin.Context) {
 	}
 
 	deploymentID := fmt.Sprintf("deployment_%d", time.Now().Unix())
-	
+
 	log.Info().
 		Str("service_id", spec.ServiceID).
 		Str("image", spec.Image).
@@ -1113,12 +1113,12 @@ func (h *Handlers) recreateServiceContainer(ctx context.Context, serviceID int64
 		if stopErr := h.dockerEngine.Stop(ctx, existingContainerID); stopErr != nil {
 			log.Warn().Err(stopErr).Str("container_id", existingContainerID).Msg("failed to stop existing container")
 		}
-		
+
 		// TODO: In the future, we could add data backup/migration logic here
 		// For now, we rely on proper volume configuration for data persistence
 	}
 
-	// Pull new image if image changed  
+	// Pull new image if image changed
 	var registryID string
 	if updatedService.RegistryID != nil {
 		registryID = *updatedService.RegistryID
@@ -1131,7 +1131,7 @@ func (h *Handlers) recreateServiceContainer(ctx context.Context, serviceID int64
 	containerName := fmt.Sprintf("glinr_%d_%s", updatedService.ProjectID, updatedService.Name)
 	labels := map[string]string{
 		"glinr.project_id": strconv.FormatInt(updatedService.ProjectID, 10),
-		"glinr.service_id": strconv.FormatInt(serviceID, 10), 
+		"glinr.service_id": strconv.FormatInt(serviceID, 10),
 		"glinr.managed":    "true",
 	}
 
@@ -1184,7 +1184,7 @@ func arePortMapsEqual(a, b []store.PortMap) bool {
 	return true
 }
 
-// areVolumeMapsEqual compares two VolumeMap slices for equality  
+// areVolumeMapsEqual compares two VolumeMap slices for equality
 func areVolumeMapsEqual(a, b []store.VolumeMap) bool {
 	if len(a) != len(b) {
 		return false
@@ -1214,22 +1214,22 @@ func areEnvMapsEqual(a, b map[string]string) bool {
 
 // DiscoveredService represents a container found in Docker but not tracked in the database
 type DiscoveredService struct {
-	ContainerID     string            `json:"container_id"`
-	ContainerName   string            `json:"container_name"`
-	Image           string            `json:"image"`
-	Status          string            `json:"status"`
-	Created         time.Time         `json:"created"`
-	ProjectID       *int64            `json:"project_id,omitempty"`
-	ServiceID       *int64            `json:"service_id,omitempty"`
-	Labels          map[string]string `json:"labels"`
-	IsOrphaned      bool              `json:"is_orphaned"`
-	OrphanReason    string            `json:"orphan_reason,omitempty"`
+	ContainerID   string            `json:"container_id"`
+	ContainerName string            `json:"container_name"`
+	Image         string            `json:"image"`
+	Status        string            `json:"status"`
+	Created       time.Time         `json:"created"`
+	ProjectID     *int64            `json:"project_id,omitempty"`
+	ServiceID     *int64            `json:"service_id,omitempty"`
+	Labels        map[string]string `json:"labels"`
+	IsOrphaned    bool              `json:"is_orphaned"`
+	OrphanReason  string            `json:"orphan_reason,omitempty"`
 }
 
 // DiscoverUnmanagedServices finds Docker containers that aren't properly tracked in the database
 func (h *Handlers) DiscoverUnmanagedServices(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	// Create Docker client directly (same pattern as websocket.go)
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
@@ -1238,11 +1238,11 @@ func (h *Handlers) DiscoverUnmanagedServices(c *gin.Context) {
 		return
 	}
 	defer cli.Close()
-	
+
 	// Create filter for GLINR-managed containers
 	labelFilter := filters.NewArgs()
 	labelFilter.Add("label", "glinr.managed=true")
-	
+
 	// Get all Docker containers with GLINR labels
 	containers, err := cli.ContainerList(ctx, container.ListOptions{
 		All:     true, // Include stopped containers
@@ -1255,13 +1255,13 @@ func (h *Handlers) DiscoverUnmanagedServices(c *gin.Context) {
 	}
 
 	var discovered []DiscoveredService
-	
+
 	for _, container := range containers {
 		// Parse labels
 		labels := container.Labels
 		projectIDStr := labels["glinr.project_id"]
 		serviceIDStr := labels["glinr.service_id"]
-		
+
 		var projectID, serviceID *int64
 		if projectIDStr != "" {
 			if pid, err := strconv.ParseInt(projectIDStr, 10, 64); err == nil {
@@ -1273,22 +1273,22 @@ func (h *Handlers) DiscoverUnmanagedServices(c *gin.Context) {
 				serviceID = &sid
 			}
 		}
-		
+
 		discoveredService := DiscoveredService{
 			ContainerID:   container.ID,
 			ContainerName: container.Names[0], // Docker containers always have at least one name
 			Image:         container.Image,
-			Status:        container.Status,  // Use Status instead of State
+			Status:        container.Status, // Use Status instead of State
 			Created:       time.Unix(container.Created, 0),
 			ProjectID:     projectID,
 			ServiceID:     serviceID,
 			Labels:        labels,
 		}
-		
+
 		// Check if this container is orphaned
 		isOrphaned := false
 		orphanReason := ""
-		
+
 		// First, check if this container ID is already tracked in the database
 		// This handles cases where a container was adopted but labels weren't updated
 		existingService, err := h.serviceStore.GetServiceByContainerID(ctx, container.ID)
@@ -1318,21 +1318,21 @@ func (h *Handlers) DiscoverUnmanagedServices(c *gin.Context) {
 			isOrphaned = true
 			orphanReason = "Container has no service_id label and not found in database"
 		}
-		
+
 		discoveredService.IsOrphaned = isOrphaned
 		discoveredService.OrphanReason = orphanReason
-		
+
 		// Only include containers that are either orphaned or we want to show all
 		showAll := c.Query("all") == "true"
 		if isOrphaned || showAll {
 			discovered = append(discovered, discoveredService)
 		}
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"discovered_services": discovered,
-		"total_containers": len(containers),
-		"orphaned_count": len(discovered),
+		"total_containers":    len(containers),
+		"orphaned_count":      len(discovered),
 	})
 }
 
@@ -1540,9 +1540,9 @@ func (h *Handlers) CleanupContainerHandler(c *gin.Context) {
 	// Check if container is running and force flag is not set
 	if containerInfo.State.Running && !req.Force {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "container is running - use force=true to remove running containers",
+			"error":            "container is running - use force=true to remove running containers",
 			"container_status": "running",
-			"force_required": true,
+			"force_required":   true,
 		})
 		return
 	}
@@ -1558,7 +1558,7 @@ func (h *Handlers) CleanupContainerHandler(c *gin.Context) {
 
 	// Remove the container
 	removeOptions := container.RemoveOptions{
-		RemoveVolumes: true,  // Remove anonymous volumes
+		RemoveVolumes: true, // Remove anonymous volumes
 		Force:         req.Force,
 	}
 
@@ -1574,21 +1574,21 @@ func (h *Handlers) CleanupContainerHandler(c *gin.Context) {
 		if actor == "" {
 			actor = "system"
 		}
-		
+
 		// Extract project and service info from labels if available
 		projectID := containerInfo.Config.Labels["glinr.project_id"]
 		serviceID := containerInfo.Config.Labels["glinr.service_id"]
-		
+
 		h.auditLogger.RecordServiceAction(ctx, actor, audit.ActionServiceUpdate, req.ContainerID, map[string]interface{}{
-			"container_id":     req.ContainerID,
-			"container_name":   containerInfo.Name,
-			"image":           containerInfo.Config.Image,
-			"project_id":      projectID,
-			"service_id":      serviceID,
-			"cleanup":         true,
-			"was_running":     containerInfo.State.Running,
-			"force_removed":   req.Force,
-			"cleaned_by":      auth.CurrentRole(c),
+			"container_id":   req.ContainerID,
+			"container_name": containerInfo.Name,
+			"image":          containerInfo.Config.Image,
+			"project_id":     projectID,
+			"service_id":     serviceID,
+			"cleanup":        true,
+			"was_running":    containerInfo.State.Running,
+			"force_removed":  req.Force,
+			"cleaned_by":     auth.CurrentRole(c),
 		})
 	}
 
@@ -1601,8 +1601,8 @@ func (h *Handlers) CleanupContainerHandler(c *gin.Context) {
 		Msg("container cleaned up successfully")
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "container removed successfully",
-		"container_id": req.ContainerID,
+		"message":        "container removed successfully",
+		"container_id":   req.ContainerID,
 		"container_name": containerInfo.Name,
 		"cleanup_notes": []string{
 			"Container has been permanently removed from Docker",
@@ -1658,8 +1658,8 @@ func (h *Handlers) UnlockService(c *gin.Context) {
 		Msg("service unlocked from crash loop")
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "service unlocked successfully",
-		"service_id": serviceID,
+		"message":      "service unlocked successfully",
+		"service_id":   serviceID,
 		"service_name": service.Name,
 	})
 }
@@ -1698,8 +1698,8 @@ func (h *Handlers) RunHealthCheck(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "health check completed",
-		"service_id": serviceID,
+		"message":       "health check completed",
+		"service_id":    serviceID,
 		"health_status": service.HealthStatus,
 		"last_probe_at": service.LastProbeAt,
 	})
@@ -1714,4 +1714,3 @@ func (h *Handlers) getHealthProber() *health.Prober {
 func (h *Handlers) getCrashLoopDetector() *health.CrashLoopDetector {
 	return health.NewCrashLoopDetector(h.serviceStore, h.auditLogger)
 }
-

@@ -385,7 +385,7 @@ func TestClient_RateLimitHandling(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "zone123", zoneID)
-	assert.Equal(t, 2, requestCount) // Should have made 2 requests
+	assert.Equal(t, 2, requestCount)                  // Should have made 2 requests
 	assert.GreaterOrEqual(t, duration, 1*time.Second) // Should have waited at least 1 second
 }
 
@@ -459,8 +459,8 @@ func TestClient_ProxiedFlag(t *testing.T) {
 
 					assert.Equal(t, tt.expectedProxied, req.Proxied)
 
-					response := `{"result":{"id":"record123","type":"` + tt.recordType + `","name":"test.example.com","content":"test-value","proxied":` + 
-								(map[bool]string{true: "true", false: "false"}[tt.expectedProxied]) + `,"ttl":300},"success":true,"errors":[]}`
+					response := `{"result":{"id":"record123","type":"` + tt.recordType + `","name":"test.example.com","content":"test-value","proxied":` +
+						(map[bool]string{true: "true", false: "false"}[tt.expectedProxied]) + `,"ttl":300},"success":true,"errors":[]}`
 					w.WriteHeader(200)
 					w.Write([]byte(response))
 				}

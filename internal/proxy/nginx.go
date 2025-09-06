@@ -18,13 +18,13 @@ import (
 
 // NginxConfig represents the nginx configuration generator
 type NginxConfig struct {
-	ConfigPath   string
-	TempPath     string
-	BackupPath   string
-	ReloadCmd    []string
-	ValidateCmd  []string
-	DataDir      string // For cert path resolution
-	store        RouteStore
+	ConfigPath     string
+	TempPath       string
+	BackupPath     string
+	ReloadCmd      []string
+	ValidateCmd    []string
+	DataDir        string // For cert path resolution
+	store          RouteStore
 	lastConfigHash string // Hash of the last applied configuration
 }
 
@@ -54,13 +54,13 @@ type ConfigData struct {
 // NewNginxConfig creates a new nginx configuration generator
 func NewNginxConfig(configPath, dataDir string, routeStore RouteStore) *NginxConfig {
 	return &NginxConfig{
-		ConfigPath:   configPath,
-		TempPath:     configPath + ".tmp",
-		BackupPath:   configPath + ".backup",
-		ReloadCmd:    []string{"nginx", "-s", "reload"},
-		ValidateCmd:  []string{"nginx", "-t"},
-		DataDir:      dataDir,
-		store:        routeStore,
+		ConfigPath:  configPath,
+		TempPath:    configPath + ".tmp",
+		BackupPath:  configPath + ".backup",
+		ReloadCmd:   []string{"nginx", "-s", "reload"},
+		ValidateCmd: []string{"nginx", "-t"},
+		DataDir:     dataDir,
+		store:       routeStore,
 	}
 }
 
@@ -243,9 +243,9 @@ func (nc *NginxConfig) GenerateConfig(ctx context.Context) error {
 				log.Warn().Err(err).Int64("domain_id", *route.DomainID).Msg("skipping route for missing domain")
 				continue
 			}
-			
+
 			rd.Domain = &domain
-			
+
 			// Determine if we should create full proxy or just challenge
 			switch domain.Status {
 			case "active":
@@ -259,7 +259,7 @@ func (nc *NginxConfig) GenerateConfig(ctx context.Context) error {
 				continue
 			}
 		}
-		
+
 		routeData = append(routeData, rd)
 	}
 
@@ -299,7 +299,7 @@ func (nc *NginxConfig) ValidateConfig() error {
 
 	cmd := exec.Command(nc.ValidateCmd[0], nc.ValidateCmd[1:]...)
 	output, err := cmd.CombinedOutput()
-	
+
 	if err != nil {
 		log.Error().
 			Err(err).
@@ -335,7 +335,7 @@ func (nc *NginxConfig) ReloadNginx() error {
 
 	cmd := exec.Command(nc.ReloadCmd[0], nc.ReloadCmd[1:]...)
 	output, err := cmd.CombinedOutput()
-	
+
 	if err != nil {
 		log.Error().
 			Err(err).
@@ -386,7 +386,7 @@ func (nc *NginxConfig) UpdateAndReload(ctx context.Context) error {
 
 	err = nc.ValidateConfig()
 	nc.ValidateCmd = originalValidateCmd // Restore original command
-	
+
 	if err != nil {
 		// Clean up temp file on validation failure
 		os.Remove(nc.TempPath)
@@ -467,7 +467,7 @@ func (nc *NginxConfig) calculateConfigHash(ctx context.Context) (string, string,
 	}
 
 	configContent := buf.String()
-	
+
 	// Calculate hash
 	hasher := sha256.New()
 	hasher.Write([]byte(configContent))
@@ -591,7 +591,7 @@ func (nc *NginxConfig) logNginxProcessInfo() error {
 
 	if len(output) > 0 {
 		pid := string(bytes.TrimSpace(output))
-		
+
 		// Get process start time (best effort)
 		psCmd := exec.Command("ps", "-p", pid, "-o", "lstart=")
 		startTime, err := psCmd.Output()
@@ -616,7 +616,7 @@ func (nc *NginxConfig) CreateChallengeDir() error {
 	if err := os.MkdirAll(challengeDir, 0755); err != nil {
 		return fmt.Errorf("failed to create challenge directory: %w", err)
 	}
-	
+
 	log.Debug().
 		Str("challenge_dir", challengeDir).
 		Msg("ACME challenge directory ensured")

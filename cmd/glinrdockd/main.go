@@ -54,18 +54,18 @@ func initializeOAuthFromSettings(ctx context.Context, settingsHandlers *api.Sett
 	}
 
 	oauthConfig := integrationsConfig.GitHubOAuth
-	
+
 	// Validate required configuration
 	if oauthConfig.ClientID == "" {
 		log.Warn().Msg("GitHub OAuth client ID not configured")
 		return nil
 	}
-	
+
 	if config.ExternalBaseURL == "" {
 		log.Warn().Msg("External base URL not configured - OAuth disabled")
 		return nil
 	}
-	
+
 	if config.Secret == "" {
 		log.Warn().Msg("Master secret not configured - OAuth disabled")
 		return nil
@@ -93,13 +93,13 @@ func initializeOAuthFromSettings(ctx context.Context, settingsHandlers *api.Sett
 
 	// Create OAuth service with user store and state store - temporarily disabled
 	// service := auth.NewOAuthService(authOAuthConfig, store, store)
-	
+
 	// OAuth service temporarily disabled
 	// if service.IsConfigured() {
 	//	log.Info().Str("mode", oauthConfig.Mode).Msg("GitHub OAuth authentication enabled")
 	//	return service
 	// }
-	
+
 	log.Warn().Msg("GitHub OAuth configuration validation failed")
 	return nil
 }
@@ -217,7 +217,7 @@ func main() {
 
 	// Setup metrics handlers
 	metricsHandlers := api.NewMetricsHandlers(metrics.DefaultCollector, storeInstance)
-	
+
 	// Setup and start historical metrics collection
 	historyCollector := metrics.NewHistoryCollector(storeInstance, 30*time.Second)
 	go historyCollector.Start(context.Background())
@@ -280,27 +280,27 @@ func main() {
 		Interface("limits", planConf.Limits).
 		Msg("plan enforcer initialized")
 
-	// Setup handlers with all required dependencies  
+	// Setup handlers with all required dependencies
 	// Note: storeInstance implements multiple store interfaces, hence the repetition
 	handlers := api.NewHandlers(
 		dockerClient,
-		storeInstance,    // main store for search indexing
-		storeInstance,    // TokenStore
-		storeInstance,    // ProjectStore  
-		storeInstance,    // ServiceStore
-		storeInstance,    // RouteStore
-		storeInstance,    // EnvVarStore
+		storeInstance, // main store for search indexing
+		storeInstance, // TokenStore
+		storeInstance, // ProjectStore
+		storeInstance, // ServiceStore
+		storeInstance, // RouteStore
+		storeInstance, // EnvVarStore
 		dockerEngine,
 		nginxConfig,
-		nil,              // cicdHandlers
-		certHandlers,     // certHandlers
+		nil,          // cicdHandlers
+		certHandlers, // certHandlers
 		metricsHandlers,
 		webhookHandlers,
 		planEnforcer,
 		licenseManager,
 		auditLogger,
 		planConf,
-		config,           // system config
+		config, // system config
 		eventCache,
 		storeInstance.EnvironmentStore,
 		storeInstance.RegistryStore,
@@ -308,19 +308,19 @@ func main() {
 		oauthService,
 		githubHandlers,
 		settingsHandlers,
-		nil,              // githubAppHandlers
+		nil, // githubAppHandlers
 		searchHandlers,
 		helpHandlers,
 	)
 
-	// Setup web handlers  
+	// Setup web handlers
 	var webHandlers *web.WebHandlers = nil
 	log.Info().Msg("web UI enabled")
 
 	// Setup router
 	r := gin.New()
 	r.Use(gin.Recovery())
-	
+
 	// Setup routes
 	api.SetupRoutes(r, handlers, config.CORSOrigins, authService, webHandlers, planEnforcer)
 

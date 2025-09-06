@@ -44,7 +44,7 @@ func (m *Manager) LoadCurrent() (*License, error) {
 	}
 
 	licensePath := filepath.Join(m.dataDir, "license", "current.license")
-	
+
 	// Check if license file exists
 	if _, err := os.Stat(licensePath); os.IsNotExist(err) {
 		m.initialized = true
@@ -85,7 +85,7 @@ func (m *Manager) SaveCurrent(licenseData []byte) error {
 	// Write to temporary file first (atomic write)
 	licensePath := filepath.Join(licenseDir, "current.license")
 	tempPath := licensePath + ".tmp"
-	
+
 	if err := os.WriteFile(tempPath, licenseData, 0644); err != nil {
 		return fmt.Errorf("failed to write license file: %w", err)
 	}
@@ -104,7 +104,7 @@ func (m *Manager) SaveCurrent(licenseData []byte) error {
 // DeactivateCurrent moves the current license to disabled directory
 func (m *Manager) DeactivateCurrent() error {
 	licensePath := filepath.Join(m.dataDir, "license", "current.license")
-	
+
 	// Check if current license exists
 	if _, err := os.Stat(licensePath); os.IsNotExist(err) {
 		return fmt.Errorf("no active license to deactivate")
@@ -119,7 +119,7 @@ func (m *Manager) DeactivateCurrent() error {
 	// Move to disabled directory with timestamp
 	timestamp := fmt.Sprintf("%d", os.Getpid()) // Use PID to avoid conflicts
 	disabledPath := filepath.Join(disabledDir, fmt.Sprintf("license-%s.license", timestamp))
-	
+
 	if err := os.Rename(licensePath, disabledPath); err != nil {
 		return fmt.Errorf("failed to deactivate license: %w", err)
 	}

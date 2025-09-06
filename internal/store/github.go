@@ -33,7 +33,7 @@ func (s *Store) UpsertGitHubInstallation(ctx context.Context, installation *GitH
 		installation.Permissions,
 		installation.Events,
 	).Scan(&result.ID, &result.CreatedAt, &result.UpdatedAt)
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to upsert GitHub installation: %w", err)
 	}
@@ -118,7 +118,7 @@ func (s *Store) GetGitHubInstallationByID(ctx context.Context, installationID in
 // DeleteGitHubInstallation removes a GitHub installation and all related data
 func (s *Store) DeleteGitHubInstallation(ctx context.Context, installationID int64) error {
 	query := `DELETE FROM github_installations WHERE installation_id = ?`
-	
+
 	result, err := s.db.ExecContext(ctx, query, installationID)
 	if err != nil {
 		return fmt.Errorf("failed to delete GitHub installation: %w", err)
@@ -169,7 +169,7 @@ func (s *Store) UpsertGitHubRepository(ctx context.Context, repo *GitHubReposito
 		repo.CloneURL,
 		repo.SSHURL,
 	).Scan(&result.ID, &result.CreatedAt, &result.UpdatedAt)
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to upsert GitHub repository: %w", err)
 	}
@@ -317,7 +317,7 @@ func (s *Store) CreateGitHubRepoMapping(ctx context.Context, mapping *GitHubRepo
 		mapping.AutoDeploy,
 		mapping.CreatedBy,
 	).Scan(&result.ID, &result.CreatedAt, &result.UpdatedAt)
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to create GitHub repo mapping: %w", err)
 	}
@@ -400,7 +400,7 @@ func (s *Store) GetGitHubRepoMappingByRepo(ctx context.Context, repositoryID int
 // DeleteGitHubRepoMapping removes a GitHub repository mapping
 func (s *Store) DeleteGitHubRepoMapping(ctx context.Context, repositoryID int64) error {
 	query := `DELETE FROM github_repo_mappings WHERE repository_id = ?`
-	
+
 	result, err := s.db.ExecContext(ctx, query, repositoryID)
 	if err != nil {
 		return fmt.Errorf("failed to delete GitHub repo mapping: %w", err)
@@ -436,7 +436,7 @@ func (s *Store) LogGitHubWebhookEvent(ctx context.Context, event *GitHubWebhookE
 		event.ProcessedAt,
 		event.ErrorMessage,
 	)
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to log webhook event: %w", err)
 	}
@@ -486,8 +486,8 @@ func (s *Store) GetGitHubWebhookEvents(ctx context.Context, limit int) ([]GitHub
 // GitHubRepositoryWithMapping represents a repository with its activation status
 type GitHubRepositoryWithMapping struct {
 	GitHubRepository
-	IsActivated  bool                   `json:"is_activated"`
-	Mapping      *GitHubRepoMapping    `json:"mapping,omitempty"`
+	IsActivated bool               `json:"is_activated"`
+	Mapping     *GitHubRepoMapping `json:"mapping,omitempty"`
 }
 
 // GetGitHubRepositoriesWithMappings retrieves repositories with their activation status

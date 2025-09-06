@@ -11,12 +11,12 @@ func NewFromConfig(config *util.Config) *MultiResolver {
 	if config == nil {
 		return NewMultiResolver(nil) // Use defaults
 	}
-	
+
 	resolver := NewMultiResolver(config.DNSResolvers)
-	
+
 	// Set TTL to 60 seconds by default, but could be made configurable
 	resolver.SetTTL(60 * time.Second)
-	
+
 	return resolver
 }
 

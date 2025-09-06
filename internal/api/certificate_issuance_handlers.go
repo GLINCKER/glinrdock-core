@@ -29,12 +29,12 @@ type IssueCertificateRequest struct {
 
 // IssueCertificateResponse represents the response from certificate issuance
 type IssueCertificateResponse struct {
-	JobID       string `json:"job_id"`
-	Domain      string `json:"domain"`
-	Method      string `json:"method"`
-	Status      string `json:"status"`
-	Message     string `json:"message,omitempty"`
-	StartedAt   time.Time `json:"started_at"`
+	JobID     string    `json:"job_id"`
+	Domain    string    `json:"domain"`
+	Method    string    `json:"method"`
+	Status    string    `json:"status"`
+	Message   string    `json:"message,omitempty"`
+	StartedAt time.Time `json:"started_at"`
 }
 
 // CertificateDetailsResponse represents detailed certificate information
@@ -110,7 +110,7 @@ func (h *CertificateIssuanceHandlers) IssueCertificate(c *gin.Context) {
 	go func() {
 		// Use a background context for the async operation
 		bgCtx := context.Background()
-		
+
 		cert, err := h.acmeService.IssueCertificate(bgCtx, req.Domain)
 		if err != nil {
 			log.Error().
@@ -118,7 +118,7 @@ func (h *CertificateIssuanceHandlers) IssueCertificate(c *gin.Context) {
 				Str("domain", req.Domain).
 				Str("job_id", jobID).
 				Msg("certificate issuance failed")
-			
+
 			// In a production system, you'd want to store job status in database
 			// For now, we'll just log the failure
 			return
@@ -135,10 +135,10 @@ func (h *CertificateIssuanceHandlers) IssueCertificate(c *gin.Context) {
 	if h.auditLogger != nil {
 		actor := audit.GetActorFromContext(c.Request.Context())
 		h.auditLogger.RecordCertificateAction(c.Request.Context(), actor, audit.ActionCertificateCreate, req.Domain, map[string]interface{}{
-			"domain":  req.Domain,
-			"method":  method,
-			"job_id":  jobID,
-			"async":   true,
+			"domain": req.Domain,
+			"method": method,
+			"job_id": jobID,
+			"async":  true,
 		})
 	}
 

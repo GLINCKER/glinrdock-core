@@ -18,31 +18,31 @@ type DeploymentTemplate struct {
 	ID          string                 `json:"id"`
 	Name        string                 `json:"name"`
 	Description string                 `json:"description"`
-	Framework   string                 `json:"framework"`   // spring-boot, nodejs, etc.
-	Language    string                 `json:"language"`    // java, javascript, etc.
-	BuildTool   string                 `json:"build_tool"`  // maven, gradle, npm, etc.
-	Dockerfile  string                 `json:"dockerfile"`  // Generated Dockerfile content
-	EnvVars     map[string]string      `json:"env_vars"`    // Default environment variables
-	Ports       []int                  `json:"ports"`       // Default ports to expose
+	Framework   string                 `json:"framework"`    // spring-boot, nodejs, etc.
+	Language    string                 `json:"language"`     // java, javascript, etc.
+	BuildTool   string                 `json:"build_tool"`   // maven, gradle, npm, etc.
+	Dockerfile  string                 `json:"dockerfile"`   // Generated Dockerfile content
+	EnvVars     map[string]string      `json:"env_vars"`     // Default environment variables
+	Ports       []int                  `json:"ports"`        // Default ports to expose
 	HealthCheck string                 `json:"health_check"` // Health check endpoint
-	Config      map[string]interface{} `json:"config"`      // Framework-specific config
-	CreatedAt   time.Time             `json:"created_at"`
+	Config      map[string]interface{} `json:"config"`       // Framework-specific config
+	CreatedAt   time.Time              `json:"created_at"`
 }
 
 // DeploymentRequest represents a deployment request
 type DeploymentRequest struct {
-	ProjectID    int                    `json:"project_id" binding:"required"`
-	ServiceName  string                 `json:"service_name" binding:"required"`
-	TemplateID   string                 `json:"template_id"`
-	Repository   string                 `json:"repository"`
-	Branch       string                 `json:"branch"`
-	Dockerfile   string                 `json:"dockerfile"`
-	EnvVars      map[string]string      `json:"env_vars"`
-	Ports        []int                  `json:"ports"`
-	AutoRoute    bool                   `json:"auto_route"`    // Create nginx route automatically
-	Domain       string                 `json:"domain"`        // Domain for auto-route
-	EnableSSL    bool                   `json:"enable_ssl"`    // Enable SSL for auto-route
-	BuildArgs    map[string]string      `json:"build_args"`
+	ProjectID   int               `json:"project_id" binding:"required"`
+	ServiceName string            `json:"service_name" binding:"required"`
+	TemplateID  string            `json:"template_id"`
+	Repository  string            `json:"repository"`
+	Branch      string            `json:"branch"`
+	Dockerfile  string            `json:"dockerfile"`
+	EnvVars     map[string]string `json:"env_vars"`
+	Ports       []int             `json:"ports"`
+	AutoRoute   bool              `json:"auto_route"` // Create nginx route automatically
+	Domain      string            `json:"domain"`     // Domain for auto-route
+	EnableSSL   bool              `json:"enable_ssl"` // Enable SSL for auto-route
+	BuildArgs   map[string]string `json:"build_args"`
 }
 
 // DeploymentResponse represents the result of a deployment
@@ -65,7 +65,7 @@ type AutoDetectionResult struct {
 	EnvVars     map[string]string      `json:"env_vars"`
 	HealthCheck string                 `json:"health_check"`
 	Config      map[string]interface{} `json:"config"`
-	Confidence  float64               `json:"confidence"`
+	Confidence  float64                `json:"confidence"`
 }
 
 // DeploymentHandlers contains deployment-related API handlers
@@ -85,7 +85,7 @@ func NewDeploymentHandlers(store *store.Store, auditLogger *audit.Logger) *Deplo
 // GetDeploymentTemplates returns available deployment templates
 func (h *DeploymentHandlers) GetDeploymentTemplates(c *gin.Context) {
 	templates := h.getBuiltInTemplates()
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"templates": templates,
 		"count":     len(templates),
@@ -95,7 +95,7 @@ func (h *DeploymentHandlers) GetDeploymentTemplates(c *gin.Context) {
 // GetDeploymentTemplate returns a specific deployment template
 func (h *DeploymentHandlers) GetDeploymentTemplate(c *gin.Context) {
 	templateID := c.Param("id")
-	
+
 	templates := h.getBuiltInTemplates()
 	for _, template := range templates {
 		if template.ID == templateID {
@@ -103,7 +103,7 @@ func (h *DeploymentHandlers) GetDeploymentTemplate(c *gin.Context) {
 			return
 		}
 	}
-	
+
 	c.JSON(http.StatusNotFound, gin.H{"error": "Template not found"})
 }
 
@@ -113,20 +113,20 @@ func (h *DeploymentHandlers) AutoDetectProject(c *gin.Context) {
 		Repository string `json:"repository" binding:"required"`
 		Branch     string `json:"branch"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	if request.Branch == "" {
 		request.Branch = "main"
 	}
-	
+
 	// For now, we'll implement basic Spring Boot detection
 	// In a real implementation, this would clone the repo and analyze files
 	result := h.detectSpringBootProject(request.Repository)
-	
+
 	c.JSON(http.StatusOK, result)
 }
 
@@ -137,10 +137,10 @@ func (h *DeploymentHandlers) DeployService(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// Get user info for audit logging
 	userID, _ := c.Get("user_id")
-	
+
 	// Convert int ports to PortMap
 	portMaps := make([]store.PortMap, len(request.Ports))
 	for i, port := range request.Ports {
@@ -149,7 +149,7 @@ func (h *DeploymentHandlers) DeployService(c *gin.Context) {
 			Host:      0, // Let Docker assign random host port
 		}
 	}
-	
+
 	// Create service spec
 	serviceSpec := store.ServiceSpec{
 		Name:  request.ServiceName,
@@ -157,7 +157,7 @@ func (h *DeploymentHandlers) DeployService(c *gin.Context) {
 		Ports: portMaps,
 		Env:   request.EnvVars,
 	}
-	
+
 	ctx := c.Request.Context()
 	service, err := h.store.CreateService(ctx, int64(request.ProjectID), serviceSpec)
 	if err != nil {
@@ -165,7 +165,7 @@ func (h *DeploymentHandlers) DeployService(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create service"})
 		return
 	}
-	
+
 	// Log audit event (just log to system for now)
 	log.Info().
 		Str("user_id", fmt.Sprintf("%v", userID)).
@@ -173,14 +173,14 @@ func (h *DeploymentHandlers) DeployService(c *gin.Context) {
 		Str("service_name", request.ServiceName).
 		Int("project_id", request.ProjectID).
 		Msg("service created via deployment API")
-	
+
 	response := DeploymentResponse{
 		ServiceID:   int(service.ID),
 		ServiceName: request.ServiceName,
 		Status:      "created",
 		Message:     "Service created successfully. Deployment pipeline would start here.",
 	}
-	
+
 	// Auto-create route if requested
 	if request.AutoRoute && request.Domain != "" {
 		routeID, err := h.createAutoRoute(ctx, service.ID, request.Domain, request.Ports[0], request.EnableSSL)
@@ -193,7 +193,7 @@ func (h *DeploymentHandlers) DeployService(c *gin.Context) {
 			response.Message += fmt.Sprintf(" Route created for %s", request.Domain)
 		}
 	}
-	
+
 	c.JSON(http.StatusCreated, response)
 }
 
@@ -206,12 +206,12 @@ func (h *DeploymentHandlers) createAutoRoute(ctx context.Context, serviceID int6
 		Path:   &pathRoot,
 		TLS:    enableSSL,
 	}
-	
+
 	createdRoute, err := h.store.CreateRoute(ctx, serviceID, routeSpec)
 	if err != nil {
 		return 0, err
 	}
-	
+
 	return int(createdRoute.ID), nil
 }
 
@@ -229,15 +229,15 @@ func (h *DeploymentHandlers) getBuiltInTemplates() []DeploymentTemplate {
 			EnvVars: map[string]string{
 				"SPRING_PROFILES_ACTIVE": "prod",
 				"SERVER_PORT":            "8080",
-				"JAVA_OPTS":             "-Xmx512m",
+				"JAVA_OPTS":              "-Xmx512m",
 			},
 			Ports:       []int{8080},
 			HealthCheck: "/actuator/health",
 			Config: map[string]interface{}{
-				"maven_goals":    "clean package -DskipTests",
-				"jar_location":   "target/*.jar",
-				"base_image":     "openjdk:17-jre-slim",
-				"expose_port":    8080,
+				"maven_goals":  "clean package -DskipTests",
+				"jar_location": "target/*.jar",
+				"base_image":   "openjdk:17-jre-slim",
+				"expose_port":  8080,
 			},
 			CreatedAt: time.Now(),
 		},
@@ -252,15 +252,15 @@ func (h *DeploymentHandlers) getBuiltInTemplates() []DeploymentTemplate {
 			EnvVars: map[string]string{
 				"SPRING_PROFILES_ACTIVE": "prod",
 				"SERVER_PORT":            "8080",
-				"JAVA_OPTS":             "-Xmx512m",
+				"JAVA_OPTS":              "-Xmx512m",
 			},
 			Ports:       []int{8080},
 			HealthCheck: "/actuator/health",
 			Config: map[string]interface{}{
-				"gradle_tasks":   "clean build -x test",
-				"jar_location":   "build/libs/*.jar",
-				"base_image":     "openjdk:17-jre-slim",
-				"expose_port":    8080,
+				"gradle_tasks": "clean build -x test",
+				"jar_location": "build/libs/*.jar",
+				"base_image":   "openjdk:17-jre-slim",
+				"expose_port":  8080,
 			},
 			CreatedAt: time.Now(),
 		},
@@ -292,12 +292,12 @@ func (h *DeploymentHandlers) getBuiltInTemplates() []DeploymentTemplate {
 func (h *DeploymentHandlers) detectSpringBootProject(repository string) AutoDetectionResult {
 	// In a real implementation, this would clone and analyze the repository
 	// For now, we'll return a basic Spring Boot configuration
-	
+
 	return AutoDetectionResult{
-		Framework:   "spring-boot",
-		Language:    "java",
-		BuildTool:   "maven", // Could be detected from pom.xml vs build.gradle
-		Ports:       []int{8080},
+		Framework: "spring-boot",
+		Language:  "java",
+		BuildTool: "maven", // Could be detected from pom.xml vs build.gradle
+		Ports:     []int{8080},
 		EnvVars: map[string]string{
 			"SPRING_PROFILES_ACTIVE": "prod",
 			"SERVER_PORT":            "8080",

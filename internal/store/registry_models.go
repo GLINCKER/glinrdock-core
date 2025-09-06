@@ -12,7 +12,7 @@ type Registry struct {
 	Server    string    `json:"server" db:"server"`
 	Username  string    `json:"username" db:"username"`
 	SecretEnc []byte    `json:"-" db:"secret_enc"` // Never include in JSON
-	Nonce     []byte    `json:"-" db:"nonce"`     // Never include in JSON
+	Nonce     []byte    `json:"-" db:"nonce"`      // Never include in JSON
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }

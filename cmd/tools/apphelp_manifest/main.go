@@ -40,11 +40,11 @@ type AppHelpManifest struct {
 	Description string        `json:"description"`
 	Files       []AppHelpFile `json:"files"`
 	Stats       struct {
-		TotalFiles     int            `json:"total_files"`
-		TotalWords     int            `json:"total_words"`
-		SectionCount   map[string]int `json:"section_count"`
-		AudienceCount  map[string]int `json:"audience_count"`
-		VersionCount   map[string]int `json:"version_count"`
+		TotalFiles    int            `json:"total_files"`
+		TotalWords    int            `json:"total_words"`
+		SectionCount  map[string]int `json:"section_count"`
+		AudienceCount map[string]int `json:"audience_count"`
+		VersionCount  map[string]int `json:"version_count"`
 	} `json:"stats"`
 }
 
@@ -276,14 +276,14 @@ func parseTagsFromString(tagString string) []string {
 	// Split by comma and clean up each tag
 	rawTags := strings.Split(tagString, ",")
 	tags := make([]string, 0, len(rawTags))
-	
+
 	for _, tag := range rawTags {
 		tag = strings.TrimSpace(tag)
 		if tag != "" {
 			tags = append(tags, tag)
 		}
 	}
-	
+
 	return tags
 }
 
@@ -291,12 +291,12 @@ func parseTags(tags []string) []string {
 	if len(tags) == 0 {
 		return []string{}
 	}
-	
+
 	// If tags is a single element that contains commas, split it
 	if len(tags) == 1 && strings.Contains(tags[0], ",") {
 		return parseTagsFromString(tags[0])
 	}
-	
+
 	// Clean up existing tags
 	cleanTags := make([]string, 0, len(tags))
 	for _, tag := range tags {
@@ -305,7 +305,7 @@ func parseTags(tags []string) []string {
 			cleanTags = append(cleanTags, tag)
 		}
 	}
-	
+
 	return cleanTags
 }
 

@@ -21,13 +21,13 @@ func (s *EnvironmentStore) ListEnvironments() ([]Environment, error) {
 		FROM environments 
 		ORDER BY is_default DESC, name ASC
 	`
-	
+
 	rows, err := s.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var environments []Environment
 	for rows.Next() {
 		var env Environment
@@ -37,7 +37,7 @@ func (s *EnvironmentStore) ListEnvironments() ([]Environment, error) {
 		}
 		environments = append(environments, env)
 	}
-	
+
 	return environments, nil
 }
 
@@ -48,13 +48,13 @@ func (s *EnvironmentStore) GetEnvironment(id string) (*Environment, error) {
 		FROM environments 
 		WHERE id = ?
 	`
-	
+
 	var env Environment
 	err := s.db.QueryRow(query, id).Scan(&env.ID, &env.Name, &env.Type, &env.Description, &env.IsDefault, &env.CreatedAt, &env.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &env, nil
 }
 
@@ -64,7 +64,7 @@ func (s *EnvironmentStore) CreateEnvironment(env *Environment) error {
 		INSERT INTO environments (id, name, type, description, is_default, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
-	
+
 	_, err := s.db.Exec(query, env.ID, env.Name, env.Type, env.Description, env.IsDefault, env.CreatedAt, env.UpdatedAt)
 	return err
 }
@@ -76,7 +76,7 @@ func (s *EnvironmentStore) UpdateEnvironment(env *Environment) error {
 		SET name = ?, type = ?, description = ?, is_default = ?, updated_at = ?
 		WHERE id = ?
 	`
-	
+
 	_, err := s.db.Exec(query, env.Name, env.Type, env.Description, env.IsDefault, env.UpdatedAt, env.ID)
 	return err
 }
@@ -88,7 +88,7 @@ func (s *EnvironmentStore) DeleteEnvironment(id string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	// Delete environment
 	_, err = s.db.Exec("DELETE FROM environments WHERE id = ?", id)
 	return err
@@ -102,13 +102,13 @@ func (s *EnvironmentStore) GetEnvironmentVariables(environmentID string) ([]Envi
 		WHERE environment_id = ?
 		ORDER BY key ASC
 	`
-	
+
 	rows, err := s.db.Query(query, environmentID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var variables []EnvironmentVariable
 	for rows.Next() {
 		var variable EnvironmentVariable
@@ -118,7 +118,7 @@ func (s *EnvironmentStore) GetEnvironmentVariables(environmentID string) ([]Envi
 		}
 		variables = append(variables, variable)
 	}
-	
+
 	return variables, nil
 }
 
@@ -129,13 +129,13 @@ func (s *EnvironmentStore) UpdateEnvironmentVariables(environmentID string, vari
 		return err
 	}
 	defer tx.Rollback()
-	
+
 	// Delete existing variables
 	_, err = tx.Exec("DELETE FROM environment_variables WHERE environment_id = ?", environmentID)
 	if err != nil {
 		return err
 	}
-	
+
 	// Insert new variables
 	for _, variable := range variables {
 		_, err = tx.Exec(`
@@ -146,7 +146,7 @@ func (s *EnvironmentStore) UpdateEnvironmentVariables(environmentID string, vari
 			return err
 		}
 	}
-	
+
 	return tx.Commit()
 }
 
@@ -156,11 +156,11 @@ func (s *EnvironmentStore) GetEnvironmentVariablesAsMap(environmentID string) (m
 	if err != nil {
 		return nil, err
 	}
-	
+
 	result := make(map[string]string)
 	for _, variable := range variables {
 		result[variable.Key] = variable.Value
 	}
-	
+
 	return result, nil
 }

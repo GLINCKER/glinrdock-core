@@ -80,7 +80,7 @@ func (s *Store) getMasterKey() ([]byte, error) {
 
 	s.keyMutex.Lock()
 	defer s.keyMutex.Unlock()
-	
+
 	// Double-check after acquiring write lock
 	if s.masterKey != nil {
 		key := make([]byte, len(s.masterKey))
@@ -116,11 +116,11 @@ func createSearchFTSTable(db *sql.DB) error {
 			content_rowid=id,
 			content='search_docs'
 		)`
-	
+
 	if _, err := db.Exec(createFTSQuery); err != nil {
 		return fmt.Errorf("failed to create search_fts table: %w", err)
 	}
-	
+
 	// Create triggers to keep FTS5 in sync with search_docs
 	triggers := []string{
 		// INSERT trigger
@@ -128,13 +128,13 @@ func createSearchFTSTable(db *sql.DB) error {
 			INSERT INTO search_fts(rowid, title, subtitle, body, tags) 
 			VALUES (new.id, new.title, new.subtitle, new.body, new.tags);
 		END`,
-		
+
 		// DELETE trigger
 		`CREATE TRIGGER IF NOT EXISTS search_docs_ad AFTER DELETE ON search_docs BEGIN
 			INSERT INTO search_fts(search_fts, rowid, title, subtitle, body, tags) 
 			VALUES('delete', old.id, old.title, old.subtitle, old.body, old.tags);
 		END`,
-		
+
 		// UPDATE trigger
 		`CREATE TRIGGER IF NOT EXISTS search_docs_au AFTER UPDATE ON search_docs BEGIN
 			INSERT INTO search_fts(search_fts, rowid, title, subtitle, body, tags) 
@@ -143,12 +143,12 @@ func createSearchFTSTable(db *sql.DB) error {
 			VALUES (new.id, new.title, new.subtitle, new.body, new.tags);
 		END`,
 	}
-	
+
 	for _, trigger := range triggers {
 		if _, err := db.Exec(trigger); err != nil {
 			return fmt.Errorf("failed to create FTS5 trigger: %w", err)
 		}
 	}
-	
+
 	return nil
 }

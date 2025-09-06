@@ -266,7 +266,7 @@ func TestManager_Apply_AtomicityOnFailure(t *testing.T) {
 
 	err = manager.Apply(ctx, validConfig)
 	// This may fail on validation/reload, but file should be written
-	
+
 	// Verify the valid config was written
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		t.Error("Valid configuration file was not created")

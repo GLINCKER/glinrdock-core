@@ -145,7 +145,7 @@ func TestStore_ListCertificates(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, certs, 3)
 	assert.Equal(t, "a.example.com", certs[0].Domain)
-	assert.Equal(t, "m.example.com", certs[1].Domain) 
+	assert.Equal(t, "m.example.com", certs[1].Domain)
 	assert.Equal(t, "z.example.com", certs[2].Domain)
 
 	// Verify all fields are populated

@@ -30,7 +30,7 @@ func TestRBACValidation_RoleChecking(t *testing.T) {
 		{" admin", false, "leading space"},
 		{"admin ", false, "trailing space"},
 	}
-	
+
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			result := store.IsRoleValid(test.role)
@@ -50,18 +50,18 @@ func TestRBACValidation_PermissionChecking(t *testing.T) {
 		{store.RoleAdmin, store.RoleAdmin, true, "admin can access admin resources"},
 		{store.RoleAdmin, store.RoleDeployer, true, "admin can access deployer resources"},
 		{store.RoleAdmin, store.RoleViewer, true, "admin can access viewer resources"},
-		
+
 		// Deployer can access deployer and viewer
 		{store.RoleDeployer, store.RoleAdmin, false, "deployer cannot access admin resources"},
 		{store.RoleDeployer, store.RoleDeployer, true, "deployer can access deployer resources"},
 		{store.RoleDeployer, store.RoleViewer, true, "deployer can access viewer resources"},
-		
+
 		// Viewer can only access viewer
 		{store.RoleViewer, store.RoleAdmin, false, "viewer cannot access admin resources"},
 		{store.RoleViewer, store.RoleDeployer, false, "viewer cannot access deployer resources"},
 		{store.RoleViewer, store.RoleViewer, true, "viewer can access viewer resources"},
 	}
-	
+
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			result := store.CanAccessResource(test.userRole, test.targetRole)
@@ -82,17 +82,17 @@ func TestRBACValidation_TokenCreationPermissions(t *testing.T) {
 		{store.RoleAdmin, store.RoleDeployer, true, "admin can create deployer tokens"},
 		{store.RoleAdmin, store.RoleViewer, true, "admin can create viewer tokens"},
 		{store.RoleAdmin, "invalid", false, "admin cannot create invalid role tokens"},
-		
+
 		// Non-admin cannot create any tokens
 		{store.RoleDeployer, store.RoleAdmin, false, "deployer cannot create admin tokens"},
 		{store.RoleDeployer, store.RoleDeployer, false, "deployer cannot create deployer tokens"},
 		{store.RoleDeployer, store.RoleViewer, false, "deployer cannot create viewer tokens"},
-		
+
 		{store.RoleViewer, store.RoleAdmin, false, "viewer cannot create admin tokens"},
 		{store.RoleViewer, store.RoleDeployer, false, "viewer cannot create deployer tokens"},
 		{store.RoleViewer, store.RoleViewer, false, "viewer cannot create viewer tokens"},
 	}
-	
+
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			result := store.CanCreateRole(test.userRole, test.targetRole)
@@ -104,7 +104,7 @@ func TestRBACValidation_TokenCreationPermissions(t *testing.T) {
 // Test middleware behavior with mock contexts
 func TestRBACValidation_MiddlewareRoleExtraction(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	
+
 	tests := []struct {
 		setRole      string
 		expectedRole string
@@ -115,16 +115,16 @@ func TestRBACValidation_MiddlewareRoleExtraction(t *testing.T) {
 		{store.RoleViewer, store.RoleViewer, "viewer role extraction"},
 		{"", "", "empty role extraction"},
 	}
-	
+
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			w := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(w)
-			
+
 			if test.setRole != "" {
 				c.Set("token_role", test.setRole)
 			}
-			
+
 			// Test CurrentRole function from auth package
 			// We'll implement a simple version here for testing
 			role, exists := c.Get("token_role")
@@ -140,7 +140,7 @@ func TestRBACValidation_MiddlewareRoleExtraction(t *testing.T) {
 // Test JSON request validation
 func TestRBACValidation_CreateTokenRequestValidation(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	
+
 	tests := []struct {
 		reqBody    map[string]interface{}
 		expectCode int
@@ -172,19 +172,19 @@ func TestRBACValidation_CreateTokenRequestValidation(t *testing.T) {
 			desc:       "invalid role",
 		},
 	}
-	
+
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			w := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(w)
-			
+
 			bodyBytes, _ := json.Marshal(test.reqBody)
 			c.Request = httptest.NewRequest("POST", "/", bytes.NewBuffer(bodyBytes))
 			c.Request.Header.Set("Content-Type", "application/json")
-			
+
 			var req CreateTokenRequest
 			err := c.ShouldBindJSON(&req)
-			
+
 			if test.expectCode == http.StatusBadRequest {
 				if test.desc == "invalid role" {
 					// Role validation would happen after JSON binding
@@ -215,7 +215,7 @@ func TestRBACValidation_DefaultRoleAssignment(t *testing.T) {
 		{store.RoleDeployer, store.RoleDeployer, "deployer role preserved"},
 		{store.RoleViewer, store.RoleViewer, "viewer role preserved"},
 	}
-	
+
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			req := CreateTokenRequest{
@@ -223,12 +223,12 @@ func TestRBACValidation_DefaultRoleAssignment(t *testing.T) {
 				Plain: "secret",
 				Role:  test.inputRole,
 			}
-			
+
 			// Simulate the default role assignment logic from CreateToken handler
 			if req.Role == "" {
 				req.Role = store.RoleAdmin
 			}
-			
+
 			assert.Equal(t, test.expectedRole, req.Role)
 		})
 	}

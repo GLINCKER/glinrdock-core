@@ -195,13 +195,13 @@ func (h *CertHandlers) GetCertStatus(c *gin.Context) {
 	certPath, keyPath := h.proxy.GetCertPaths(domain)
 
 	response := gin.H{
-		"domain":      cert.Domain,
-		"email":       cert.Email,
-		"status":      cert.Status,
-		"expires_at":  cert.ExpiresAt,
-		"created_at":  cert.CreatedAt,
-		"cert_path":   certPath,
-		"key_path":    keyPath,
+		"domain":     cert.Domain,
+		"email":      cert.Email,
+		"status":     cert.Status,
+		"expires_at": cert.ExpiresAt,
+		"created_at": cert.CreatedAt,
+		"cert_path":  certPath,
+		"key_path":   keyPath,
 	}
 
 	if cert.LastIssuedAt != nil {

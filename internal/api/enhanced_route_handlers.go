@@ -37,13 +37,13 @@ type TLSRouteResponse struct {
 
 // TLSProgressStatus represents the status of TLS setup
 type TLSProgressStatus struct {
-	Stage              string     `json:"stage"`               // "verification", "certificate_issuance", "nginx_reload", "complete"
-	DomainVerified     bool       `json:"domain_verified"`     
-	CertificateIssued  bool       `json:"certificate_issued"`  
-	NginxReloaded      bool       `json:"nginx_reloaded"`      
-	LastUpdate         time.Time  `json:"last_update"`         
-	Message            string     `json:"message,omitempty"`   
-	Error              *string    `json:"error,omitempty"`     
+	Stage             string    `json:"stage"` // "verification", "certificate_issuance", "nginx_reload", "complete"
+	DomainVerified    bool      `json:"domain_verified"`
+	CertificateIssued bool      `json:"certificate_issued"`
+	NginxReloaded     bool      `json:"nginx_reloaded"`
+	LastUpdate        time.Time `json:"last_update"`
+	Message           string    `json:"message,omitempty"`
+	Error             *string   `json:"error,omitempty"`
 }
 
 // NewEnhancedRouteHandlers creates new enhanced route handlers
@@ -121,10 +121,10 @@ func (h *EnhancedRouteHandlers) CreateTLSRoute(c *gin.Context) {
 	if h.auditLogger != nil {
 		actor := audit.GetActorFromContext(c.Request.Context())
 		h.auditLogger.RecordRouteAction(c.Request.Context(), actor, audit.ActionRouteCreate, strconv.FormatInt(route.ID, 10), map[string]interface{}{
-			"route_id":   route.ID,
-			"service_id": serviceID,
-			"domain":     route.Domain,
-			"tls":        route.TLS,
+			"route_id":    route.ID,
+			"service_id":  serviceID,
+			"domain":      route.Domain,
+			"tls":         route.TLS,
 			"auto_verify": req.AutoVerifyDomain,
 			"auto_issue":  req.AutoIssueCert,
 		})
@@ -157,7 +157,7 @@ func (h *EnhancedRouteHandlers) CreateTLSRoute(c *gin.Context) {
 // handleTLSSetup performs the TLS setup process asynchronously
 func (h *EnhancedRouteHandlers) handleTLSSetup(route store.Route, autoVerify, autoIssue bool) {
 	ctx := context.Background()
-	
+
 	log.Info().
 		Int64("route_id", route.ID).
 		Str("domain", route.Domain).
@@ -253,7 +253,7 @@ func (h *EnhancedRouteHandlers) handleTLSSetup(route store.Route, autoVerify, au
 		// The nginx manager should automatically pick up the new certificate
 		// through its reconcile loop. In a production system, you might want
 		// to trigger an immediate reload here.
-		
+
 		nginxReloaded = true
 		log.Info().
 			Str("domain", route.Domain).

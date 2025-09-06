@@ -7,8 +7,8 @@ import (
 
 // TokenBucket represents a simple token bucket for rate limiting
 type TokenBucket struct {
-	tokens    int
-	maxTokens int
+	tokens     int
+	maxTokens  int
 	refillRate time.Duration
 	lastRefill time.Time
 	mu         sync.Mutex
@@ -28,12 +28,12 @@ func NewTokenBucket(maxTokens int, refillRate time.Duration) *TokenBucket {
 func (tb *TokenBucket) TryConsume() bool {
 	tb.mu.Lock()
 	defer tb.mu.Unlock()
-	
+
 	// Refill tokens based on elapsed time
 	now := time.Now()
 	elapsed := now.Sub(tb.lastRefill)
 	tokensToAdd := int(elapsed / tb.refillRate)
-	
+
 	if tokensToAdd > 0 {
 		tb.tokens += tokensToAdd
 		if tb.tokens > tb.maxTokens {
@@ -41,21 +41,21 @@ func (tb *TokenBucket) TryConsume() bool {
 		}
 		tb.lastRefill = now
 	}
-	
+
 	// Try to consume a token
 	if tb.tokens > 0 {
 		tb.tokens--
 		return true
 	}
-	
+
 	return false
 }
 
 // RateLimiter manages rate limiting for different keys (IP/token)
 type RateLimiter struct {
-	buckets map[string]*TokenBucket
-	mu      sync.RWMutex
-	maxTokens int
+	buckets    map[string]*TokenBucket
+	mu         sync.RWMutex
+	maxTokens  int
 	refillRate time.Duration
 }
 
@@ -73,7 +73,7 @@ func (rl *RateLimiter) CheckLimit(key string) bool {
 	rl.mu.RLock()
 	bucket, exists := rl.buckets[key]
 	rl.mu.RUnlock()
-	
+
 	if !exists {
 		rl.mu.Lock()
 		// Double-check after acquiring write lock
@@ -83,7 +83,7 @@ func (rl *RateLimiter) CheckLimit(key string) bool {
 		}
 		rl.mu.Unlock()
 	}
-	
+
 	return bucket.TryConsume()
 }
 
@@ -91,7 +91,7 @@ func (rl *RateLimiter) CheckLimit(key string) bool {
 func (rl *RateLimiter) CleanupExpired() {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
-	
+
 	now := time.Now()
 	for key, bucket := range rl.buckets {
 		bucket.mu.Lock()

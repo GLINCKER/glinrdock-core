@@ -140,7 +140,7 @@ func parseImageName(imageName string) ImageParts {
 	// Handle registry
 	if registryIndex := findIndex(imageName, '/'); registryIndex != -1 {
 		possibleRegistry := imageName[:registryIndex]
-		
+
 		// Check if this looks like a registry (contains . or :)
 		if findIndex(possibleRegistry, '.') != -1 || findIndex(possibleRegistry, ':') != -1 {
 			parts.Registry = possibleRegistry

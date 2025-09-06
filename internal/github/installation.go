@@ -113,7 +113,7 @@ func (c *InstallationClient) GetInstallationRepositories(ctx context.Context) ([
 	var response struct {
 		Repositories []Repository `json:"repositories"`
 	}
-	
+
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return nil, fmt.Errorf("failed to decode repositories response: %w", err)
 	}
@@ -133,7 +133,7 @@ func (t *installationTokenTransport) RoundTrip(req *http.Request) (*http.Respons
 	reqCopy.Header.Set("Authorization", "token "+t.token)
 	reqCopy.Header.Set("Accept", "application/vnd.github.v3+json")
 	reqCopy.Header.Set("User-Agent", "GLINR-Dock-App/1.0")
-	
+
 	return t.transport.RoundTrip(reqCopy)
 }
 

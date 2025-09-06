@@ -20,7 +20,7 @@ func setupLifecycleTestServer(t *testing.T, serviceStore ServiceStore, dockerEng
 	handlers := NewHandlers(dockerClient, nil, nil, serviceStore, nil, dockerEngine, nil)
 
 	r := gin.New()
-	
+
 	// Add routes without authentication middleware
 	v1 := r.Group("/v1")
 	{
@@ -38,7 +38,7 @@ func setupLifecycleTestServer(t *testing.T, serviceStore ServiceStore, dockerEng
 func TestStartService(t *testing.T) {
 	mockStore := &MockServiceStore{}
 	mockEngine := &MockDockerEngine{}
-	
+
 	service := store.Service{ID: 1, ProjectID: 1, Name: "api"}
 	mockStore.On("GetService", mock.Anything, int64(1)).Return(service, nil)
 	mockEngine.On("Start", mock.Anything, "glinr_1_api").Return(nil)
@@ -60,7 +60,7 @@ func TestStartService(t *testing.T) {
 func TestStopService(t *testing.T) {
 	mockStore := &MockServiceStore{}
 	mockEngine := &MockDockerEngine{}
-	
+
 	service := store.Service{ID: 1, ProjectID: 1, Name: "api"}
 	mockStore.On("GetService", mock.Anything, int64(1)).Return(service, nil)
 	mockEngine.On("Stop", mock.Anything, "glinr_1_api").Return(nil)
@@ -82,7 +82,7 @@ func TestStopService(t *testing.T) {
 func TestRestartService(t *testing.T) {
 	mockStore := &MockServiceStore{}
 	mockEngine := &MockDockerEngine{}
-	
+
 	service := store.Service{ID: 1, ProjectID: 1, Name: "api"}
 	mockStore.On("GetService", mock.Anything, int64(1)).Return(service, nil)
 	mockEngine.On("Restart", mock.Anything, "glinr_1_api").Return(nil)
@@ -137,7 +137,7 @@ func TestServiceLifecycleErrors(t *testing.T) {
 	t.Run("DockerEngineError", func(t *testing.T) {
 		mockStore := &MockServiceStore{}
 		mockEngine := &MockDockerEngine{}
-		
+
 		service := store.Service{ID: 1, ProjectID: 1, Name: "api"}
 		mockStore.On("GetService", mock.Anything, int64(1)).Return(service, nil)
 		mockEngine.On("Start", mock.Anything, "glinr_1_api").Return(assert.AnError)

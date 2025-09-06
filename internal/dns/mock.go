@@ -81,13 +81,13 @@ func NewMockInspector(resolver *MockResolver) *MockInspector {
 // DetectAuthoritativeNS implements Inspector interface
 func (mi *MockInspector) DetectAuthoritativeNS(ctx context.Context, domain string) ([]string, error) {
 	domain = strings.ToLower(strings.TrimSuffix(domain, "."))
-	
+
 	// Look for exact match only - don't walk up the hierarchy
 	// The zone detector will do the hierarchy walking
 	if ns, exists := mi.resolver.nsMap[domain]; exists {
 		return ns, nil
 	}
-	
+
 	return nil, &net.DNSError{
 		Err:        "no such host",
 		Name:       domain,
@@ -102,7 +102,7 @@ func (mi *MockInspector) LookupTXT(ctx context.Context, fqdn string) ([]string, 
 	if records, exists := mi.resolver.records[key]; exists {
 		return records, nil
 	}
-	
+
 	return []string{}, nil // Return empty slice for not found
 }
 
@@ -119,7 +119,7 @@ func (mi *MockInspector) LookupA(ctx context.Context, name string) ([]net.IP, er
 		}
 		return ips, nil
 	}
-	
+
 	return []net.IP{}, nil // Return empty slice for not found
 }
 
@@ -136,7 +136,7 @@ func (mi *MockInspector) LookupAAAA(ctx context.Context, name string) ([]net.IP,
 		}
 		return ips, nil
 	}
-	
+
 	return []net.IP{}, nil // Return empty slice for not found
 }
 
@@ -145,7 +145,7 @@ func (mi *MockInspector) LookupCNAME(ctx context.Context, name string) (string, 
 	if cname, exists := mi.resolver.cname[strings.ToLower(name)]; exists {
 		return cname, nil
 	}
-	
+
 	return "", nil // Return empty string for not found
 }
 
@@ -154,7 +154,7 @@ func (mi *MockInspector) LookupMX(ctx context.Context, name string) ([]*net.MX, 
 	if mx, exists := mi.resolver.mx[strings.ToLower(name)]; exists {
 		return mx, nil
 	}
-	
+
 	return []*net.MX{}, nil // Return empty slice for not found
 }
 
@@ -163,12 +163,12 @@ func (mi *MockInspector) ValidateDomain(ctx context.Context, domain string) erro
 	if domain == "" {
 		return fmt.Errorf("domain cannot be empty")
 	}
-	
+
 	// Try to find NS records to validate domain exists
 	_, err := mi.DetectAuthoritativeNS(ctx, domain)
 	if err != nil {
 		return fmt.Errorf("domain validation failed: %w", err)
 	}
-	
+
 	return nil
 }

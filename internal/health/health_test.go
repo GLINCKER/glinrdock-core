@@ -52,7 +52,7 @@ func TestProbeService_CrashLooping(t *testing.T) {
 	}
 
 	result := prober.ProbeService(context.Background(), service, []store.Route{})
-	
+
 	if result.Status != store.HealthStatusUnknown {
 		t.Errorf("Expected health status to be unknown for crash-looping service, got %s", result.Status)
 	}
@@ -88,7 +88,7 @@ func TestProbeService_UnhealthyService(t *testing.T) {
 	}
 
 	result := prober.ProbeService(context.Background(), service, routes)
-	
+
 	if result.Status != store.HealthStatusFail {
 		t.Errorf("Expected health status to be fail for unhealthy service, got %s", result.Status)
 	}
@@ -127,7 +127,7 @@ func TestProbeService_HealthyService(t *testing.T) {
 	}
 
 	result := prober.ProbeService(context.Background(), service, routes)
-	
+
 	if result.Status != store.HealthStatusOK {
 		t.Errorf("Expected health status to be ok for healthy service, got %s", result.Status)
 	}
@@ -203,7 +203,6 @@ func (m *MockCrashLoopServiceStore) UpdateServiceState(ctx context.Context, serv
 func (m *MockCrashLoopServiceStore) UnlockService(ctx context.Context, serviceID int64) error {
 	return nil
 }
-
 
 // Helper functions
 func stringPtr(s string) *string {

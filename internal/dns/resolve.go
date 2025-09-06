@@ -35,11 +35,11 @@ func (c *cacheEntry) isExpired() bool {
 
 // MultiResolver provides DNS resolution with multiple resolvers and caching
 type MultiResolver struct {
-	servers []string          // DNS server addresses
+	servers []string               // DNS server addresses
 	cache   map[string]*cacheEntry // In-memory cache
-	cacheMu sync.RWMutex      // Cache mutex for concurrent access
-	client  *dns.Client       // DNS client
-	ttl     time.Duration     // Cache TTL
+	cacheMu sync.RWMutex           // Cache mutex for concurrent access
+	client  *dns.Client            // DNS client
+	ttl     time.Duration          // Cache TTL
 }
 
 // NewMultiResolver creates a new multi-resolver DNS client
@@ -70,12 +70,12 @@ func (r *MultiResolver) getCacheKey(qtype string, name string) string {
 func (r *MultiResolver) getFromCache(key string) (interface{}, bool) {
 	r.cacheMu.RLock()
 	defer r.cacheMu.RUnlock()
-	
+
 	entry, exists := r.cache[key]
 	if !exists || entry.isExpired() {
 		return nil, false
 	}
-	
+
 	return entry.value, true
 }
 
@@ -83,7 +83,7 @@ func (r *MultiResolver) getFromCache(key string) (interface{}, bool) {
 func (r *MultiResolver) setCache(key string, value interface{}, ttl time.Duration) {
 	r.cacheMu.Lock()
 	defer r.cacheMu.Unlock()
-	
+
 	r.cache[key] = &cacheEntry{
 		value:     value,
 		expiresAt: time.Now().Add(ttl),
@@ -94,7 +94,7 @@ func (r *MultiResolver) setCache(key string, value interface{}, ttl time.Duratio
 func (r *MultiResolver) CleanExpiredEntries() {
 	r.cacheMu.Lock()
 	defer r.cacheMu.Unlock()
-	
+
 	for key, entry := range r.cache {
 		if entry.isExpired() {
 			delete(r.cache, key)
@@ -108,14 +108,14 @@ func (r *MultiResolver) queryDNS(ctx context.Context, name string, qtype uint16)
 	if !strings.HasSuffix(name, ".") {
 		name += "."
 	}
-	
+
 	// Create DNS message
 	msg := new(dns.Msg)
 	msg.SetQuestion(name, qtype)
 	msg.RecursionDesired = true
-	
+
 	var lastErr error
-	
+
 	// Try each server until one succeeds
 	for _, server := range r.servers {
 		select {
@@ -123,46 +123,46 @@ func (r *MultiResolver) queryDNS(ctx context.Context, name string, qtype uint16)
 			return nil, ctx.Err()
 		default:
 		}
-		
+
 		resp, _, err := r.client.ExchangeContext(ctx, msg, server)
 		if err != nil {
 			lastErr = err
 			continue
 		}
-		
+
 		if resp.Rcode != dns.RcodeSuccess {
 			lastErr = fmt.Errorf("DNS query failed with rcode: %s", dns.RcodeToString[resp.Rcode])
 			continue
 		}
-		
+
 		return resp, nil
 	}
-	
+
 	if lastErr != nil {
 		return nil, fmt.Errorf("all DNS servers failed, last error: %w", lastErr)
 	}
-	
+
 	return nil, fmt.Errorf("no DNS servers configured")
 }
 
 // LookupA performs A record lookup with caching
 func (r *MultiResolver) LookupA(ctx context.Context, name string) ([]net.IP, error) {
 	cacheKey := r.getCacheKey("A", name)
-	
+
 	// Check cache first
 	if cached, found := r.getFromCache(cacheKey); found {
 		return cached.([]net.IP), nil
 	}
-	
+
 	// Query DNS
 	resp, err := r.queryDNS(ctx, name, dns.TypeA)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var ips []net.IP
 	cacheTTL := r.ttl
-	
+
 	for _, rr := range resp.Answer {
 		if a, ok := rr.(*dns.A); ok {
 			ips = append(ips, a.A)
@@ -172,31 +172,31 @@ func (r *MultiResolver) LookupA(ctx context.Context, name string) ([]net.IP, err
 			}
 		}
 	}
-	
+
 	// Cache the result
 	r.setCache(cacheKey, ips, cacheTTL)
-	
+
 	return ips, nil
 }
 
 // LookupAAAA performs AAAA record lookup with caching
 func (r *MultiResolver) LookupAAAA(ctx context.Context, name string) ([]net.IP, error) {
 	cacheKey := r.getCacheKey("AAAA", name)
-	
+
 	// Check cache first
 	if cached, found := r.getFromCache(cacheKey); found {
 		return cached.([]net.IP), nil
 	}
-	
+
 	// Query DNS
 	resp, err := r.queryDNS(ctx, name, dns.TypeAAAA)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var ips []net.IP
 	cacheTTL := r.ttl
-	
+
 	for _, rr := range resp.Answer {
 		if aaaa, ok := rr.(*dns.AAAA); ok {
 			ips = append(ips, aaaa.AAAA)
@@ -206,31 +206,31 @@ func (r *MultiResolver) LookupAAAA(ctx context.Context, name string) ([]net.IP, 
 			}
 		}
 	}
-	
+
 	// Cache the result
 	r.setCache(cacheKey, ips, cacheTTL)
-	
+
 	return ips, nil
 }
 
 // LookupCNAME performs CNAME record lookup with caching
 func (r *MultiResolver) LookupCNAME(ctx context.Context, name string) (string, error) {
 	cacheKey := r.getCacheKey("CNAME", name)
-	
+
 	// Check cache first
 	if cached, found := r.getFromCache(cacheKey); found {
 		return cached.(string), nil
 	}
-	
+
 	// Query DNS
 	resp, err := r.queryDNS(ctx, name, dns.TypeCNAME)
 	if err != nil {
 		return "", err
 	}
-	
+
 	var cname string
 	cacheTTL := r.ttl
-	
+
 	for _, rr := range resp.Answer {
 		if c, ok := rr.(*dns.CNAME); ok {
 			// Remove trailing dot from CNAME target
@@ -242,35 +242,35 @@ func (r *MultiResolver) LookupCNAME(ctx context.Context, name string) (string, e
 			break // Only return the first CNAME record
 		}
 	}
-	
+
 	if cname == "" {
 		return "", fmt.Errorf("no CNAME record found for %s", name)
 	}
-	
+
 	// Cache the result
 	r.setCache(cacheKey, cname, cacheTTL)
-	
+
 	return cname, nil
 }
 
 // LookupTXT performs TXT record lookup with caching
 func (r *MultiResolver) LookupTXT(ctx context.Context, name string) ([]string, error) {
 	cacheKey := r.getCacheKey("TXT", name)
-	
+
 	// Check cache first
 	if cached, found := r.getFromCache(cacheKey); found {
 		return cached.([]string), nil
 	}
-	
+
 	// Query DNS
 	resp, err := r.queryDNS(ctx, name, dns.TypeTXT)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var txtRecords []string
 	cacheTTL := r.ttl
-	
+
 	for _, rr := range resp.Answer {
 		if txt, ok := rr.(*dns.TXT); ok {
 			// Join all TXT strings for this record
@@ -281,10 +281,10 @@ func (r *MultiResolver) LookupTXT(ctx context.Context, name string) ([]string, e
 			}
 		}
 	}
-	
+
 	// Cache the result
 	r.setCache(cacheKey, txtRecords, cacheTTL)
-	
+
 	return txtRecords, nil
 }
 
@@ -292,19 +292,19 @@ func (r *MultiResolver) LookupTXT(ctx context.Context, name string) ([]string, e
 func (r *MultiResolver) GetCacheStats() map[string]interface{} {
 	r.cacheMu.RLock()
 	defer r.cacheMu.RUnlock()
-	
+
 	expired := 0
 	for _, entry := range r.cache {
 		if entry.isExpired() {
 			expired++
 		}
 	}
-	
+
 	return map[string]interface{}{
-		"total_entries":    len(r.cache),
-		"expired_entries":  expired,
-		"active_entries":   len(r.cache) - expired,
+		"total_entries":      len(r.cache),
+		"expired_entries":    expired,
+		"active_entries":     len(r.cache) - expired,
 		"configured_servers": len(r.servers),
-		"cache_ttl_seconds": int(r.ttl.Seconds()),
+		"cache_ttl_seconds":  int(r.ttl.Seconds()),
 	}
 }

@@ -16,7 +16,7 @@ type OnboardingStatus struct {
 // GetOnboardingStatus returns whether onboarding is needed
 func (h *Handlers) GetOnboardingStatus(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	// Check if onboarding is needed
 	needed, err := h.tokenStore.IsOnboardingNeeded(ctx)
 	if err != nil {

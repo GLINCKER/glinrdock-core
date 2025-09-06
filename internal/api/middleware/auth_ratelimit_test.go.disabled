@@ -68,18 +68,18 @@ func TestAuthRateLimit(t *testing.T) {
 				req.Header.Set("Content-Type", "application/json")
 				// Use same IP for all requests to test per-IP limiting
 				req.Header.Set("X-Forwarded-For", "192.168.1.100")
-				
+
 				w := httptest.NewRecorder()
 				r.ServeHTTP(w, req)
 
-				assert.Equal(t, expectedCode, w.Code, 
+				assert.Equal(t, expectedCode, w.Code,
 					"Request %d should return status %d, got %d", i+1, expectedCode, w.Code)
 
 				if w.Code == 429 {
 					// Check that retry-after header is set
 					retryAfter := w.Header().Get("Retry-After")
 					assert.NotEmpty(t, retryAfter, "Retry-After header should be set for 429 responses")
-					
+
 					// Check response body contains rate limit error
 					assert.Contains(t, w.Body.String(), "rate limit exceeded")
 				}
@@ -107,18 +107,18 @@ func TestAuthRateLimitDifferentIPs(t *testing.T) {
 
 	// Test that different IPs have separate rate limits
 	ips := []string{"192.168.1.100", "192.168.1.101", "10.0.0.1"}
-	
+
 	for _, ip := range ips {
 		// Each IP should be able to make 2 requests successfully
 		for i := 0; i < 2; i++ {
 			req, _ := http.NewRequest("POST", "/test", strings.NewReader("{}"))
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("X-Forwarded-For", ip)
-			
+
 			w := httptest.NewRecorder()
 			r.ServeHTTP(w, req)
 
-			assert.Equal(t, 200, w.Code, 
+			assert.Equal(t, 200, w.Code,
 				"IP %s request %d should succeed", ip, i+1)
 		}
 
@@ -126,11 +126,11 @@ func TestAuthRateLimitDifferentIPs(t *testing.T) {
 		req, _ := http.NewRequest("POST", "/test", strings.NewReader("{}"))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("X-Forwarded-For", ip)
-		
+
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 
-		assert.Equal(t, 429, w.Code, 
+		assert.Equal(t, 429, w.Code,
 			"IP %s should be rate limited on third request", ip)
 	}
 }
@@ -191,7 +191,7 @@ func TestAuthRateLimitRecordSuccess(t *testing.T) {
 	// After success, should not have active backoff
 	// (Note: this is simplified - in real implementation you might need to wait for rate window)
 	time.Sleep(10 * time.Millisecond) // Small delay for any internal processing
-	
+
 	// The IP should now have reset failure count, though still subject to rate limiting
 	// This test verifies that RecordSuccess doesn't panic and properly resets internal state
 	assert.NotPanics(t, func() {
@@ -230,7 +230,7 @@ func TestAuthRateLimitIPExtraction(t *testing.T) {
 			desc: "Should extract first IP from X-Forwarded-For",
 		},
 		{
-			name: "X-Real-IP header", 
+			name: "X-Real-IP header",
 			headers: map[string]string{
 				"X-Real-IP": "10.0.0.1",
 			},
@@ -247,11 +247,11 @@ func TestAuthRateLimitIPExtraction(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req, _ := http.NewRequest("POST", "/test", strings.NewReader("{}"))
 			req.Header.Set("Content-Type", "application/json")
-			
+
 			for key, value := range tt.headers {
 				req.Header.Set(key, value)
 			}
-			
+
 			w := httptest.NewRecorder()
 			r.ServeHTTP(w, req)
 
@@ -264,7 +264,7 @@ func TestAuthRateLimitIPExtraction(t *testing.T) {
 func TestDefaultAuthRateLimitConfig(t *testing.T) {
 	// Test that default configuration is reasonable
 	config := DefaultAuthRateLimitConfig()
-	
+
 	assert.Equal(t, 5, config.RequestsPerMinute, "Default should be 5 requests per minute")
 	assert.Equal(t, 5*time.Minute, config.CleanupInterval, "Default cleanup interval should be 5 minutes")
 	assert.Equal(t, 2.0, config.BackoffMultiplier, "Default backoff multiplier should be 2.0")
@@ -274,7 +274,7 @@ func TestDefaultAuthRateLimitConfig(t *testing.T) {
 // Benchmark tests for performance under load
 func BenchmarkAuthRateLimit(b *testing.B) {
 	gin.SetMode(gin.TestMode)
-	
+
 	config := &AuthRateLimitConfig{
 		RequestsPerMinute: 100,
 		CleanupInterval:   time.Minute,
@@ -296,7 +296,7 @@ func BenchmarkAuthRateLimit(b *testing.B) {
 			req, _ := http.NewRequest("POST", "/test", strings.NewReader("{}"))
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("X-Forwarded-For", "192.168.1."+string(rune(i%255)))
-			
+
 			w := httptest.NewRecorder()
 			r.ServeHTTP(w, req)
 			i++

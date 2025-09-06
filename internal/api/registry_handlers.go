@@ -24,7 +24,7 @@ func (h *Handlers) CreateRegistry(c *gin.Context) {
 	// Validate registry type
 	if !store.IsValidRegistryType(req.Type) {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid registry type. Must be one of: " + 
+			"error": "Invalid registry type. Must be one of: " +
 				"ghcr, ecr, dockerhub, generic",
 		})
 		return
@@ -162,7 +162,7 @@ func (h *Handlers) TestRegistryConnection(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"status": "success",
+		"status":  "success",
 		"message": "Registry connection test successful",
 	})
 }
@@ -185,16 +185,16 @@ func (h *Handlers) GetValidRegistryTypes(c *gin.Context) {
 // Helper function to check for unique constraint errors
 func isUniqueConstraintError(err error) bool {
 	return err != nil && (
-		// SQLite unique constraint error
-		err.Error() == "UNIQUE constraint failed: registries.name" ||
+	// SQLite unique constraint error
+	err.Error() == "UNIQUE constraint failed: registries.name" ||
 		// Generic check for unique constraint
 		contains(err.Error(), "UNIQUE constraint") ||
 		contains(err.Error(), "duplicate"))
 }
 
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && s[len(s)-len(substr):] == substr || 
-		   len(s) > len(substr) && findInString(s, substr)
+	return len(s) >= len(substr) && s[len(s)-len(substr):] == substr ||
+		len(s) > len(substr) && findInString(s, substr)
 }
 
 func findInString(s, substr string) bool {

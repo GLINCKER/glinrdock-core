@@ -37,30 +37,30 @@ type Token struct {
 
 // User represents a GitHub authenticated user
 type User struct {
-	ID          int64     `json:"id" db:"id"`
-	GitHubID    int64     `json:"github_id" db:"github_id"`
-	Login       string    `json:"login" db:"login"`
-	Name        string    `json:"name" db:"name"`
-	AvatarURL   string    `json:"avatar_url" db:"avatar_url"`
-	Role        string    `json:"role" db:"role"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+	ID          int64      `json:"id" db:"id"`
+	GitHubID    int64      `json:"github_id" db:"github_id"`
+	Login       string     `json:"login" db:"login"`
+	Name        string     `json:"name" db:"name"`
+	AvatarURL   string     `json:"avatar_url" db:"avatar_url"`
+	Role        string     `json:"role" db:"role"`
+	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
 	LastLoginAt *time.Time `json:"last_login_at" db:"last_login_at"`
 }
 
 // GitHubInstallation represents a GitHub App installation
 type GitHubInstallation struct {
-	ID             int64     `json:"id" db:"id"`
-	InstallationID int64     `json:"installation_id" db:"installation_id"`
-	AccountLogin   string    `json:"account_login" db:"account_login"`
-	AccountID      int64     `json:"account_id" db:"account_id"`
-	AccountType    string    `json:"account_type" db:"account_type"` // "Organization" or "User"
-	Permissions    string    `json:"permissions" db:"permissions"`   // JSON blob
-	Events         string    `json:"events" db:"events"`             // JSON array
-	CreatedAt      time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at" db:"updated_at"`
+	ID             int64      `json:"id" db:"id"`
+	InstallationID int64      `json:"installation_id" db:"installation_id"`
+	AccountLogin   string     `json:"account_login" db:"account_login"`
+	AccountID      int64      `json:"account_id" db:"account_id"`
+	AccountType    string     `json:"account_type" db:"account_type"` // "Organization" or "User"
+	Permissions    string     `json:"permissions" db:"permissions"`   // JSON blob
+	Events         string     `json:"events" db:"events"`             // JSON array
+	CreatedAt      time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at" db:"updated_at"`
 	SuspendedAt    *time.Time `json:"suspended_at" db:"suspended_at"`
-	SuspendedBy    *string   `json:"suspended_by" db:"suspended_by"`
+	SuspendedBy    *string    `json:"suspended_by" db:"suspended_by"`
 }
 
 // GitHubRepo represents a GitHub repository accessible via App
@@ -142,10 +142,10 @@ type EnvVar struct {
 	ID         int64     `json:"id"`
 	ServiceID  int64     `json:"service_id"`
 	Key        string    `json:"key"`
-	Value      string    `json:"value,omitempty"`     // For non-secret variables
+	Value      string    `json:"value,omitempty"` // For non-secret variables
 	IsSecret   bool      `json:"is_secret"`
-	Nonce      []byte    `json:"-"`                   // AES-GCM nonce (not exposed in JSON)
-	Ciphertext []byte    `json:"-"`                   // Encrypted value (not exposed in JSON)
+	Nonce      []byte    `json:"-"` // AES-GCM nonce (not exposed in JSON)
+	Ciphertext []byte    `json:"-"` // Encrypted value (not exposed in JSON)
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
 }
@@ -153,36 +153,36 @@ type EnvVar struct {
 // EnvVarUpdate represents an environment variable update request
 type EnvVarUpdate struct {
 	Key        string `json:"key" binding:"required"`
-	Value      string `json:"value,omitempty"`        // For non-secret variables
+	Value      string `json:"value,omitempty"` // For non-secret variables
 	IsSecret   bool   `json:"is_secret"`
-	Nonce      []byte `json:"-"`                      // For secret variables (internal use)
-	Ciphertext []byte `json:"-"`                      // For secret variables (internal use)
+	Nonce      []byte `json:"-"` // For secret variables (internal use)
+	Ciphertext []byte `json:"-"` // For secret variables (internal use)
 }
 
 // Service represents a containerized service within a project
 type Service struct {
-	ID               int64              `json:"id"`
-	ProjectID        int64              `json:"project_id"`
-	Name             string             `json:"name"`
-	Description      *string            `json:"description,omitempty"`
-	Image            string             `json:"image"`
-	ContainerID      *string            `json:"container_id,omitempty"` // actual Docker container ID
-	Status           string             `json:"status,omitempty"`       // populated at runtime from event cache
-	Env              map[string]string  `json:"env"`
-	Ports            []PortMap          `json:"ports"`
-	Volumes          []VolumeMap        `json:"volumes,omitempty"`
-	RegistryID       *string            `json:"registry_id,omitempty"`
-	HealthPath       *string            `json:"health_path,omitempty"`     // health check endpoint path
-	DesiredState     string             `json:"desired_state"`             // running|stopped
-	LastExitCode     *int               `json:"last_exit_code,omitempty"`  // last container exit code
-	RestartCount     int                `json:"restart_count"`             // restarts in current 10min window
-	RestartWindowAt  *time.Time         `json:"restart_window_at,omitempty"` // start of current 10min window
-	CrashLooping     bool               `json:"crash_looping"`             // true if in crash loop state
-	HealthStatus     string             `json:"health_status"`             // ok|fail|unknown
-	LastProbeAt      *time.Time         `json:"last_probe_at,omitempty"`   // last health probe time
-	Network          *ServiceNetwork    `json:"network,omitempty"`         // populated with networking info when requested
-	Aliases          []string           `json:"aliases,omitempty"`         // populated with DNS aliases when requested
-	CreatedAt        time.Time          `json:"created_at"`
+	ID              int64             `json:"id"`
+	ProjectID       int64             `json:"project_id"`
+	Name            string            `json:"name"`
+	Description     *string           `json:"description,omitempty"`
+	Image           string            `json:"image"`
+	ContainerID     *string           `json:"container_id,omitempty"` // actual Docker container ID
+	Status          string            `json:"status,omitempty"`       // populated at runtime from event cache
+	Env             map[string]string `json:"env"`
+	Ports           []PortMap         `json:"ports"`
+	Volumes         []VolumeMap       `json:"volumes,omitempty"`
+	RegistryID      *string           `json:"registry_id,omitempty"`
+	HealthPath      *string           `json:"health_path,omitempty"`       // health check endpoint path
+	DesiredState    string            `json:"desired_state"`               // running|stopped
+	LastExitCode    *int              `json:"last_exit_code,omitempty"`    // last container exit code
+	RestartCount    int               `json:"restart_count"`               // restarts in current 10min window
+	RestartWindowAt *time.Time        `json:"restart_window_at,omitempty"` // start of current 10min window
+	CrashLooping    bool              `json:"crash_looping"`               // true if in crash loop state
+	HealthStatus    string            `json:"health_status"`               // ok|fail|unknown
+	LastProbeAt     *time.Time        `json:"last_probe_at,omitempty"`     // last health probe time
+	Network         *ServiceNetwork   `json:"network,omitempty"`           // populated with networking info when requested
+	Aliases         []string          `json:"aliases,omitempty"`           // populated with DNS aliases when requested
+	CreatedAt       time.Time         `json:"created_at"`
 }
 
 // GetAlias generates a deterministic service alias for internal networking
@@ -195,24 +195,24 @@ func (s *Service) ShouldEnterCrashLoop() bool {
 	if s.LastExitCode == nil || *s.LastExitCode == 0 {
 		return false // only crash loop on non-zero exit codes
 	}
-	
+
 	if s.RestartWindowAt == nil {
 		return false // no restart window established yet
 	}
-	
+
 	// Check if we're still in the 10-minute window
 	windowEnd := s.RestartWindowAt.Add(CrashLoopWindow * time.Minute)
 	if time.Now().After(windowEnd) {
 		return false // outside window, should reset
 	}
-	
+
 	return s.RestartCount >= CrashLoopThreshold
 }
 
 // UpdateRestartCount updates the restart count and window for crash loop detection
 func (s *Service) UpdateRestartCount() {
 	now := time.Now()
-	
+
 	// If no window exists or window expired, start new window
 	if s.RestartWindowAt == nil || now.After(s.RestartWindowAt.Add(CrashLoopWindow*time.Minute)) {
 		s.RestartWindowAt = &now
@@ -238,7 +238,7 @@ const (
 func (s *Service) GetHealthCheckType() HealthCheckType {
 	// Auto-detect based on image name
 	image := strings.ToLower(s.Image)
-	
+
 	if strings.Contains(image, "postgres") {
 		return HealthCheckPostgres
 	}
@@ -248,7 +248,7 @@ func (s *Service) GetHealthCheckType() HealthCheckType {
 	if strings.Contains(image, "redis") {
 		return HealthCheckRedis
 	}
-	
+
 	// Default to HTTP for web services
 	return HealthCheckHTTP
 }
@@ -264,34 +264,34 @@ func (s *Service) GetHealthProbeURL(routes []Route) string {
 		}
 		return fmt.Sprintf("%s://%s%s", protocol, route.Domain, *s.HealthPath)
 	}
-	
+
 	// If no routes but has health_path, use host port
 	if s.HealthPath != nil && len(s.Ports) > 0 {
 		port := s.Ports[0].Host // use host port for probing
 		return fmt.Sprintf("http://localhost:%d%s", port, *s.HealthPath)
 	}
-	
+
 	// No health path configured, try default port
 	if len(s.Ports) > 0 {
 		port := s.Ports[0].Host // use host port for probing
 		return fmt.Sprintf("http://localhost:%d/health", port)
 	}
-	
+
 	// Fallback to default port
 	return fmt.Sprintf("http://localhost:%d/health", DefaultHealthPort)
 }
 
 // ServiceNetwork represents service networking information
 type ServiceNetwork struct {
-	ProjectNetwork string                `json:"project_network"`  // Project network name (e.g., "glinr_proj_1")
-	Aliases        []string              `json:"aliases"`          // DNS aliases for the service
-	Networks       []NetworkConnection   `json:"networks"`         // All networks the container is connected to
-	IPv4           *string               `json:"ipv4,omitempty"`   // Primary IP address
-	PortsInternal  []InternalPortMapping `json:"ports_internal"`   // Internal port mappings
-	ExternalHosts  []string              `json:"external_hosts"`   // External URLs derived from routes
-	InternalDNS    string                `json:"internal_dns"`     // Internal DNS name (hint only)
-	DNSHint        string                `json:"dns_hint"`         // Example DNS usage
-	CurlHint       string                `json:"curl_hint"`        // Example curl command
+	ProjectNetwork string                `json:"project_network"` // Project network name (e.g., "glinr_proj_1")
+	Aliases        []string              `json:"aliases"`         // DNS aliases for the service
+	Networks       []NetworkConnection   `json:"networks"`        // All networks the container is connected to
+	IPv4           *string               `json:"ipv4,omitempty"`  // Primary IP address
+	PortsInternal  []InternalPortMapping `json:"ports_internal"`  // Internal port mappings
+	ExternalHosts  []string              `json:"external_hosts"`  // External URLs derived from routes
+	InternalDNS    string                `json:"internal_dns"`    // Internal DNS name (hint only)
+	DNSHint        string                `json:"dns_hint"`        // Example DNS usage
+	CurlHint       string                `json:"curl_hint"`       // Example curl command
 }
 
 // NetworkConnection represents a container's connection to a Docker network
@@ -336,16 +336,16 @@ type ServiceSpec struct {
 
 // Route represents an external routing configuration
 type Route struct {
-	ID            int64     `json:"id"`
-	ServiceID     int64     `json:"service_id"`
-	Domain        string    `json:"domain"`
-	Port          int       `json:"port"`
-	TLS           bool      `json:"tls"`
-	Path          *string   `json:"path,omitempty"`
-	CertificateID *int64    `json:"certificate_id,omitempty"`
-	DomainID      *int64    `json:"domain_id,omitempty"`
-	ProxyConfig   *string   `json:"proxy_config,omitempty"`
-	CreatedAt     time.Time `json:"created_at"`
+	ID            int64      `json:"id"`
+	ServiceID     int64      `json:"service_id"`
+	Domain        string     `json:"domain"`
+	Port          int        `json:"port"`
+	TLS           bool       `json:"tls"`
+	Path          *string    `json:"path,omitempty"`
+	CertificateID *int64     `json:"certificate_id,omitempty"`
+	DomainID      *int64     `json:"domain_id,omitempty"`
+	ProxyConfig   *string    `json:"proxy_config,omitempty"`
+	CreatedAt     time.Time  `json:"created_at"`
 	UpdatedAt     *time.Time `json:"updated_at,omitempty"`
 }
 
@@ -387,11 +387,11 @@ func (c Certificate) CertificateForAPI() Certificate {
 	if c.KeyData != nil && *c.KeyData != "" {
 		keyStr := *c.KeyData
 		length := len(keyStr)
-		
+
 		// Create SHA-256 fingerprint of the key data
 		hash := sha256.Sum256([]byte(keyStr))
 		fingerprint := hex.EncodeToString(hash[:8]) // Use first 8 bytes (16 hex chars) for fingerprint
-		
+
 		// Redact with length and fingerprint info
 		redacted := fmt.Sprintf("[REDACTED: length=%d, fingerprint=%s]", length, fingerprint)
 		apiCert.KeyData = &redacted
@@ -406,28 +406,28 @@ func (c *Certificate) DecryptKeyData(masterKey []byte) error {
 	if c.KeyData == nil || c.KeyDataNonce == nil {
 		return nil // No key data to decrypt
 	}
-	
+
 	// Decode base64 encrypted data and nonce
 	encryptedData, err := base64.StdEncoding.DecodeString(*c.KeyData)
 	if err != nil {
 		return fmt.Errorf("failed to decode encrypted key data: %w", err)
 	}
-	
+
 	nonce, err := base64.StdEncoding.DecodeString(*c.KeyDataNonce)
 	if err != nil {
 		return fmt.Errorf("failed to decode nonce: %w", err)
 	}
-	
+
 	// Decrypt using the crypto package
 	plaintext, err := crypto.Decrypt(masterKey, nonce, encryptedData)
 	if err != nil {
 		return fmt.Errorf("failed to decrypt key data: %w", err)
 	}
-	
+
 	// Replace encrypted data with decrypted plaintext
 	decrypted := string(plaintext)
 	c.KeyData = &decrypted
-	
+
 	return nil
 }
 
@@ -436,21 +436,21 @@ func (c *Certificate) EncryptKeyData(masterKey []byte) error {
 	if c.KeyData == nil || *c.KeyData == "" {
 		return nil // No key data to encrypt
 	}
-	
+
 	// Encrypt the key data
 	nonce, ciphertext, err := crypto.Encrypt(masterKey, []byte(*c.KeyData))
 	if err != nil {
 		return fmt.Errorf("failed to encrypt key data: %w", err)
 	}
-	
+
 	// Encode as base64 for storage
 	encryptedData := base64.StdEncoding.EncodeToString(ciphertext)
 	encodedNonce := base64.StdEncoding.EncodeToString(nonce)
-	
+
 	// Update the struct
 	c.KeyData = &encryptedData
 	c.KeyDataNonce = &encodedNonce
-	
+
 	return nil
 }
 
@@ -514,11 +514,11 @@ type Deployment struct {
 // WebhookDelivery represents a webhook delivery attempt
 type WebhookDelivery struct {
 	ID         string     `json:"id" db:"id"`
-	Event      string     `json:"event" db:"event"`          // push, pull_request, etc.
+	Event      string     `json:"event" db:"event"`           // push, pull_request, etc.
 	Repository string     `json:"repository" db:"repository"` // repo URL or name
-	Status     string     `json:"status" db:"status"`        // success, failed, processing
-	Payload    string     `json:"payload" db:"payload"`      // JSON payload from webhook
-	Response   *string    `json:"response" db:"response"`    // Response from processing
+	Status     string     `json:"status" db:"status"`         // success, failed, processing
+	Payload    string     `json:"payload" db:"payload"`       // JSON payload from webhook
+	Response   *string    `json:"response" db:"response"`     // Response from processing
 	CreatedAt  time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt  *time.Time `json:"updated_at" db:"updated_at"`
 }
@@ -548,14 +548,14 @@ type CertSpec struct {
 
 // Client represents a connected client/integration
 type Client struct {
-	ID           int64      `json:"id"`
-	Name         string     `json:"name"`
-	TokenID      *int64     `json:"token_id"`
-	Status       string     `json:"status"` // active, idle, disconnected
-	LastIP       *string    `json:"last_ip"`
-	LastSeenAt   *time.Time `json:"last_seen_at"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
+	ID         int64      `json:"id"`
+	Name       string     `json:"name"`
+	TokenID    *int64     `json:"token_id"`
+	Status     string     `json:"status"` // active, idle, disconnected
+	LastIP     *string    `json:"last_ip"`
+	LastSeenAt *time.Time `json:"last_seen_at"`
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at"`
 }
 
 // ClientSpec represents the specification for creating/updating a client
@@ -586,10 +586,10 @@ const (
 
 // Health system constants
 const (
-    CrashLoopThreshold   = 5            // max restarts in window before crash loop
-    CrashLoopWindow      = 10           // minutes for restart window
-    HealthProbeTimeout   = 3            // seconds for health probe timeout (increased from 1s)
-    DefaultHealthPort    = 8080         // default port for health checks
+	CrashLoopThreshold = 5    // max restarts in window before crash loop
+	CrashLoopWindow    = 10   // minutes for restart window
+	HealthProbeTimeout = 3    // seconds for health probe timeout (increased from 1s)
+	DefaultHealthPort  = 8080 // default port for health checks
 )
 
 // slugRegex matches characters that should be replaced in slugs
@@ -626,13 +626,13 @@ func GenerateServiceAlias(projectName, serviceName string) string {
 func GenerateServiceAliases(projectName, serviceName string) []string {
 	projectSlug := GenerateSlug(projectName)
 	serviceSlug := GenerateSlug(serviceName)
-	
+
 	// Short alias for same-network access
 	shortAlias := serviceSlug
-	
+
 	// Long alias for cross-project reference
 	longAlias := fmt.Sprintf("%s.%s.local", serviceSlug, projectSlug)
-	
+
 	return []string{shortAlias, longAlias}
 }
 
@@ -641,26 +641,26 @@ func GenerateNetworkHints(alias string, ports []PortMap) (string, string) {
 	if len(ports) == 0 {
 		return alias, "# No ports exposed\n# Container may use internal ports"
 	}
-	
+
 	// Use first port as primary hint
 	primaryPort := ports[0].Container
 	dnsHint := fmt.Sprintf("%s:%d", alias, primaryPort)
 	curlHint := fmt.Sprintf("curl http://%s:%d/health", alias, primaryPort)
-	
+
 	return dnsHint, curlHint
 }
 
 // HistoricalMetric represents a historical system resource data point
 type HistoricalMetric struct {
-	ID         int64     `json:"id"`
-	Timestamp  time.Time `json:"timestamp"`
-	CPUPercent float64   `json:"cpu_percent"`
-	MemoryUsed int64     `json:"memory_used"`
-	MemoryTotal int64    `json:"memory_total"`
-	DiskUsed   int64     `json:"disk_used"`
-	DiskTotal  int64     `json:"disk_total"`
-	NetworkRX  int64     `json:"network_rx"`
-	NetworkTX  int64     `json:"network_tx"`
+	ID          int64     `json:"id"`
+	Timestamp   time.Time `json:"timestamp"`
+	CPUPercent  float64   `json:"cpu_percent"`
+	MemoryUsed  int64     `json:"memory_used"`
+	MemoryTotal int64     `json:"memory_total"`
+	DiskUsed    int64     `json:"disk_used"`
+	DiskTotal   int64     `json:"disk_total"`
+	NetworkRX   int64     `json:"network_rx"`
+	NetworkTX   int64     `json:"network_tx"`
 }
 
 // Setting represents a configuration setting that may be encrypted
@@ -682,12 +682,12 @@ type GitHubOAuthConfig struct {
 
 // GitHubAppConfig represents GitHub App configuration
 type GitHubAppConfig struct {
-	Installed       bool   `json:"installed"`
-	AppID           string `json:"app_id,omitempty"`
-	HasPrivateKey   bool   `json:"has_private_key,omitempty"`
-	PrivateKeyPEM   string `json:"private_key_pem,omitempty"` // Only populated during updates
+	Installed        bool   `json:"installed"`
+	AppID            string `json:"app_id,omitempty"`
+	HasPrivateKey    bool   `json:"has_private_key,omitempty"`
+	PrivateKeyPEM    string `json:"private_key_pem,omitempty"` // Only populated during updates
 	HasWebhookSecret bool   `json:"has_webhook_secret,omitempty"`
-	WebhookSecret   string `json:"webhook_secret,omitempty"` // Only populated during updates
+	WebhookSecret    string `json:"webhook_secret,omitempty"` // Only populated during updates
 }
 
 // IntegrationsConfig represents all integration settings
@@ -695,7 +695,6 @@ type IntegrationsConfig struct {
 	GitHubOAuth *GitHubOAuthConfig `json:"github_oauth,omitempty"`
 	GitHubApp   *GitHubAppConfig   `json:"github_app,omitempty"`
 }
-
 
 // GitHubRepository represents a repository from a GitHub App installation
 type GitHubRepository struct {
@@ -763,7 +762,7 @@ const (
 const (
 	CertificateTypeACME     = "acme"
 	CertificateTypeUploaded = "uploaded"
-	
+
 	CertificateStatusActive  = "active"
 	CertificateStatusExpired = "expired"
 	CertificateStatusFailed  = "failed"
@@ -772,29 +771,29 @@ const (
 
 // DNSProvider represents a DNS service provider for domain management
 type DNSProvider struct {
-	ID              int64     `json:"id" db:"id"`
-	Name            string    `json:"name" db:"name"`
-	Type            string    `json:"type" db:"type"` // cloudflare, route53, manual
-	Label           *string   `json:"label" db:"label"` // User-friendly label
-	Email           *string   `json:"email" db:"email"` // Email for providers like ACME
-	APIToken        *string   `json:"-" db:"api_token"` // Encrypted API token - never expose in JSON
-	APITokenNonce   *string   `json:"-" db:"api_token_nonce"` // Encryption nonce - never expose in JSON
-	ConfigJSON      string    `json:"config_json" db:"config_json"` // Legacy encrypted provider-specific config
-	Settings        *string   `json:"settings" db:"settings"` // JSON blob for additional provider-specific settings
-	Active          *bool     `json:"active" db:"active"` // Whether this provider is active
-	CreatedAt       time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
+	ID            int64     `json:"id" db:"id"`
+	Name          string    `json:"name" db:"name"`
+	Type          string    `json:"type" db:"type"`               // cloudflare, route53, manual
+	Label         *string   `json:"label" db:"label"`             // User-friendly label
+	Email         *string   `json:"email" db:"email"`             // Email for providers like ACME
+	APIToken      *string   `json:"-" db:"api_token"`             // Encrypted API token - never expose in JSON
+	APITokenNonce *string   `json:"-" db:"api_token_nonce"`       // Encryption nonce - never expose in JSON
+	ConfigJSON    string    `json:"config_json" db:"config_json"` // Legacy encrypted provider-specific config
+	Settings      *string   `json:"settings" db:"settings"`       // JSON blob for additional provider-specific settings
+	Active        *bool     `json:"active" db:"active"`           // Whether this provider is active
+	CreatedAt     time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // DNSProviderSpec represents the specification for creating/updating a DNS provider
 type DNSProviderSpec struct {
-	Name       string                 `json:"name" binding:"required"`
-	Type       string                 `json:"type" binding:"required"`
-	Label      string                 `json:"label" binding:"required"`
-	Email      *string                `json:"email,omitempty"`
-	APIToken   *string                `json:"api_token,omitempty"`
-	Config     map[string]any `json:"config" binding:"required"` // Legacy field for backward compatibility
-	Settings   map[string]any `json:"settings,omitempty"`
+	Name     string         `json:"name" binding:"required"`
+	Type     string         `json:"type" binding:"required"`
+	Label    string         `json:"label" binding:"required"`
+	Email    *string        `json:"email,omitempty"`
+	APIToken *string        `json:"api_token,omitempty"`
+	Config   map[string]any `json:"config" binding:"required"` // Legacy field for backward compatibility
+	Settings map[string]any `json:"settings,omitempty"`
 }
 
 // EncryptAPIToken encrypts the API token using AES-GCM with the provided master key
@@ -802,21 +801,21 @@ func (p *DNSProvider) EncryptAPIToken(masterKey []byte) error {
 	if p.APIToken == nil || *p.APIToken == "" {
 		return nil // No API token to encrypt
 	}
-	
+
 	// Encrypt the API token
 	nonce, ciphertext, err := crypto.Encrypt(masterKey, []byte(*p.APIToken))
 	if err != nil {
 		return fmt.Errorf("failed to encrypt API token: %w", err)
 	}
-	
+
 	// Encode as base64 for storage
 	encryptedData := base64.StdEncoding.EncodeToString(ciphertext)
 	encodedNonce := base64.StdEncoding.EncodeToString(nonce)
-	
+
 	// Update the struct
 	p.APIToken = &encryptedData
 	p.APITokenNonce = &encodedNonce
-	
+
 	return nil
 }
 
@@ -825,43 +824,43 @@ func (p *DNSProvider) DecryptAPIToken(masterKey []byte) error {
 	if p.APIToken == nil || p.APITokenNonce == nil {
 		return nil // No API token to decrypt
 	}
-	
+
 	// Decode base64 encrypted data and nonce
 	encryptedData, err := base64.StdEncoding.DecodeString(*p.APIToken)
 	if err != nil {
 		return fmt.Errorf("failed to decode encrypted API token: %w", err)
 	}
-	
+
 	nonce, err := base64.StdEncoding.DecodeString(*p.APITokenNonce)
 	if err != nil {
 		return fmt.Errorf("failed to decode nonce: %w", err)
 	}
-	
+
 	// Decrypt the API token
 	plaintext, err := crypto.Decrypt(masterKey, nonce, encryptedData)
 	if err != nil {
 		return fmt.Errorf("failed to decrypt API token: %w", err)
 	}
-	
+
 	// Update the struct with decrypted data
 	decryptedToken := string(plaintext)
 	p.APIToken = &decryptedToken
-	
+
 	return nil
 }
 
 // Domain represents a managed domain with verification and certificate support
 type Domain struct {
-	ID                   int64      `json:"id" db:"id"`
-	Name                 string     `json:"name" db:"name"`
-	Status               string     `json:"status" db:"status"`                         // pending|verifying|verified|active|error
-	Provider             *string    `json:"provider" db:"provider"`                     // 'cloudflare'|'manual'|NULL
-	ZoneID               *string    `json:"zone_id" db:"zone_id"`                       // provider zone identifier
-	VerificationToken    string     `json:"verification_token" db:"verification_token"` // random token
+	ID                    int64      `json:"id" db:"id"`
+	Name                  string     `json:"name" db:"name"`
+	Status                string     `json:"status" db:"status"`                         // pending|verifying|verified|active|error
+	Provider              *string    `json:"provider" db:"provider"`                     // 'cloudflare'|'manual'|NULL
+	ZoneID                *string    `json:"zone_id" db:"zone_id"`                       // provider zone identifier
+	VerificationToken     string     `json:"verification_token" db:"verification_token"` // random token
 	VerificationCheckedAt *time.Time `json:"verification_checked_at" db:"verification_checked_at"`
-	CertificateID        *int64     `json:"certificate_id" db:"certificate_id"`         // nullable FK to certificates
-	CreatedAt            time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt            time.Time  `json:"updated_at" db:"updated_at"`
+	CertificateID         *int64     `json:"certificate_id" db:"certificate_id"` // nullable FK to certificates
+	CreatedAt             time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt             time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 // Domain status constants
@@ -900,19 +899,19 @@ type DomainVerificationSpec struct {
 
 // EnhancedCertificate represents an enhanced SSL/TLS certificate with full metadata
 type EnhancedCertificate struct {
-	ID           int64      `json:"id" db:"id"`
-	Domain       string     `json:"domain" db:"domain"`
-	Type         string     `json:"type" db:"type"` // acme, uploaded
-	Issuer       *string    `json:"issuer" db:"issuer"`
-	NotBefore    *time.Time `json:"not_before" db:"not_before"`
-	NotAfter     *time.Time `json:"not_after" db:"not_after"`
-	Status       string     `json:"status" db:"status"` // active, expired, failed, pending
-	PEMCert      *string    `json:"pem_cert" db:"pem_cert"`
-	PEMChain     *string    `json:"pem_chain" db:"pem_chain"`
-	PEMKeyEnc    *string    `json:"-" db:"pem_key_enc"` // Encrypted private key (never exposed in JSON)
-	PEMKeyNonce  *string    `json:"-" db:"pem_key_nonce"` // Encryption nonce (never exposed in JSON)
-	CreatedAt    time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at" db:"updated_at"`
+	ID          int64      `json:"id" db:"id"`
+	Domain      string     `json:"domain" db:"domain"`
+	Type        string     `json:"type" db:"type"` // acme, uploaded
+	Issuer      *string    `json:"issuer" db:"issuer"`
+	NotBefore   *time.Time `json:"not_before" db:"not_before"`
+	NotAfter    *time.Time `json:"not_after" db:"not_after"`
+	Status      string     `json:"status" db:"status"` // active, expired, failed, pending
+	PEMCert     *string    `json:"pem_cert" db:"pem_cert"`
+	PEMChain    *string    `json:"pem_chain" db:"pem_chain"`
+	PEMKeyEnc   *string    `json:"-" db:"pem_key_enc"`   // Encrypted private key (never exposed in JSON)
+	PEMKeyNonce *string    `json:"-" db:"pem_key_nonce"` // Encryption nonce (never exposed in JSON)
+	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 // EnhancedCertificateForAPI returns a copy of the certificate with key data redacted for API responses
@@ -921,11 +920,11 @@ func (c EnhancedCertificate) EnhancedCertificateForAPI() EnhancedCertificate {
 	if c.PEMKeyEnc != nil && *c.PEMKeyEnc != "" {
 		keyStr := *c.PEMKeyEnc
 		length := len(keyStr)
-		
+
 		// Create SHA-256 fingerprint of the encrypted key data
 		hash := sha256.Sum256([]byte(keyStr))
 		fingerprint := hex.EncodeToString(hash[:8]) // Use first 8 bytes (16 hex chars) for fingerprint
-		
+
 		// Redact with length and fingerprint info
 		redacted := fmt.Sprintf("[REDACTED: length=%d, fingerprint=%s]", length, fingerprint)
 		apiCert.PEMKeyEnc = &redacted
@@ -940,28 +939,28 @@ func (c *EnhancedCertificate) DecryptPEMKey(masterKey []byte) error {
 	if c.PEMKeyEnc == nil || c.PEMKeyNonce == nil {
 		return nil // No key data to decrypt
 	}
-	
+
 	// Decode base64 encrypted data and nonce
 	encryptedData, err := base64.StdEncoding.DecodeString(*c.PEMKeyEnc)
 	if err != nil {
 		return fmt.Errorf("failed to decode encrypted PEM key: %w", err)
 	}
-	
+
 	nonce, err := base64.StdEncoding.DecodeString(*c.PEMKeyNonce)
 	if err != nil {
 		return fmt.Errorf("failed to decode nonce: %w", err)
 	}
-	
+
 	// Decrypt using the crypto package
 	plaintext, err := crypto.Decrypt(masterKey, nonce, encryptedData)
 	if err != nil {
 		return fmt.Errorf("failed to decrypt PEM key: %w", err)
 	}
-	
+
 	// Replace encrypted data with decrypted plaintext
 	decrypted := string(plaintext)
 	c.PEMKeyEnc = &decrypted
-	
+
 	return nil
 }
 
@@ -970,30 +969,30 @@ func (c *EnhancedCertificate) EncryptPEMKey(masterKey []byte) error {
 	if c.PEMKeyEnc == nil || *c.PEMKeyEnc == "" {
 		return nil // No key data to encrypt
 	}
-	
+
 	// Encrypt the key data
 	nonce, ciphertext, err := crypto.Encrypt(masterKey, []byte(*c.PEMKeyEnc))
 	if err != nil {
 		return fmt.Errorf("failed to encrypt PEM key: %w", err)
 	}
-	
+
 	// Encode as base64 for storage
 	encryptedData := base64.StdEncoding.EncodeToString(ciphertext)
 	encodedNonce := base64.StdEncoding.EncodeToString(nonce)
-	
+
 	// Update the struct
 	c.PEMKeyEnc = &encryptedData
 	c.PEMKeyNonce = &encodedNonce
-	
+
 	return nil
 }
 
 // EnhancedCertificateSpec represents the specification for creating an enhanced certificate
 type EnhancedCertificateSpec struct {
-	Domain    string  `json:"domain" binding:"required"`
-	Type      string  `json:"type" binding:"required"`
-	Issuer    *string `json:"issuer,omitempty"`
-	PEMCert   *string `json:"pem_cert,omitempty"`
-	PEMChain  *string `json:"pem_chain,omitempty"`
-	PEMKey    *string `json:"pem_key,omitempty"`
+	Domain   string  `json:"domain" binding:"required"`
+	Type     string  `json:"type" binding:"required"`
+	Issuer   *string `json:"issuer,omitempty"`
+	PEMCert  *string `json:"pem_cert,omitempty"`
+	PEMChain *string `json:"pem_chain,omitempty"`
+	PEMKey   *string `json:"pem_key,omitempty"`
 }

@@ -11,24 +11,24 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/GLINCKER/glinrdock/internal/audit"
 	"github.com/GLINCKER/glinrdock/internal/plan"
 	"github.com/GLINCKER/glinrdock/internal/version"
+	"github.com/gin-gonic/gin"
 )
 
 // LicenseStatus represents the response for license status
 type LicenseStatus struct {
-	Valid      bool                   `json:"valid"`
-	Plan       string                 `json:"plan"`
-	Name       string                 `json:"name,omitempty"`
-	Org        string                 `json:"org,omitempty"`
-	Expiry     *time.Time             `json:"expiry,omitempty"`
-	ExpiresIn  *string                `json:"expires_in,omitempty"`
-	ExpiringSoon bool                 `json:"expiring_soon,omitempty"`
-	Features   []string               `json:"features"`
-	Limits     map[string]int         `json:"limits"`
-	Usage      map[string]int         `json:"usage"`
+	Valid        bool           `json:"valid"`
+	Plan         string         `json:"plan"`
+	Name         string         `json:"name,omitempty"`
+	Org          string         `json:"org,omitempty"`
+	Expiry       *time.Time     `json:"expiry,omitempty"`
+	ExpiresIn    *string        `json:"expires_in,omitempty"`
+	ExpiringSoon bool           `json:"expiring_soon,omitempty"`
+	Features     []string       `json:"features"`
+	Limits       map[string]int `json:"limits"`
+	Usage        map[string]int `json:"usage"`
 }
 
 // LicenseActivateRequest represents the license activation payload
@@ -75,7 +75,7 @@ func (h *Handlers) GetLicenseStatus(c *gin.Context) {
 		status.Org = currentLicense.Org
 		status.Expiry = &currentLicense.Expiry
 		status.ExpiringSoon = currentLicense.IsExpiringSoon()
-		
+
 		if !currentLicense.IsExpired() {
 			expiresIn := currentLicense.ExpiresIn().String()
 			status.ExpiresIn = &expiresIn
@@ -142,7 +142,7 @@ func (h *Handlers) ActivateLicense(c *gin.Context) {
 func (h *Handlers) DeactivateLicense(c *gin.Context) {
 	// Get current license info for audit
 	currentLicense := h.planEnforcer.GetLicense()
-	
+
 	// Deactivate the license
 	if err := h.licenseManager.DeactivateCurrent(); err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{
@@ -225,16 +225,16 @@ func (h *Handlers) GenerateSupportBundle(c *gin.Context) {
 
 	// 2. System information
 	systemInfo := map[string]interface{}{
-		"timestamp": time.Now().Format(time.RFC3339),
+		"timestamp":    time.Now().Format(time.RFC3339),
 		"generated_by": "glinrdock-support-bundle",
 	}
-	
+
 	// Get system info from handler if available
 	if h.dockerEngine != nil {
 		// This would call the system info endpoint logic
 		systemInfo["docker_available"] = true
 	}
-	
+
 	systemData, _ := json.MarshalIndent(systemInfo, "", "  ")
 	addToZip("system.json", systemData)
 
@@ -247,7 +247,7 @@ func (h *Handlers) GenerateSupportBundle(c *gin.Context) {
 	}
 	if lic := h.planEnforcer.GetLicense(); lic != nil {
 		licenseStatus.Name = "[REDACTED]"
-		licenseStatus.Org = "[REDACTED]" 
+		licenseStatus.Org = "[REDACTED]"
 		licenseStatus.ExpiringSoon = lic.IsExpiringSoon()
 	}
 	licenseData, _ := json.MarshalIndent(licenseStatus, "", "  ")
@@ -289,7 +289,7 @@ func (h *Handlers) GenerateSupportBundle(c *gin.Context) {
 
 	// 7. Configuration summary (no secrets)
 	configSummary := map[string]interface{}{
-		"has_license":     h.planEnforcer.HasLicense(),
+		"has_license":    h.planEnforcer.HasLicense(),
 		"plan":           h.planEnforcer.GetPlan().String(),
 		"features_count": len(h.planEnforcer.GetFeatures()),
 		"timestamp":      time.Now().Format(time.RFC3339),
@@ -309,6 +309,6 @@ func (h *Handlers) GenerateSupportBundle(c *gin.Context) {
 	c.Header("Content-Type", "application/zip")
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=glinrdock-support-%d.zip", time.Now().Unix()))
 	c.Header("Content-Length", fmt.Sprintf("%d", buf.Len()))
-	
+
 	c.Data(http.StatusOK, "application/zip", buf.Bytes())
 }

@@ -34,10 +34,10 @@ func NewClient(config Config) *Client {
 }
 
 type ZoneResponse struct {
-	Result []Zone `json:"result"`
-	Success bool `json:"success"`
-	Errors []APIError `json:"errors"`
-	Messages []string `json:"messages"`
+	Result   []Zone     `json:"result"`
+	Success  bool       `json:"success"`
+	Errors   []APIError `json:"errors"`
+	Messages []string   `json:"messages"`
 }
 
 type Zone struct {
@@ -46,10 +46,10 @@ type Zone struct {
 }
 
 type RecordResponse struct {
-	Result []Record `json:"result"`
-	Success bool `json:"success"`
-	Errors []APIError `json:"errors"`
-	Messages []string `json:"messages"`
+	Result   []Record   `json:"result"`
+	Success  bool       `json:"success"`
+	Errors   []APIError `json:"errors"`
+	Messages []string   `json:"messages"`
 }
 
 type Record struct {
@@ -151,7 +151,7 @@ func (c *Client) makeRequest(ctx context.Context, method, url string, body inter
 
 func (c *Client) GetZoneID(ctx context.Context, domain string) (string, error) {
 	url := fmt.Sprintf("%s/zones?name=%s", baseURL, domain)
-	
+
 	resp, err := c.makeRequest(ctx, "GET", url, nil)
 	if err != nil {
 		return "", err
@@ -210,7 +210,7 @@ func (c *Client) EnsureTXT(ctx context.Context, zoneID, name, content string) (*
 
 func (c *Client) DeleteRecord(ctx context.Context, zoneID, recordID string) error {
 	url := fmt.Sprintf("%s/zones/%s/dns_records/%s", baseURL, zoneID, recordID)
-	
+
 	resp, err := c.makeRequest(ctx, "DELETE", url, nil)
 	if err != nil {
 		return err
@@ -223,8 +223,8 @@ func (c *Client) DeleteRecord(ctx context.Context, zoneID, recordID string) erro
 	}
 
 	var result struct {
-		Success bool `json:"success"`
-		Errors []APIError `json:"errors"`
+		Success bool       `json:"success"`
+		Errors  []APIError `json:"errors"`
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -247,7 +247,7 @@ func (c *Client) DeleteRecord(ctx context.Context, zoneID, recordID string) erro
 
 func (c *Client) findExistingRecord(ctx context.Context, zoneID, recordType, name string) (*Record, error) {
 	url := fmt.Sprintf("%s/zones/%s/dns_records?type=%s&name=%s", baseURL, zoneID, recordType, name)
-	
+
 	resp, err := c.makeRequest(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -279,7 +279,7 @@ func (c *Client) findExistingRecord(ctx context.Context, zoneID, recordType, nam
 
 func (c *Client) createRecord(ctx context.Context, zoneID, recordType, name, content string, proxied bool) (*Record, error) {
 	url := fmt.Sprintf("%s/zones/%s/dns_records", baseURL, zoneID)
-	
+
 	req := CreateRecordRequest{
 		Type:    recordType,
 		Name:    name,
@@ -319,7 +319,7 @@ func (c *Client) createRecord(ctx context.Context, zoneID, recordType, name, con
 
 func (c *Client) updateRecord(ctx context.Context, zoneID, recordID, recordType, name, content string, proxied bool) (*Record, error) {
 	url := fmt.Sprintf("%s/zones/%s/dns_records/%s", baseURL, zoneID, recordID)
-	
+
 	req := UpdateRecordRequest{
 		Type:    recordType,
 		Name:    name,

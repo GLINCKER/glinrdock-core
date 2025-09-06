@@ -48,7 +48,7 @@ func TestStore_RouteWithNewFields(t *testing.T) {
 
 	route, err := store.CreateRoute(ctx, service.ID, routeSpec)
 	require.NoError(t, err)
-	
+
 	// Verify all fields are persisted correctly
 	assert.Equal(t, "api.example.com", route.Domain)
 	assert.Equal(t, 8080, route.Port)
@@ -68,7 +68,7 @@ func TestStore_GetRouteWithNewFields(t *testing.T) {
 	defer store.Close()
 	ctx := context.Background()
 
-	// Create prerequisites 
+	// Create prerequisites
 	project, err := store.CreateProject(ctx, "test-project")
 	require.NoError(t, err)
 
@@ -151,7 +151,7 @@ func TestStore_ListRoutesWithNewFields(t *testing.T) {
 			proxyConfig:   stringPtr(`{"timeout": 60}`),
 		},
 		{
-			domain:        "site2.example.com", 
+			domain:        "site2.example.com",
 			path:          nil,
 			certificateID: nil,
 			proxyConfig:   nil,
@@ -214,7 +214,7 @@ func TestStore_GetAllRoutesWithNewFields(t *testing.T) {
 	require.NoError(t, err)
 
 	service2, err := store.CreateService(ctx, project2.ID, ServiceSpec{
-		Name:  "service2", 
+		Name:  "service2",
 		Image: "nginx",
 		Ports: []PortMap{{Container: 80}},
 	})
@@ -301,7 +301,7 @@ func TestStore_RouteNewFieldsEdgeCases(t *testing.T) {
 	}
 	route, err := store.CreateRoute(ctx, service.ID, routeSpec)
 	require.NoError(t, err)
-	
+
 	retrieved, err := store.GetRoute(ctx, route.ID)
 	require.NoError(t, err)
 	assert.NotNil(t, retrieved.Path)
@@ -316,7 +316,7 @@ func TestStore_RouteNewFieldsEdgeCases(t *testing.T) {
 	}
 	route2, err := store.CreateRoute(ctx, service.ID, routeSpec2)
 	require.NoError(t, err)
-	
+
 	retrieved2, err := store.GetRoute(ctx, route2.ID)
 	require.NoError(t, err)
 	assert.NotNil(t, retrieved2.ProxyConfig)
@@ -331,7 +331,7 @@ func TestStore_RouteNewFieldsEdgeCases(t *testing.T) {
 	}
 	route3, err := store.CreateRoute(ctx, service.ID, routeSpec3)
 	require.NoError(t, err)
-	
+
 	retrieved3, err := store.GetRoute(ctx, route3.ID)
 	require.NoError(t, err)
 	assert.NotNil(t, retrieved3.CertificateID)

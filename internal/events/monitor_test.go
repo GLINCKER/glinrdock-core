@@ -34,7 +34,7 @@ func TestEventCache(t *testing.T) {
 
 	t.Run("GetAllServiceStates", func(t *testing.T) {
 		cache.UpdateServiceState(456, "container-456", "glinr_2_worker", "stopped")
-		
+
 		states := cache.GetAllServiceStates()
 		require.Len(t, states, 2) // From previous test + this one
 
@@ -82,7 +82,7 @@ func TestExtractServiceIDFromContainerName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			serviceID, err := extractServiceIDFromContainerName(tt.containerName)
-			
+
 			if tt.expectError {
 				assert.Error(t, err)
 			} else {
@@ -108,7 +108,7 @@ func TestMapDockerEventToStatus(t *testing.T) {
 		{"stop", "stopped"},
 		{"die", "dead"},
 		{"destroy", "removed"},
-		{"pause", ""}, // Should be ignored
+		{"pause", ""},   // Should be ignored
 		{"unpause", ""}, // Should be ignored
 		{"unknown", ""}, // Should be ignored
 	}
@@ -123,7 +123,7 @@ func TestMapDockerEventToStatus(t *testing.T) {
 
 func TestDockerEventHandling(t *testing.T) {
 	cache := NewEventCache()
-	
+
 	// Create a mock Docker event
 	event := events.Message{
 		Type:   "container",
@@ -170,7 +170,7 @@ func TestDockerEventFiltering(t *testing.T) {
 		}
 
 		monitor.handleDockerEvent(event)
-		
+
 		// Should not have created any service states
 		states := cache.GetAllServiceStates()
 		assert.Empty(t, states)
@@ -189,7 +189,7 @@ func TestDockerEventFiltering(t *testing.T) {
 		}
 
 		monitor.handleDockerEvent(event)
-		
+
 		// Should not have created any service states
 		states := cache.GetAllServiceStates()
 		assert.Empty(t, states)
@@ -208,7 +208,7 @@ func TestDockerEventFiltering(t *testing.T) {
 		}
 
 		monitor.handleDockerEvent(event)
-		
+
 		// Should have created a service state
 		states := cache.GetAllServiceStates()
 		assert.Len(t, states, 1)

@@ -189,7 +189,7 @@ func TestFeatureGateUpgradeHints(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.description, func(t *testing.T) {
 			hint := getUpgradeHint(tt.plan, tt.feature)
-			
+
 			for _, content := range tt.expectedContent {
 				assert.Contains(t, hint, content,
 					"Upgrade hint should contain '%s' for %s", content, tt.description)
@@ -257,8 +257,8 @@ func TestFeatureGateChaining(t *testing.T) {
 
 	// Test chain with one failing gate
 	r2 := gin.New()
-	r2.Use(FeatureGate(planEnforcer, "smtp_alerts"))    // Should pass
-	r2.Use(FeatureGate(planEnforcer, "sso"))            // Should fail (Premium only)
+	r2.Use(FeatureGate(planEnforcer, "smtp_alerts")) // Should pass
+	r2.Use(FeatureGate(planEnforcer, "sso"))         // Should fail (Premium only)
 	r2.GET("/test", func(c *gin.Context) {
 		c.JSON(200, gin.H{"message": "success"})
 	})

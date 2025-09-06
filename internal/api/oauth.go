@@ -11,28 +11,28 @@ import (
 // GitHubLoginHandler initiates GitHub OAuth flow
 func (h *Handlers) GitHubLoginHandler(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	// Check if OAuth is configured via settings
 	if h.settingsHandlers == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "settings service not available"})
 		return
 	}
-	
+
 	config, err := h.settingsHandlers.settingsService.GetIntegrationsConfig(ctx)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to get integrations config")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get OAuth configuration"})
 		return
 	}
-	
+
 	if config.GitHubOAuth == nil || config.GitHubOAuth.Mode == "off" {
 		c.JSON(http.StatusNotImplemented, gin.H{
-			"error": "GitHub OAuth is not configured or disabled",
+			"error":   "GitHub OAuth is not configured or disabled",
 			"details": "OAuth mode is set to 'off' or not configured",
 		})
 		return
 	}
-	
+
 	if h.oauthService == nil || !h.oauthService.IsConfigured() {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "GitHub OAuth service not initialized"})
 		return
@@ -66,7 +66,7 @@ func (h *Handlers) GitHubCallbackHandler(c *gin.Context) {
 	// Get authorization code and state from query parameters
 	code := c.Query("code")
 	state := c.Query("state")
-	
+
 	if code == "" || state == "" {
 		log.Warn().Str("error", c.Query("error")).Str("error_description", c.Query("error_description")).
 			Msg("GitHub OAuth callback missing parameters")

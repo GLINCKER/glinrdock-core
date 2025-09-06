@@ -147,9 +147,9 @@ func setupCICDHandlers() (*CICDHandlers, *MockBuildStore, *MockDeploymentStore, 
 	serviceStore := &MockCICDServiceStore{}
 	projectStore := &MockCICDProjectStore{}
 	jobQueue := jobs.NewQueue(1)
-	
+
 	handlers := NewCICDHandlers(buildStore, deploymentStore, serviceStore, projectStore, jobQueue, "test-secret")
-	
+
 	return handlers, buildStore, deploymentStore, serviceStore, jobQueue
 }
 

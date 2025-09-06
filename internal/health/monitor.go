@@ -11,14 +11,14 @@ import (
 
 // Monitor handles periodic health checking for all services
 type Monitor struct {
-	store     ServiceStore
-	prober    *Prober
-	interval  time.Duration
-	ctx       context.Context
-	cancel    context.CancelFunc
-	wg        sync.WaitGroup
-	running   bool
-	mu        sync.RWMutex
+	store    ServiceStore
+	prober   *Prober
+	interval time.Duration
+	ctx      context.Context
+	cancel   context.CancelFunc
+	wg       sync.WaitGroup
+	running  bool
+	mu       sync.RWMutex
 }
 
 // NewMonitor creates a new health monitor
@@ -163,7 +163,7 @@ func (m *Monitor) getMonitorableServices() []int64 {
 	// This is a simplified implementation
 	// In practice, you would need a method to list all services or projects
 	// and filter for services that should be monitored
-	
+
 	// For now, return an empty slice since we don't have a ListAllServices method
 	// This would need to be implemented based on your specific store interface
 	return []int64{}

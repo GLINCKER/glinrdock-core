@@ -29,8 +29,8 @@ import (
 
 // MockACMEClient implements the ACMEClient interface for testing
 type MockACMEClient struct {
-	shouldFail         bool
-	failureMessage     string
+	shouldFail           bool
+	failureMessage       string
 	obtainedCertificates []*certificate.Resource
 }
 
@@ -44,13 +44,13 @@ func (m *MockACMEClient) ObtainCertificate(request certificate.ObtainRequest) (*
 	if m.shouldFail {
 		return nil, fmt.Errorf("%s", m.failureMessage)
 	}
-	
+
 	// Generate test certificate
 	testCert, err := generateTestCertificate(request.Domains[0])
 	if err != nil {
 		return nil, err
 	}
-	
+
 	m.obtainedCertificates = append(m.obtainedCertificates, testCert)
 	return testCert, nil
 }
@@ -59,7 +59,7 @@ func (m *MockACMEClient) RegisterAccount(options registration.RegisterOptions) (
 	if m.shouldFail {
 		return nil, fmt.Errorf("%s", m.failureMessage)
 	}
-	
+
 	return &registration.Resource{
 		URI: "https://example.com/reg/123",
 	}, nil
@@ -73,8 +73,8 @@ func (m *MockACMEClient) SetShouldFail(fail bool, message string) {
 // MockCertificateService mocks the lego certificate service
 type MockCertificateService struct {
 	obtainedCertificates []*certificate.Resource
-	shouldFail          bool
-	failureMessage      string
+	shouldFail           bool
+	failureMessage       string
 }
 
 // MockRegistrationService mocks the lego registration service
@@ -226,50 +226,50 @@ func generateTestCertificate(domain string) (*certificate.Resource, error) {
 // MockACMEService wraps ACMEService with mocking capabilities
 type MockACMEService struct {
 	*ACMEService
-	mockClient           *MockACMEClient
-	nginxReloadCalled    bool
-	certificateWritten   map[string]*certificate.Resource
-	tempCertDir          string
-	tempChallengeDir     string
+	mockClient         *MockACMEClient
+	nginxReloadCalled  bool
+	certificateWritten map[string]*certificate.Resource
+	tempCertDir        string
+	tempChallengeDir   string
 }
 
 func setupMockACMEService(t *testing.T, config *util.Config) (*MockACMEService, *sql.DB) {
 	db := setupTestDB(t)
-	
+
 	resolver := &MockResolver{
 		TXTRecords: make(map[string][]string),
 	}
-	
+
 	verificationService := domains.NewVerificationService(db, config, resolver)
 	acmeService := NewACMEService(db, config, verificationService)
-	
+
 	// Create temporary directories
 	tempCertDir, err := os.MkdirTemp("", "glinr_test_certs_*")
 	if err != nil {
 		t.Fatalf("Failed to create temp cert dir: %v", err)
 	}
-	
+
 	tempChallengeDir, err := os.MkdirTemp("", "glinr_test_challenges_*")
 	if err != nil {
 		t.Fatalf("Failed to create temp challenge dir: %v", err)
 	}
-	
+
 	acmeService.SetHTTP01ChallengeDir(tempChallengeDir)
-	
+
 	mockService := &MockACMEService{
-		ACMEService:       acmeService,
-		mockClient:        NewMockACMEClient(),
+		ACMEService:        acmeService,
+		mockClient:         NewMockACMEClient(),
 		certificateWritten: make(map[string]*certificate.Resource),
-		tempCertDir:       tempCertDir,
-		tempChallengeDir:  tempChallengeDir,
+		tempCertDir:        tempCertDir,
+		tempChallengeDir:   tempChallengeDir,
 	}
-	
+
 	// Set custom nginx reload hook
 	mockService.SetNginxReloadHook(func() error {
 		mockService.nginxReloadCalled = true
 		return nil
 	})
-	
+
 	return mockService, db
 }
 
@@ -380,10 +380,10 @@ func (m *MockACMEService) IssueCertificateWithMock(ctx context.Context, domain s
 
 func TestACMEService_IssueCertificate_VerifiedDomain(t *testing.T) {
 	config := &util.Config{
-		ACMEEmail:        "test@example.com",
-		ACMEDirectoryURL: "https://acme-v02.api.letsencrypt.org/directory",
+		ACMEEmail:         "test@example.com",
+		ACMEDirectoryURL:  "https://acme-v02.api.letsencrypt.org/directory",
 		ACMEHTTP01Enabled: true,
-		PublicEdgeIPv4:   "203.0.113.1",
+		PublicEdgeIPv4:    "203.0.113.1",
 	}
 
 	mockService, db := setupMockACMEService(t, config)
@@ -510,11 +510,11 @@ func TestACMEService_IssueCertificate_AutoManagedDomain(t *testing.T) {
 
 func TestACMEService_IssueCertificate_UnverifiedDomain(t *testing.T) {
 	config := &util.Config{
-		ACMEEmail:        "test@example.com",
-		ACMEDirectoryURL: "https://acme-v02.api.letsencrypt.org/directory",
+		ACMEEmail:         "test@example.com",
+		ACMEDirectoryURL:  "https://acme-v02.api.letsencrypt.org/directory",
 		ACMEHTTP01Enabled: true,
-		ACMEDNS01Enabled: false,
-		PublicEdgeIPv4:   "203.0.113.1",
+		ACMEDNS01Enabled:  false,
+		PublicEdgeIPv4:    "203.0.113.1",
 	}
 
 	mockService, db := setupMockACMEService(t, config)
@@ -605,10 +605,10 @@ func TestACMEService_GetCertificate(t *testing.T) {
 func TestACMEService_RenewCertificate(t *testing.T) {
 	t.Skip("Skipping renewal test that requires real ACME interaction") // Skip this test for now
 	config := &util.Config{
-		ACMEEmail:        "test@example.org",
-		ACMEDirectoryURL: "https://acme-staging-v02.api.letsencrypt.org/directory", // Use staging
+		ACMEEmail:         "test@example.org",
+		ACMEDirectoryURL:  "https://acme-staging-v02.api.letsencrypt.org/directory", // Use staging
 		ACMEHTTP01Enabled: true,
-		PublicEdgeIPv4:   "203.0.113.1",
+		PublicEdgeIPv4:    "203.0.113.1",
 	}
 
 	mockService, db := setupMockACMEService(t, config)
@@ -673,8 +673,8 @@ func TestACMEService_RenewCertificate(t *testing.T) {
 
 	// Verify old certificate was marked as expired
 	var oldStatus string
-	err = db.QueryRowContext(ctx, 
-		"SELECT status FROM certificates_enhanced WHERE domain = ? ORDER BY created_at ASC LIMIT 1", 
+	err = db.QueryRowContext(ctx,
+		"SELECT status FROM certificates_enhanced WHERE domain = ? ORDER BY created_at ASC LIMIT 1",
 		domain).Scan(&oldStatus)
 	if err != nil {
 		t.Fatalf("Failed to get old certificate status: %v", err)
@@ -705,7 +705,7 @@ func TestDNSProviderWrapper(t *testing.T) {
 
 	// Test that it implements the interface (compilation test)
 	var _ interface{} = wrapper
-	
+
 	// Test that wrapper implements the interface
 	_ = wrapper // This ensures wrapper is used and interface is correctly implemented
 }

@@ -49,8 +49,8 @@ type PageData struct {
 // DashboardData represents dashboard page data
 type DashboardData struct {
 	PageData
-	Projects []store.Project
-	Services []ServiceWithStatus
+	Projects   []store.Project
+	Services   []ServiceWithStatus
 	SystemInfo map[string]interface{}
 }
 
@@ -89,7 +89,7 @@ func NewWebHandlers(templateDir string, projectStore ProjectStore, serviceStore 
 // Dashboard renders the main dashboard
 func (w *WebHandlers) Dashboard(c *gin.Context) {
 	ctx := context.Background()
-	
+
 	// Get projects
 	projects, err := w.projectStore.ListProjects(ctx)
 	if err != nil {
@@ -105,7 +105,7 @@ func (w *WebHandlers) Dashboard(c *gin.Context) {
 			log.Error().Err(err).Int64("project_id", project.ID).Msg("failed to list services")
 			continue
 		}
-		
+
 		for _, service := range projectServices {
 			status := "unknown"
 			if w.eventCache != nil {
@@ -113,12 +113,12 @@ func (w *WebHandlers) Dashboard(c *gin.Context) {
 					status = state.Status
 				}
 			}
-			
+
 			services = append(services, ServiceWithStatus{
 				Service: service,
 				Status:  status,
 			})
-			
+
 			// Limit to 10 recent services
 			if len(services) >= 10 {
 				break
@@ -148,7 +148,7 @@ func (w *WebHandlers) Dashboard(c *gin.Context) {
 // ServiceDetail renders the service detail page
 func (w *WebHandlers) ServiceDetail(c *gin.Context) {
 	ctx := context.Background()
-	
+
 	serviceID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid service ID"})
@@ -197,7 +197,7 @@ func (w *WebHandlers) ServiceDetail(c *gin.Context) {
 // ProjectsList renders the projects list as HTML fragment
 func (w *WebHandlers) ProjectsList(c *gin.Context) {
 	ctx := context.Background()
-	
+
 	projects, err := w.projectStore.ListProjects(ctx)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to list projects")
@@ -213,7 +213,7 @@ func (w *WebHandlers) ProjectsList(c *gin.Context) {
 			// Get service count for project
 			services, _ := w.serviceStore.ListServices(ctx, project.ID)
 			serviceCount := len(services)
-			
+
 			html += `<div class="project-card">
 				<h4><a href="/projects/` + strconv.FormatInt(project.ID, 10) + `">` + project.Name + `</a></h4>
 				<div class="project-meta">` + strconv.Itoa(serviceCount) + ` services • Created ` + project.CreatedAt.Format("Jan 2, 2006") + `</div>
@@ -231,7 +231,7 @@ func (w *WebHandlers) ProjectsList(c *gin.Context) {
 // ServicesList renders all services as HTML fragment
 func (w *WebHandlers) ServicesList(c *gin.Context) {
 	ctx := context.Background()
-	
+
 	// Get all projects and their services
 	projects, err := w.projectStore.ListProjects(ctx)
 	if err != nil {
@@ -242,13 +242,13 @@ func (w *WebHandlers) ServicesList(c *gin.Context) {
 
 	html := ""
 	serviceCount := 0
-	
+
 	for _, project := range projects {
 		services, err := w.serviceStore.ListServices(ctx, project.ID)
 		if err != nil {
 			continue
 		}
-		
+
 		for _, service := range services {
 			status := "unknown"
 			if w.eventCache != nil {
@@ -256,7 +256,7 @@ func (w *WebHandlers) ServicesList(c *gin.Context) {
 					status = state.Status
 				}
 			}
-			
+
 			html += `<div class="service-card">
 				<h4><a href="/services/` + strconv.FormatInt(service.ID, 10) + `">` + service.Name + `</a></h4>
 				<div class="service-meta">` + service.Image + ` • Project: ` + project.Name + `</div>
@@ -266,7 +266,7 @@ func (w *WebHandlers) ServicesList(c *gin.Context) {
 					<button hx-post="/api/services/` + strconv.FormatInt(service.ID, 10) + `/stop" class="btn btn-warning">Stop</button>
 				</div>
 			</div>`
-			
+
 			serviceCount++
 			if serviceCount >= 10 {
 				break
@@ -310,7 +310,7 @@ func (w *WebHandlers) SystemStatus(c *gin.Context) {
 // RoutesList renders routes for a service as HTML fragment
 func (w *WebHandlers) RoutesList(c *gin.Context) {
 	ctx := context.Background()
-	
+
 	serviceID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		c.String(http.StatusBadRequest, "Invalid service ID")
@@ -335,7 +335,7 @@ func (w *WebHandlers) RoutesList(c *gin.Context) {
 				protocol = "https"
 				badgeClass = "https"
 			}
-			
+
 			html += `<div class="route-card">
 				<div class="route-info">
 					<h5>` + route.Domain + `</h5>
@@ -361,7 +361,7 @@ func (w *WebHandlers) RoutesList(c *gin.Context) {
 // Helper methods
 func (w *WebHandlers) getServiceCount() int {
 	count := 0
-	
+
 	if w.eventCache != nil {
 		states := w.eventCache.GetAllServiceStates()
 		for _, state := range states {
@@ -370,7 +370,7 @@ func (w *WebHandlers) getServiceCount() int {
 			}
 		}
 	}
-	
+
 	return count
 }
 
@@ -378,14 +378,14 @@ func (w *WebHandlers) getRouteCount() int {
 	if w.routeStore == nil {
 		return 0
 	}
-	
+
 	ctx := context.Background()
-	
+
 	routes, err := w.routeStore.GetAllRoutes(ctx)
 	if err != nil {
 		return 0
 	}
-	
+
 	return len(routes)
 }
 
@@ -414,7 +414,7 @@ func (w *WebHandlers) SystemOverview(c *gin.Context) {
 // AllRoutes renders the routes overview page
 func (w *WebHandlers) AllRoutes(c *gin.Context) {
 	ctx := context.Background()
-	
+
 	routes, err := w.routeStore.GetAllRoutes(ctx)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to list all routes")

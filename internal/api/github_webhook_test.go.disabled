@@ -136,7 +136,7 @@ func TestGitHubWebhookHandler_ValidateSignature(t *testing.T) {
 			handler := NewGitHubWebhookHandlers(mockStore, mockGitHub)
 
 			payload := []byte(tt.payload)
-			
+
 			// Generate valid signature if expected to be valid
 			if tt.expectValid && tt.signature == "" {
 				tt.signature = createValidSignature(payload, tt.secret)
@@ -182,9 +182,9 @@ func TestGitHubWebhookHandler_PingEvent(t *testing.T) {
 
 	mockGitHub.On("ValidateWebhookSignature", payload, signature).Return(nil)
 	mockStore.On("RecordGitHubWebhookEvent", mock.Anything, mock.MatchedBy(func(event *store.GitHubWebhookEvent) bool {
-		return event.Event == "ping" && 
-			   event.Action == "" &&
-			   event.Status == "processed"
+		return event.Event == "ping" &&
+			event.Action == "" &&
+			event.Status == "processed"
 	})).Return(nil)
 
 	req := httptest.NewRequest("POST", "/webhook", bytes.NewReader(payload))
@@ -200,7 +200,7 @@ func TestGitHubWebhookHandler_PingEvent(t *testing.T) {
 	handler.HandleWebhook(c)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	
+
 	var response map[string]interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
@@ -262,18 +262,18 @@ func TestGitHubWebhookHandler_InstallationEvent(t *testing.T) {
 			if tt.action == "created" || tt.action == "unsuspend" {
 				// Expect installation upsert
 				mockStore.On("UpsertGitHubInstallation", mock.Anything, mock.MatchedBy(func(inst *store.GitHubInstallation) bool {
-					return inst.InstallationID == 12345 && 
-						   inst.AccountLogin == "testorg" &&
-						   inst.AccountID == 67890 &&
-						   inst.AccountType == "Organization"
+					return inst.InstallationID == 12345 &&
+						inst.AccountLogin == "testorg" &&
+						inst.AccountID == 67890 &&
+						inst.AccountType == "Organization"
 				})).Return(&store.GitHubInstallation{InstallationID: 12345}, nil)
 
 				// Expect repository upsert
 				mockStore.On("UpsertGitHubRepository", mock.Anything, mock.MatchedBy(func(repo *store.GitHubRepository) bool {
-					return repo.RepositoryID == 54321 && 
-						   repo.InstallationID == 12345 &&
-						   repo.Name == "test-repo" &&
-						   repo.FullName == "testorg/test-repo"
+					return repo.RepositoryID == 54321 &&
+						repo.InstallationID == 12345 &&
+						repo.Name == "test-repo" &&
+						repo.FullName == "testorg/test-repo"
 				})).Return(&store.GitHubRepository{RepositoryID: 54321}, nil)
 			} else if tt.action == "deleted" || tt.action == "suspend" {
 				// Expect repository deletion
@@ -282,9 +282,9 @@ func TestGitHubWebhookHandler_InstallationEvent(t *testing.T) {
 
 			// Expect webhook event recording
 			mockStore.On("RecordGitHubWebhookEvent", mock.Anything, mock.MatchedBy(func(event *store.GitHubWebhookEvent) bool {
-				return event.Event == "installation" && 
-					   event.Action == tt.action &&
-					   event.InstallationID != nil && *event.InstallationID == 12345
+				return event.Event == "installation" &&
+					event.Action == tt.action &&
+					event.InstallationID != nil && *event.InstallationID == 12345
 			})).Return(nil)
 
 			req := httptest.NewRequest("POST", "/webhook", bytes.NewReader(payload))
@@ -313,7 +313,7 @@ func TestGitHubWebhookHandler_PushEvent(t *testing.T) {
 	handler := NewGitHubWebhookHandlers(mockStore, mockGitHub)
 
 	pushPayload := map[string]interface{}{
-		"ref": "refs/heads/main",
+		"ref":    "refs/heads/main",
 		"before": "0000000000000000000000000000000000000000",
 		"after":  "1234567890abcdef1234567890abcdef12345678",
 		"repository": map[string]interface{}{
@@ -360,19 +360,19 @@ func TestGitHubWebhookHandler_PushEvent(t *testing.T) {
 	// Expect build job creation
 	mockStore.On("CreateBuildJob", mock.Anything, mock.MatchedBy(func(job *store.BuildJob) bool {
 		return job.ProjectID == 100 &&
-			   job.GitURL == "https://github.com/testorg/test-repo.git" &&
-			   job.GitBranch == "main" &&
-			   job.GitCommit == "1234567890abcdef1234567890abcdef12345678" &&
-			   job.Status == "pending" &&
-			   job.TriggerType == "github_webhook"
+			job.GitURL == "https://github.com/testorg/test-repo.git" &&
+			job.GitBranch == "main" &&
+			job.GitCommit == "1234567890abcdef1234567890abcdef12345678" &&
+			job.Status == "pending" &&
+			job.TriggerType == "github_webhook"
 	})).Return(&store.BuildJob{ID: 1}, nil)
 
 	// Expect webhook event recording
 	mockStore.On("RecordGitHubWebhookEvent", mock.Anything, mock.MatchedBy(func(event *store.GitHubWebhookEvent) bool {
-		return event.Event == "push" && 
-			   event.RepositoryID != nil && *event.RepositoryID == 54321 &&
-			   event.InstallationID != nil && *event.InstallationID == 12345 &&
-			   event.Status == "processed"
+		return event.Event == "push" &&
+			event.RepositoryID != nil && *event.RepositoryID == 54321 &&
+			event.InstallationID != nil && *event.InstallationID == 12345 &&
+			event.Status == "processed"
 	})).Return(nil)
 
 	req := httptest.NewRequest("POST", "/webhook", bytes.NewReader(payload))
@@ -419,7 +419,7 @@ func TestGitHubWebhookHandler_PushEvent_BranchFilter(t *testing.T) {
 			handler := NewGitHubWebhookHandlers(mockStore, mockGitHub)
 
 			pushPayload := map[string]interface{}{
-				"ref": fmt.Sprintf("refs/heads/%s", tt.pushBranch),
+				"ref":   fmt.Sprintf("refs/heads/%s", tt.pushBranch),
 				"after": "1234567890abcdef1234567890abcdef12345678",
 				"repository": map[string]interface{}{
 					"id":        54321,
@@ -544,7 +544,7 @@ func TestGitHubWebhookHandler_ErrorCases(t *testing.T) {
 			handler.HandleWebhook(c)
 
 			assert.Equal(t, tt.expectedStatus, w.Code)
-			
+
 			var response map[string]interface{}
 			err := json.Unmarshal(w.Body.Bytes(), &response)
 			require.NoError(t, err)

@@ -23,7 +23,7 @@ func (s *Store) CreateWebhookDelivery(ctx context.Context, delivery *WebhookDeli
 	if delivery.ID == "" {
 		delivery.ID = uuid.New().String()
 	}
-	
+
 	if delivery.CreatedAt.IsZero() {
 		delivery.CreatedAt = time.Now()
 	}
@@ -152,7 +152,7 @@ func (s *Store) UpdateWebhookDeliveryStatus(ctx context.Context, id string, stat
 // GetWebhookDeliveriesCount returns the total count of webhook deliveries
 func (s *Store) GetWebhookDeliveriesCount(ctx context.Context) (int, error) {
 	query := `SELECT COUNT(*) FROM webhook_deliveries`
-	
+
 	var count int
 	err := s.db.QueryRowContext(ctx, query).Scan(&count)
 	if err != nil {
